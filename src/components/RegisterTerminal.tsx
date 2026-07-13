@@ -26,6 +26,17 @@ export function getMachineGeometry() {
   return { machine: 430, slot: 374, receipt: 346 }
 }
 
+export function getPhysicalPrintContract(phase: PrinterPhase) {
+  return {
+    receiptMounted: phase !== 'idle',
+    blankTipOnly: phase === 'arming',
+    printedContentVisible: phase !== 'idle' && phase !== 'arming',
+    couponTailMounted: phase === 'printingCoupons' || phase === 'complete',
+    slotLipOverlap: 10,
+    reducedMotionDuration: 120,
+  }
+}
+
 export function getTerminalSnapshot(items: ReceiptItem[], theme: ReceiptTheme, phase: PrinterPhase) {
   const summary = summarizeReceipt(items)
   return {
