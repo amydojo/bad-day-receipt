@@ -48,7 +48,7 @@ export function Receipt({
   ]
 
   const coupons = theme.coupons ?? []
-  const headerPrinted = !['arming'].includes(phase)
+  const headerPrinted = phase !== 'arming'
   const bodyPrinted = ['scanning', 'calculating', 'feeding', 'stamping', 'falseComplete', 'printingCoupons', 'complete'].includes(phase)
   const couponTailMounted = ['printingCoupons', 'complete'].includes(phase)
 
@@ -60,7 +60,8 @@ export function Receipt({
       data-phase={phase}
       data-blank-tip={phase === 'arming'}
     >
-      <div className="receipt-teeth top" aria-hidden="true" data-printed={headerPrinted} />
+      <div className="receipt-paper-leader" aria-hidden="true" />
+      <div className="receipt-registration" aria-hidden="true" data-printed={headerPrinted} />
       <div className="theme-mark" aria-hidden="true" data-printed={headerPrinted}>{theme.mark}</div>
 
       <div className="receipt-header" data-printed={headerPrinted}>
