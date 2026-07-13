@@ -26,6 +26,16 @@ export function getMachineGeometry() {
   return { machine: 430, slot: 374, receipt: 346 }
 }
 
+export function getTerminalSnapshot(items: ReceiptItem[], theme: ReceiptTheme, phase: PrinterPhase) {
+  const summary = summarizeReceipt(items)
+  return {
+    itemLabel: `ITEMS ${String(items.length).padStart(2, '0')}`,
+    totalLabel: currency(summary.total),
+    paperLabel: `PAPER: ${theme.shortName.toUpperCase()}`,
+    status: getTerminalStatus(phase),
+  }
+}
+
 export function RegisterTerminal({
   items,
   theme,
@@ -35,9 +45,9 @@ export function RegisterTerminal({
   theme: ReceiptTheme
   phase: PrinterPhase
 }) {
-  const summary = summarizeReceipt(items)
   const visibleItems = items.slice(-6)
   const compact = phase !== 'idle'
+  const snapshot = getTerminalSnapshot(items, theme, phase)
 
   return (
     <section
@@ -69,13 +79,13 @@ export function RegisterTerminal({
         )}
 
         <div className="register-screen__summary">
-          <span>ITEMS {String(items.length).padStart(2, '0')}</span>
-          <strong>{currency(summary.total)}</strong>
+          <span>{snapshot.itemLabel}</span>
+          <strong>{snapshot.totalLabel}</strong>
         </div>
 
         <div className="register-screen__footer">
-          <span>PAPER: {theme.shortName.toUpperCase()}</span>
-          <strong>{getTerminalStatus(phase)}</strong>
+          <span>{snapshot.paperLabel}</span>
+          <strong>{snapshot.status}</strong>
         </div>
 
         <div className="register-scanline" aria-hidden="true" />
