@@ -17,8 +17,8 @@ export function ReceiptViewport({
   phase,
   couponCount,
 }: ReceiptViewportProps) {
-  const hiddenDistance = couponCount > 0 ? 180 : 118
-  const couponDistance = Math.min(18, couponCount * 2.2)
+  const hiddenDistance = couponCount > 0 ? 230 : 190
+  const couponDistance = Math.min(28, couponCount * 3.2)
   const couponOffset = ['printingCoupons', 'complete'].includes(phase)
     ? couponDistance * couponProgress
     : 0
@@ -26,12 +26,14 @@ export function ReceiptViewport({
 
   return (
     <div className="receipt-viewport" data-phase={phase}>
-      <div className="slot-occlusion" aria-hidden="true" />
+      <div className="machine-under-shadow" aria-hidden="true" />
+      <div className="paper-contact-shadow" aria-hidden="true" />
+      <div className="paper-pressure-shadow" aria-hidden="true" />
       <div
         className="receipt-track receipt-wrap"
         style={{ '--paper-offset': `${paperOffset}px` } as CSSProperties}
       >
-        {children}
+        <div className="receipt-paper-neck">{children}</div>
       </div>
       <PrintHeadBand phase={phase} />
     </div>
