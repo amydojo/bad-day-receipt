@@ -1,0 +1,294 @@
+.receipt-machine {
+  --machine-width: 430px;
+  --slot-width: 374px;
+  --paper-width: 346px;
+  --receipt-width: var(--paper-width);
+}
+
+.pos-appliance {
+  position: relative;
+  width: min(100%, var(--machine-width));
+  isolation: isolate;
+}
+
+.printer-shell {
+  z-index: 40;
+  width: 100%;
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.32),
+    inset 0 -8px 18px rgba(0,0,0,.2),
+    0 5px 9px rgba(24,20,15,.14);
+}
+
+.printer-slot {
+  z-index: 50;
+  width: min(var(--slot-width), calc(100% - 40px));
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  overflow: visible;
+}
+
+.printer-slot__void,
+.printer-slot__roller {
+  overflow: hidden;
+}
+
+.printer-slot__lip {
+  position: absolute;
+  z-index: 60;
+  left: 10px;
+  right: 10px;
+  bottom: -7px;
+  height: 16px;
+  border-radius: 0 0 3px 3px;
+  background:
+    linear-gradient(
+      to bottom,
+      #080908 0%,
+      #20211f 50%,
+      rgba(32,33,31,0) 100%
+    );
+  box-shadow: inset 0 1px rgba(255,255,255,.06);
+  pointer-events: none;
+}
+
+.receipt-viewport {
+  position: relative;
+  z-index: 20;
+  width: min(var(--paper-width), calc(100% - 64px));
+  margin: -31px auto 0;
+  padding-top: 31px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.receipt-track,
+.receipt-paper-neck,
+.receipt-viewport .receipt {
+  width: 100%;
+}
+
+.receipt-track {
+  position: relative;
+  z-index: 20;
+  transform: translateY(var(--paper-offset, 0px));
+}
+
+.receipt-paper-neck {
+  margin-inline: auto;
+  transform-origin: top center;
+}
+
+.machine-under-shadow {
+  position: absolute;
+  z-index: 10;
+  top: 18px;
+  left: 28px;
+  right: 28px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0,0,0,.19);
+  filter: blur(10px);
+  pointer-events: none;
+}
+
+.paper-contact-shadow {
+  position: absolute;
+  z-index: 30;
+  top: 27px;
+  left: 10px;
+  right: 10px;
+  height: 16px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,.5),
+    rgba(0,0,0,.12) 55%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.paper-pressure-shadow {
+  position: absolute;
+  z-index: 31;
+  top: 27px;
+  left: 7px;
+  right: 7px;
+  height: 28px;
+  box-shadow:
+    inset 8px 0 8px -9px rgba(0,0,0,.68),
+    inset -8px 0 8px -9px rgba(0,0,0,.68);
+  pointer-events: none;
+}
+
+.print-head-band {
+  z-index: 32;
+  top: 29px;
+}
+
+.app-shell[data-active-theme='cvs'] .receipt-wrap,
+.app-shell[data-active-theme='cvs'] .receipt-actions {
+  width: min(var(--paper-width), calc(100% - 64px));
+}
+
+.app-shell[data-active-theme='cvs'] .receipt-wrap {
+  filter: none;
+}
+
+.receipt-paper-leader {
+  display: block;
+  height: 30px;
+  background: inherit;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.receipt[data-theme='cvs'] {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.receipt[data-theme='cvs'] .receipt-paper-leader {
+  height: 38px;
+}
+
+.receipt-registration {
+  height: 7px;
+  margin: 0 0 14px;
+  border-top: 1px solid rgba(35,33,29,.18);
+  border-bottom: 1px dashed rgba(35,33,29,.13);
+  transform-origin: left center;
+}
+
+.receipt[data-theme='cvs'] .receipt-registration {
+  height: 9px;
+  margin-bottom: 17px;
+  border: 0;
+  background: var(--receipt-accent, #cc2031);
+  transform: scaleX(0);
+}
+
+.receipt-machine[data-phase='scanning'] .receipt[data-theme='cvs'] .receipt-registration,
+.receipt-machine[data-phase='calculating'] .receipt[data-theme='cvs'] .receipt-registration,
+.receipt-machine[data-phase='feeding'] .receipt[data-theme='cvs'] .receipt-registration,
+.receipt-machine[data-phase='stamping'] .receipt[data-theme='cvs'] .receipt-registration,
+.receipt-machine[data-phase='falseComplete'] .receipt[data-theme='cvs'] .receipt-registration,
+.receipt-machine[data-phase='printingCoupons'] .receipt[data-theme='cvs'] .receipt-registration,
+.receipt-machine[data-phase='complete'] .receipt[data-theme='cvs'] .receipt-registration {
+  transform: scaleX(1);
+}
+
+.receipt-machine[data-phase='scanning'] .receipt[data-theme='cvs'] .receipt-registration {
+  animation: printCvsBand 150ms steps(5,end) forwards;
+}
+
+.receipt-teeth.top {
+  display: none !important;
+}
+
+.receipt [data-printed='false'],
+.receipt .status-stamp[data-visible='false'] {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  filter: none !important;
+}
+
+.receipt [data-printed='true'],
+.receipt .status-stamp[data-visible='true'] {
+  visibility: visible;
+}
+
+.receipt[data-blank-tip='true'] > *:not(.receipt-paper-leader) {
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+.receipt-machine[data-phase='arming'] .receipt-viewport {
+  min-height: 49px;
+  max-height: 58px;
+}
+
+.receipt-machine[data-phase='arming'] .receipt-track {
+  transform: translateY(0);
+}
+
+.receipt-machine[data-phase='feeding'] .receipt-paper-neck,
+.receipt-machine[data-phase='printingCoupons'] .receipt-paper-neck {
+  animation: paperPinch 120ms steps(2,end) infinite alternate;
+}
+
+.receipt-machine[data-phase='feeding'] .printer-shell,
+.receipt-machine[data-phase='printingCoupons'] .printer-shell {
+  animation: chassisEngage 120ms steps(2,end) 2;
+}
+
+.receipt-machine[data-phase='printingCoupons'] .receipt-track {
+  animation: couponFeedJerk 150ms steps(3,end) 1;
+}
+
+.receipt-machine[data-phase='arming'] .printer-slot {
+  animation: slotWake 170ms steps(2,end) 1;
+}
+
+@keyframes paperPinch {
+  from { transform: scaleX(.992) translateY(0); }
+  to { transform: scaleX(1) translateY(1px); }
+}
+
+@keyframes chassisEngage {
+  50% { transform: translateY(1px); }
+}
+
+@keyframes couponFeedJerk {
+  0% { transform: translateY(calc(var(--paper-offset, 0px) - 3px)); }
+  50% { transform: translateY(calc(var(--paper-offset, 0px) + 2px)); }
+  100% { transform: translateY(var(--paper-offset, 0px)); }
+}
+
+@keyframes slotWake {
+  50% {
+    filter: brightness(1.35);
+    box-shadow:
+      inset 0 4px 7px rgba(0,0,0,.88),
+      0 0 8px rgba(225,165,58,.28);
+  }
+}
+
+@keyframes printCvsBand {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@media (max-width: 590px) {
+  .receipt-machine {
+    --machine-width: 360px;
+    --slot-width: 312px;
+    --paper-width: 288px;
+  }
+
+  .receipt-viewport,
+  .app-shell[data-active-theme='cvs'] .receipt-wrap,
+  .app-shell[data-active-theme='cvs'] .receipt-actions {
+    width: min(var(--paper-width), calc(100% - 54px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receipt-paper-neck,
+  .printer-shell,
+  .printer-slot,
+  .receipt-track,
+  .receipt-registration {
+    animation: none !important;
+  }
+
+  .receipt-machine[data-phase='arming'] .receipt-viewport {
+    min-height: 42px;
+    max-height: 48px;
+  }
+
+  .receipt-machine:not([data-phase='arming']) .receipt[data-theme='cvs'] .receipt-registration {
+    transform: scaleX(1);
+  }
+}

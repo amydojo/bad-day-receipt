@@ -1,0 +1,70 @@
+.paper-contact-shadow,
+.paper-pressure-shadow {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+/* The contact layer belongs to the paper, so it spans the paper's full width. */
+.paper-contact-shadow {
+  left: 0;
+  right: 0;
+  height: 14px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,.34),
+    rgba(0,0,0,.1) 48%,
+    transparent
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 3%,
+    #000 97%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 3%,
+    #000 97%,
+    transparent 100%
+  );
+}
+
+.paper-pressure-shadow {
+  left: 0;
+  right: 0;
+  height: 24px;
+  box-shadow:
+    inset 7px 0 7px -8px rgba(0,0,0,.48),
+    inset -7px 0 7px -8px rgba(0,0,0,.48);
+}
+
+.receipt-machine[data-phase='arming'] .paper-contact-shadow,
+.receipt-machine[data-phase='scanning'] .paper-contact-shadow,
+.receipt-machine[data-phase='calculating'] .paper-contact-shadow,
+.receipt-machine[data-phase='feeding'] .paper-contact-shadow,
+.receipt-machine[data-phase='printingCoupons'] .paper-contact-shadow,
+.receipt-machine[data-phase='arming'] .paper-pressure-shadow,
+.receipt-machine[data-phase='scanning'] .paper-pressure-shadow,
+.receipt-machine[data-phase='calculating'] .paper-pressure-shadow,
+.receipt-machine[data-phase='feeding'] .paper-pressure-shadow,
+.receipt-machine[data-phase='printingCoupons'] .paper-pressure-shadow {
+  opacity: 1;
+}
+
+.receipt-machine[data-phase='stamping'] .paper-contact-shadow,
+.receipt-machine[data-phase='falseComplete'] .paper-contact-shadow,
+.receipt-machine[data-phase='complete'] .paper-contact-shadow,
+.receipt-machine[data-phase='stamping'] .paper-pressure-shadow,
+.receipt-machine[data-phase='falseComplete'] .paper-pressure-shadow,
+.receipt-machine[data-phase='complete'] .paper-pressure-shadow {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-contact-shadow,
+  .paper-pressure-shadow {
+    transition: none;
+  }
+}

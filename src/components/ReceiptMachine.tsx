@@ -7,17 +7,24 @@ import {
 import { createPrinterSoundController } from '../printer/printerSounds'
 import type { ReceiptTheme } from '../themes'
 import type { ReceiptItem } from '../types'
+import type { ExportFormat } from '../v2'
 import { PrinterShell } from './PrinterShell'
 import { Receipt } from './Receipt'
 import { ReceiptViewport } from './ReceiptViewport'
+import { RegisterTerminal, shouldRenderIssuedReceipt } from './RegisterTerminal'
 import { RingItUpButton } from './RingItUpButton'
 
 interface ReceiptMachineProps {
   items: ReceiptItem[]
   receiptNumber: string
   theme: ReceiptTheme
+  anomaly?: string | null
+  shareCopy: string
   onReceiptNumberChange: (receiptNumber: string) => void
-  onDownload: () => void
+  onExport: (format: ExportFormat) => void
+  onCopyShare: () => void | Promise<void>
+  onTransactionComplete: (receiptNumber: string) => void
+  onMakeAnother: () => void
   onClear: () => void
 }
 
@@ -25,12 +32,19 @@ export function ReceiptMachine({
   items,
   receiptNumber,
   theme,
+  anomaly,
+  shareCopy,
   onReceiptNumberChange,
-  onDownload,
+  onExport,
+  onCopyShare,
+  onTransactionComplete,
+  onMakeAnother,
   onClear,
 }: ReceiptMachineProps) {
   const [soundEnabled, setSoundEnabled] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
   const soundEnabledRef = useRef(soundEnabled)
+  const recordedReceipt = useRef<string | null>(null)
   soundEnabledRef.current = soundEnabled
 
   const sounds = useMemo(
@@ -59,24 +73,43 @@ export function ReceiptMachine({
   useEffect(() => {
     if (previousTheme.current !== theme.id) {
       previousTheme.current = theme.id
+      recordedReceipt.current = null
       resetPrinter()
     }
   }, [resetPrinter, theme.id])
 
-  const isPreview = state.phase === 'idle'
-  const visibleLineCount = isPreview ? items.length : state.visibleLineCount
-  const visibleTotalRows = isPreview ? 4 : state.visibleTotalRows
-  const couponProgress = isPreview ? 1 : state.couponProgress
-  const showVerdict = isPreview || [
+  useEffect(() => {
+    if (!isComplete || !state.receiptNumber) return
+    if (recordedReceipt.current === state.receiptNumber) return
+    recordedReceipt.current = state.receiptNumber
+    onTransactionComplete(state.receiptNumber)
+  }, [isComplete, onTransactionComplete, state.receiptNumber])
+
+  const couponProgress = state.couponProgress
+  const showVerdict = [
     'stamping',
     'falseComplete',
     'printingCoupons',
     'complete',
   ].includes(state.phase)
+  const showReceipt = shouldRenderIssuedReceipt(state.phase)
 
   const clear = () => {
+    recordedReceipt.current = null
     resetPrinter()
     onClear()
+  }
+
+  const printAgain = () => {
+    recordedReceipt.current = null
+    setShareCopied(false)
+    void startPrinting()
+  }
+
+  const copyShare = async () => {
+    await onCopyShare()
+    setShareCopied(true)
+    window.setTimeout(() => setShareCopied(false), 1800)
   }
 
   return (
@@ -84,27 +117,34 @@ export function ReceiptMachine({
       className="receipt-machine"
       data-phase={state.phase}
       data-theme={theme.id}
-      aria-label="Thermal receipt printer"
+      aria-label="Emotional point of sale terminal and thermal printer"
       aria-busy={isBusy}
     >
-      <PrinterShell phase={state.phase} theme={theme} />
+      <div className="pos-appliance">
+        <RegisterTerminal items={items} theme={theme} phase={state.phase} />
+        <PrinterShell phase={state.phase} theme={theme} />
 
-      <ReceiptViewport
-        phase={state.phase}
-        paperProgress={isPreview ? 1 : state.paperProgress}
-        couponProgress={couponProgress}
-        couponCount={couponCount}
-      >
-        <Receipt
-          items={items}
-          receiptNumber={receiptNumber}
-          theme={theme}
-          visibleLineCount={visibleLineCount}
-          visibleTotalRows={visibleTotalRows}
-          showVerdict={showVerdict}
-          couponProgress={couponProgress}
-        />
-      </ReceiptViewport>
+        {showReceipt && (
+          <ReceiptViewport
+            phase={state.phase}
+            paperProgress={state.paperProgress}
+            couponProgress={couponProgress}
+            couponCount={couponCount}
+          >
+            <Receipt
+              items={items}
+              receiptNumber={receiptNumber}
+              theme={theme}
+              phase={state.phase}
+              visibleLineCount={state.visibleLineCount}
+              visibleTotalRows={state.visibleTotalRows}
+              showVerdict={showVerdict}
+              couponProgress={couponProgress}
+              anomaly={anomaly}
+            />
+          </ReceiptViewport>
+        )}
+      </div>
 
       {state.phase === 'error' && (
         <div className="printer-error" role="alert">
@@ -114,29 +154,59 @@ export function ReceiptMachine({
         </div>
       )}
 
-      <div className="receipt-actions">
-        <RingItUpButton
-          label={getRingButtonLabel(state.phase, theme.id)}
-          disabled={items.length === 0 || isBusy}
-          onClick={() => { void startPrinting() }}
-        />
-        <button
-          className="secondary-button"
-          type="button"
-          onClick={onDownload}
-          disabled={items.length === 0 || isBusy}
-        >
-          {isComplete ? 'save the evidence' : 'save png'}
-        </button>
-        <button
-          className="text-button"
-          type="button"
-          onClick={clear}
-          disabled={isBusy}
-        >
-          clear
-        </button>
-      </div>
+      {!isComplete ? (
+        <div className="receipt-actions">
+          <RingItUpButton
+            label={getRingButtonLabel(state.phase, theme.id)}
+            disabled={items.length === 0 || isBusy}
+            onClick={printAgain}
+          />
+          <button
+            className="text-button"
+            type="button"
+            onClick={clear}
+            disabled={isBusy}
+          >
+            clear transaction
+          </button>
+        </div>
+      ) : (
+        <div className="post-print-panel">
+          <div className="post-print-status">
+            <span>TRANSACTION RECORDED</span>
+            <strong>Evidence issued. No further explanation required.</strong>
+          </div>
+
+          <div className="export-grid" aria-label="Save receipt formats">
+            <button type="button" onClick={() => onExport('full')}>
+              <span>FULL</span><strong>SAVE THE EVIDENCE</strong><small>complete artifact</small>
+            </button>
+            <button type="button" onClick={() => onExport('share')}>
+              <span>4:5</span><strong>SHARE CARD</strong><small>1080 × 1350</small>
+            </button>
+            <button type="button" onClick={() => onExport('story')}>
+              <span>9:16</span><strong>STORY STRIP</strong><small>1080 × 1920</small>
+            </button>
+          </div>
+
+          <div className="share-copy">
+            <span>GENERATED SHARE COPY</span>
+            <p>{shareCopy}</p>
+            <button type="button" onClick={() => { void copyShare() }}>
+              {shareCopied ? 'COPIED TO CLIPBOARD' : 'COPY SHARE TEXT'}
+            </button>
+          </div>
+
+          <div className="post-print-actions">
+            <button type="button" className="secondary-button" onClick={onMakeAnother}>
+              MAKE ANOTHER TRANSACTION
+            </button>
+            <button type="button" className="text-button" onClick={printAgain}>
+              REPRINT THIS ONE
+            </button>
+          </div>
+        </div>
+      )}
 
       <button
         className="sound-toggle"
