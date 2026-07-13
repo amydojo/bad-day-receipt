@@ -26,6 +26,7 @@ describe('register terminal reveal contract', () => {
       blankTipOnly: true,
       printedContentVisible: false,
       couponTailMounted: false,
+      cvsBandVisible: false,
     })
   })
 
@@ -49,9 +50,27 @@ describe('register terminal reveal contract', () => {
     expect(slot).toBeGreaterThan(receipt)
   })
 
+  it('pulls the receipt viewport into the chassis and keeps a blank leader first', () => {
+    const contract = getPhysicalPrintContract('arming')
+    expect(contract.viewportOverlap).toBeGreaterThanOrEqual(30)
+    expect(contract.blankLeaderHeight).toBeGreaterThanOrEqual(30)
+    expect(contract.cvsBlankLeaderHeight).toBeGreaterThan(contract.blankLeaderHeight)
+  })
+
+  it('removes the loose-sheet top edge and localizes the contact shadow', () => {
+    const contract = getPhysicalPrintContract('arming')
+    expect(contract.topReceiptTeethMounted).toBe(false)
+    expect(contract.contactShadowInset).toBeGreaterThan(0)
+  })
+
   it('uses a slot lip overlap that physically covers the paper edge', () => {
     expect(getPhysicalPrintContract('arming').slotLipOverlap).toBeGreaterThanOrEqual(8)
     expect(getPhysicalPrintContract('arming').slotLipOverlap).toBeLessThanOrEqual(12)
+  })
+
+  it('reveals the CVS registration band only after the blank leader', () => {
+    expect(getPhysicalPrintContract('arming').cvsBandVisible).toBe(false)
+    expect(getPhysicalPrintContract('scanning').cvsBandVisible).toBe(true)
   })
 
   it('keeps the CVS coupon tail absent until the second feed', () => {
