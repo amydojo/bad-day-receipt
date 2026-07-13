@@ -1,0 +1,34 @@
+.paper-contact-shadow,
+.paper-pressure-shadow {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.receipt-machine[data-phase='arming'] .paper-contact-shadow,
+.receipt-machine[data-phase='scanning'] .paper-contact-shadow,
+.receipt-machine[data-phase='calculating'] .paper-contact-shadow,
+.receipt-machine[data-phase='feeding'] .paper-contact-shadow,
+.receipt-machine[data-phase='printingCoupons'] .paper-contact-shadow,
+.receipt-machine[data-phase='arming'] .paper-pressure-shadow,
+.receipt-machine[data-phase='scanning'] .paper-pressure-shadow,
+.receipt-machine[data-phase='calculating'] .paper-pressure-shadow,
+.receipt-machine[data-phase='feeding'] .paper-pressure-shadow,
+.receipt-machine[data-phase='printingCoupons'] .paper-pressure-shadow {
+  opacity: 1;
+}
+
+.receipt-machine[data-phase='stamping'] .paper-contact-shadow,
+.receipt-machine[data-phase='falseComplete'] .paper-contact-shadow,
+.receipt-machine[data-phase='complete'] .paper-contact-shadow,
+.receipt-machine[data-phase='stamping'] .paper-pressure-shadow,
+.receipt-machine[data-phase='falseComplete'] .paper-pressure-shadow,
+.receipt-machine[data-phase='complete'] .paper-pressure-shadow {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-contact-shadow,
+  .paper-pressure-shadow {
+    transition: none;
+  }
+}
