@@ -15,6 +15,7 @@ interface ReceiptProps {
   visibleTotalRows: number
   showVerdict: boolean
   couponProgress: number
+  anomaly?: string | null
 }
 
 export function Receipt({
@@ -25,6 +26,7 @@ export function Receipt({
   visibleTotalRows,
   showVerdict,
   couponProgress,
+  anomaly,
 }: ReceiptProps) {
   const summary = summarizeReceipt(items)
   const date = new Intl.DateTimeFormat('en-US', {
@@ -98,6 +100,13 @@ export function Receipt({
       <div className="status-stamp" data-visible={showVerdict}>
         {getThemeStatus(summary.status, theme)}
       </div>
+
+      {anomaly && showVerdict && (
+        <div className="receipt-anomaly">
+          <span>REGISTER ADJUSTMENT</span>
+          <strong>{anomaly}</strong>
+        </div>
+      )}
 
       <div className="receipt-note" data-printed={showVerdict}>
         {theme.notes.map((note) => <p key={note}>{note}</p>)}
