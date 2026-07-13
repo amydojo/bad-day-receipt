@@ -27,6 +27,8 @@ export function getMachineGeometry() {
 }
 
 export function getPhysicalPrintContract(phase: PrinterPhase) {
+  const overlaysVisible = ['arming', 'scanning', 'calculating', 'feeding', 'printingCoupons'].includes(phase)
+
   return {
     receiptMounted: phase !== 'idle',
     blankTipOnly: phase === 'arming',
@@ -37,7 +39,11 @@ export function getPhysicalPrintContract(phase: PrinterPhase) {
     blankLeaderHeight: 30,
     cvsBlankLeaderHeight: 38,
     topReceiptTeethMounted: false,
-    contactShadowInset: 10,
+    contactShadowInset: 0,
+    pressureShadowInset: 0,
+    contactShadowMatchesPaperWidth: true,
+    contactShadowHasEdgeFade: true,
+    contactOverlaysVisible: overlaysVisible,
     cvsBandVisible: phase !== 'idle' && phase !== 'arming',
     reducedMotionDuration: 120,
   }
