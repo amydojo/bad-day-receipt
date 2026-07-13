@@ -2,7 +2,7 @@
 
 An emotionally accurate receipt for days that cost too much.
 
-Select what charged you, credit the tiny wins, add something suspiciously specific, then save the evidence as a shareable receipt.
+Select what charged you, credit the tiny wins, add something suspiciously specific, choose your emotional paperwork, then save the evidence as a shareable receipt.
 
 **[Open the live receipt →](https://bad-day-receipt.vercel.app)**
 
@@ -18,6 +18,18 @@ Select what charged you, credit the tiny wins, add something suspiciously specif
 - Generates an outcome based on total damage
 - Exports the finished receipt as a PNG
 - Keeps everything local to the browser
+
+## Receipt themes
+
+Each theme changes the paper, typography, language, verdicts, and exported PNG—not just the color palette.
+
+- **Original Thermal** — the emotionally accurate classic
+- **CVS Catastrophe** — a pharmacy-length receipt with absurd coupons and ExtraCare for the soul
+- **Government Breakdown** — Form BD-17 from the Department of Internal Weather
+- **Luxury Emotional Invoice** — bespoke suffering, privately invoiced
+- **Victorian Pharmacy** — prescribed silence, broth, and freedom from obligations
+
+CVS Catastrophe is an unofficial parody. No brand endorsed this emotional incident.
 
 ## Run locally
 
@@ -47,13 +59,13 @@ React, TypeScript, Vite, Vitest, Canvas API, CSS.
 
 ## Status
 
-First working artifact. Possible next experiments:
+Second working release. Possible next experiments:
 
-- Shareable receipt themes and alternate paper stock
+- Shareable vertical and story-sized exports
 - Local receipt history
 - “Return one thing” ritual
 - Collaborative receipt for group catastrophes
-- Print-friendly thermal receipt mode
+- Community-submitted line items
 
 ## License
 
