@@ -11,6 +11,7 @@ import type { ExportFormat } from '../v2'
 import { PrinterShell } from './PrinterShell'
 import { Receipt } from './Receipt'
 import { ReceiptViewport } from './ReceiptViewport'
+import { RegisterTerminal, shouldRenderIssuedReceipt } from './RegisterTerminal'
 import { RingItUpButton } from './RingItUpButton'
 
 interface ReceiptMachineProps {
@@ -84,16 +85,14 @@ export function ReceiptMachine({
     onTransactionComplete(state.receiptNumber)
   }, [isComplete, onTransactionComplete, state.receiptNumber])
 
-  const isPreview = state.phase === 'idle'
-  const visibleLineCount = isPreview ? items.length : state.visibleLineCount
-  const visibleTotalRows = isPreview ? 4 : state.visibleTotalRows
-  const couponProgress = isPreview ? 1 : state.couponProgress
-  const showVerdict = isPreview || [
+  const couponProgress = state.couponProgress
+  const showVerdict = [
     'stamping',
     'falseComplete',
     'printingCoupons',
     'complete',
   ].includes(state.phase)
+  const showReceipt = shouldRenderIssuedReceipt(state.phase)
 
   const clear = () => {
     recordedReceipt.current = null
@@ -118,28 +117,33 @@ export function ReceiptMachine({
       className="receipt-machine"
       data-phase={state.phase}
       data-theme={theme.id}
-      aria-label="Thermal receipt printer"
+      aria-label="Emotional point of sale terminal and thermal printer"
       aria-busy={isBusy}
     >
-      <PrinterShell phase={state.phase} theme={theme} />
+      <div className="pos-appliance">
+        <RegisterTerminal items={items} theme={theme} phase={state.phase} />
+        <PrinterShell phase={state.phase} theme={theme} />
 
-      <ReceiptViewport
-        phase={state.phase}
-        paperProgress={isPreview ? 1 : state.paperProgress}
-        couponProgress={couponProgress}
-        couponCount={couponCount}
-      >
-        <Receipt
-          items={items}
-          receiptNumber={receiptNumber}
-          theme={theme}
-          visibleLineCount={visibleLineCount}
-          visibleTotalRows={visibleTotalRows}
-          showVerdict={showVerdict}
-          couponProgress={couponProgress}
-          anomaly={anomaly}
-        />
-      </ReceiptViewport>
+        {showReceipt && (
+          <ReceiptViewport
+            phase={state.phase}
+            paperProgress={state.paperProgress}
+            couponProgress={couponProgress}
+            couponCount={couponCount}
+          >
+            <Receipt
+              items={items}
+              receiptNumber={receiptNumber}
+              theme={theme}
+              visibleLineCount={state.visibleLineCount}
+              visibleTotalRows={state.visibleTotalRows}
+              showVerdict={showVerdict}
+              couponProgress={couponProgress}
+              anomaly={anomaly}
+            />
+          </ReceiptViewport>
+        )}
+      </div>
 
       {state.phase === 'error' && (
         <div className="printer-error" role="alert">
@@ -157,20 +161,12 @@ export function ReceiptMachine({
             onClick={printAgain}
           />
           <button
-            className="secondary-button"
-            type="button"
-            onClick={() => onExport('full')}
-            disabled={items.length === 0 || isBusy}
-          >
-            save preview
-          </button>
-          <button
             className="text-button"
             type="button"
             onClick={clear}
             disabled={isBusy}
           >
-            clear
+            clear transaction
           </button>
         </div>
       ) : (
