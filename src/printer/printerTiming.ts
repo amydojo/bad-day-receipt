@@ -1,0 +1,16 @@
+export const PRINTER_TIMING = {
+  press: 120,
+  arming: 140,
+  scanStartDelay: 80,
+  firstLine: 90,
+  middleLine: 62,
+  lastLine: 110,
+  totalsGap: 75,
+  totalRow: 85,
+  feedDuration: 620,
+  stampDelay: 90,
+  stampDuration: 220,
+  falseCompletePause: 240,
+  couponFeedDuration: 780,
+  completeHold: 1100,
+} as const

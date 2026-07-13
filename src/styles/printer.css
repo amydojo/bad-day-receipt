@@ -1,0 +1,429 @@
+.receipt-machine {
+  --printer-accent: #ff5b4d;
+  width: min(100%, 430px);
+  display: grid;
+  justify-items: center;
+}
+
+.printer-shell {
+  position: relative;
+  z-index: 10;
+  width: min(100%, 430px);
+  min-height: 108px;
+  padding: 20px 22px 0;
+  border: 1px solid rgba(10, 10, 10, .48);
+  border-radius: 18px 18px 7px 7px;
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255,255,255,.22), transparent 22%),
+    linear-gradient(180deg, #777976 0%, #565855 48%, #3d3f3d 100%);
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.32),
+    inset 0 -8px 18px rgba(0,0,0,.2),
+    0 18px 28px rgba(24,20,15,.25);
+}
+
+.printer-shell::before {
+  content: '';
+  position: absolute;
+  inset: 7px 9px auto;
+  height: 1px;
+  background: rgba(255,255,255,.18);
+}
+
+.printer-shell__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+  color: rgba(255,255,255,.84);
+}
+
+.printer-shell__brand,
+.printer-shell__model {
+  display: block;
+  font-family: 'DM Mono', ui-monospace, monospace;
+  text-transform: uppercase;
+}
+
+.printer-shell__brand {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+.printer-shell__model {
+  margin-top: 5px;
+  font-size: 7px;
+  opacity: .56;
+  letter-spacing: .08em;
+}
+
+.printer-slot {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 11px;
+  height: 20px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: linear-gradient(to bottom, #111 0%, #050505 42%, #252525 100%);
+  box-shadow:
+    inset 0 4px 7px rgba(0,0,0,.88),
+    0 1px rgba(255,255,255,.16);
+}
+
+.printer-slot__void {
+  position: absolute;
+  inset: 3px 5px 7px;
+  background: #030303;
+  box-shadow: inset 0 2px 4px #000;
+}
+
+.printer-slot__roller {
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  bottom: -5px;
+  height: 9px;
+  border-radius: 50%;
+  background: repeating-linear-gradient(90deg, #1a1a1a 0 9px, #111 9px 12px);
+  box-shadow: 0 -2px 4px rgba(0,0,0,.8);
+}
+
+.tear-bar {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 4px;
+  height: 4px;
+  opacity: .5;
+  background: repeating-linear-gradient(90deg, #a9aaa7 0 5px, transparent 5px 8px);
+}
+
+.printer-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+  justify-content: flex-end;
+}
+
+.printer-status__label {
+  max-width: 104px;
+  color: rgba(255,255,255,.66);
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: 7px;
+  line-height: 1.25;
+  text-align: right;
+  letter-spacing: .08em;
+}
+
+.printer-status__led {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.28);
+}
+
+.printer-status__led[data-status='idle'] { background: #879080; }
+.printer-status__led[data-status='busy'] {
+  background: #e1a53a;
+  animation: ledBusy 180ms steps(2, end) infinite;
+}
+.printer-status__led[data-status='complete'] {
+  background: #78ad78;
+  box-shadow:
+    0 0 0 2px rgba(0,0,0,.28),
+    0 0 9px rgba(120,173,120,.8);
+}
+.printer-status__led[data-status='error'] { background: #d8463d; }
+
+.receipt-viewport {
+  position: relative;
+  width: min(100%, 430px);
+  margin-top: -13px;
+  padding-top: 13px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.slot-occlusion {
+  position: absolute;
+  z-index: 8;
+  top: 0;
+  left: 2%;
+  right: 2%;
+  height: 31px;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(5,5,5,.96),
+      rgba(10,10,10,.55) 38%,
+      rgba(10,10,10,.12) 75%,
+      transparent
+    );
+  pointer-events: none;
+}
+
+.receipt-track {
+  position: relative;
+  transform: translateY(var(--paper-offset, 0px));
+  transform-origin: top center;
+  will-change: transform;
+}
+
+.print-head-band {
+  position: absolute;
+  z-index: 7;
+  top: 17px;
+  left: 4%;
+  right: 4%;
+  height: 28px;
+  opacity: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      transparent,
+      rgba(20,20,18,.11),
+      rgba(20,20,18,.04),
+      transparent
+    );
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.print-head-band.is-active {
+  opacity: 1;
+  animation: printHeadPulse 110ms steps(2, end) infinite;
+}
+
+.receipt-machine[data-phase='feeding'] .receipt,
+.receipt-machine[data-phase='printingCoupons'] .receipt {
+  animation: rollerPressure 160ms linear infinite alternate;
+}
+
+.receipt-machine .receipt-line[data-printed='false'],
+.receipt-machine .totals > [data-printed='false'],
+.receipt-machine .receipt-note[data-printed='false'] {
+  opacity: .055;
+  filter: blur(.7px);
+}
+
+.receipt-machine .receipt-line[data-printed='true'],
+.receipt-machine .totals > [data-printed='true'],
+.receipt-machine .receipt-note[data-printed='true'] {
+  opacity: 1;
+  filter: none;
+  animation: thermalInkSet 130ms steps(3, end);
+}
+
+.receipt-machine .status-stamp[data-visible='false'] {
+  opacity: 0;
+  transform: scale(1.14) rotate(-5deg);
+}
+
+.receipt-machine .status-stamp[data-visible='true'] {
+  opacity: 1;
+  animation: verdictStamp 210ms cubic-bezier(.2,1.4,.35,1);
+  text-shadow: .5px 0 currentColor, -.4px .25px rgba(0,0,0,.12);
+}
+
+.receipt-machine[data-theme='cvs'][data-phase='arming'] .coupon-title,
+.receipt-machine[data-theme='cvs'][data-phase='scanning'] .coupon-title,
+.receipt-machine[data-theme='cvs'][data-phase='calculating'] .coupon-title,
+.receipt-machine[data-theme='cvs'][data-phase='feeding'] .coupon-title,
+.receipt-machine[data-theme='cvs'][data-phase='stamping'] .coupon-title,
+.receipt-machine[data-theme='cvs'][data-phase='falseComplete'] .coupon-title {
+  opacity: .05;
+}
+
+.receipt-machine .coupon[data-visible='false'] {
+  opacity: .035;
+  filter: blur(.7px);
+}
+
+.receipt-machine .coupon[data-visible='true'] {
+  opacity: 1;
+  filter: none;
+  animation: thermalInkSet 140ms steps(3, end);
+}
+
+.receipt-machine[data-theme='cvs'][data-phase='arming'] .receipt[data-theme='cvs'] .totals::after,
+.receipt-machine[data-theme='cvs'][data-phase='scanning'] .receipt[data-theme='cvs'] .totals::after,
+.receipt-machine[data-theme='cvs'][data-phase='calculating'] .receipt[data-theme='cvs'] .totals::after,
+.receipt-machine[data-theme='cvs'][data-phase='feeding'] .receipt[data-theme='cvs'] .totals::after {
+  opacity: .05;
+}
+
+.receipt-actions {
+  position: relative;
+  z-index: 12;
+}
+
+.ring-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 0;
+  transform: translateY(0);
+  box-shadow:
+    0 4px 0 #9e362e,
+    0 7px 12px rgba(20,20,18,.18);
+  transition: transform 90ms ease, box-shadow 90ms ease, filter 140ms ease;
+}
+
+.ring-button:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #9e362e,
+    0 3px 6px rgba(20,20,18,.16);
+}
+
+.ring-button__light {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #4f5b4f;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.35);
+}
+
+.receipt-machine[data-phase='arming'] .ring-button__light,
+.receipt-machine[data-phase='scanning'] .ring-button__light,
+.receipt-machine[data-phase='calculating'] .ring-button__light,
+.receipt-machine[data-phase='feeding'] .ring-button__light,
+.receipt-machine[data-phase='stamping'] .ring-button__light,
+.receipt-machine[data-phase='printingCoupons'] .ring-button__light {
+  background: #ffe070;
+  animation: ledBusy 180ms steps(2,end) infinite;
+}
+
+.receipt-machine[data-phase='complete'] .ring-button__light,
+.receipt-machine[data-phase='falseComplete'] .ring-button__light {
+  background: #77ad78;
+}
+
+.receipt-machine[data-phase='error'] .ring-button__light {
+  background: #d8463d;
+}
+
+.receipt-machine[data-phase='printingCoupons'] .ring-button {
+  font-size: 8px;
+  line-height: 1.15;
+  padding-inline: 9px;
+}
+
+.sound-toggle {
+  margin-top: 13px;
+  padding: 5px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 8px;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.sound-toggle:hover { color: var(--ink); }
+
+.printer-error {
+  display: grid;
+  gap: 4px;
+  width: min(100%, 430px);
+  margin-top: 18px;
+  padding: 13px;
+  border: 1px solid #d8463d;
+  background: rgba(216,70,61,.07);
+  font-size: 9px;
+  text-align: center;
+}
+
+.printer-error strong { color: #d8463d; letter-spacing: .08em; }
+.printer-error small { color: var(--muted); }
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0,0,0,0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@keyframes ledBusy {
+  50% { opacity: .28; }
+}
+
+@keyframes printHeadPulse {
+  0% { transform: translateY(-1px); opacity: .55; }
+  100% { transform: translateY(1px); opacity: .9; }
+}
+
+@keyframes rollerPressure {
+  from { transform: scaleX(.998) scaleY(1); }
+  to { transform: scaleX(1.002) scaleY(.999); }
+}
+
+@keyframes thermalInkSet {
+  0% { opacity: .12; filter: blur(.8px); }
+  45% { opacity: .74; filter: blur(.25px); }
+  100% { opacity: 1; filter: none; }
+}
+
+@keyframes verdictStamp {
+  0% { opacity: 0; transform: scale(1.18) rotate(-5deg); }
+  62% { opacity: 1; transform: scale(.96) rotate(-2deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-2deg); }
+}
+
+@media (max-width: 590px) {
+  .receipt-machine,
+  .printer-shell,
+  .receipt-viewport {
+    width: min(100%, 360px);
+  }
+
+  .printer-shell {
+    min-height: 96px;
+    padding: 17px 16px 0;
+    border-radius: 15px 15px 6px 6px;
+  }
+
+  .printer-slot {
+    left: 14px;
+    right: 14px;
+    bottom: 10px;
+  }
+
+  .printer-shell__brand { font-size: 8px; }
+  .printer-shell__model { font-size: 6px; }
+  .printer-status__label { max-width: 78px; font-size: 6px; }
+
+  .receipt-machine[data-phase='printingCoupons'] .ring-button {
+    font-size: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receipt-track,
+  .print-head-band,
+  .status-stamp,
+  .receipt-line,
+  .totals > div,
+  .receipt-note,
+  .coupon,
+  .printer-status__led,
+  .ring-button__light,
+  .receipt-machine .receipt {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .receipt-track { transform: none !important; }
+}
