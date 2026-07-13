@@ -4,6 +4,8 @@ An emotionally accurate receipt for days that cost too much.
 
 Select what charged you, credit the tiny wins, add something suspiciously specific, then save the evidence as a shareable receipt.
 
+**[Open the live receipt →](https://bad-day-receipt.vercel.app)**
+
 > **Soft Machine 001**  
 > Small software objects for the emotional debris of modern life.
 
