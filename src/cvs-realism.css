@@ -1,0 +1,361 @@
+.app-shell[data-active-theme='cvs'] .receipt-wrap {
+  width: min(100%, 392px);
+  filter: drop-shadow(0 30px 38px rgba(42, 33, 23, .26));
+}
+
+.app-shell[data-active-theme='cvs'] .receipt-actions {
+  width: min(100%, 392px);
+}
+
+.receipt[data-theme='cvs'] {
+  --receipt-paper: #f6f5f0;
+  --receipt-ink: #262421;
+  --receipt-accent: #cc2031;
+  min-height: 2480px;
+  padding: 27px 21px 48px;
+  border-top: 9px solid var(--receipt-accent);
+  border-bottom: 9px solid var(--receipt-accent);
+  font-family: Arial, Helvetica, sans-serif;
+  letter-spacing: .002em;
+  background:
+    linear-gradient(90deg, rgba(75, 67, 54, .06), transparent 8%, transparent 92%, rgba(75, 67, 54, .05)),
+    repeating-linear-gradient(0deg, rgba(42, 39, 34, .025) 0 1px, transparent 1px 5px),
+    radial-gradient(circle at 14% 21%, rgba(52, 47, 39, .06) 0 .45px, transparent .75px),
+    radial-gradient(circle at 73% 43%, rgba(52, 47, 39, .04) 0 .55px, transparent .85px),
+    #f6f5f0;
+  background-size: auto, auto, 11px 13px, 17px 19px, auto;
+  box-shadow:
+    inset 0 0 72px rgba(76, 65, 47, .1),
+    inset 10px 0 18px rgba(84, 75, 61, .035),
+    inset -10px 0 18px rgba(84, 75, 61, .03);
+}
+
+.receipt[data-theme='cvs']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .48;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 92px, rgba(47, 43, 36, .055) 94px, rgba(255, 255, 255, .1) 95px, transparent 97px),
+    linear-gradient(178deg, transparent 0 31%, rgba(57, 52, 44, .06) 31.3%, rgba(255, 255, 255, .12) 31.7%, transparent 32%),
+    linear-gradient(181deg, transparent 0 66%, rgba(57, 52, 44, .05) 66.25%, rgba(255, 255, 255, .1) 66.7%, transparent 67%);
+  mix-blend-mode: multiply;
+}
+
+.receipt[data-theme='cvs']::after {
+  content: '';
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: -12px;
+  height: 23px;
+  z-index: -1;
+  border-radius: 50%;
+  background: rgba(56, 47, 34, .2);
+  filter: blur(9px);
+  transform: rotate(.7deg);
+}
+
+.receipt[data-theme='cvs'] > * {
+  position: relative;
+  z-index: 1;
+}
+
+.receipt[data-theme='cvs'] .theme-mark {
+  display: none;
+}
+
+.receipt[data-theme='cvs'] .receipt-teeth.top {
+  top: -21px;
+}
+
+.receipt[data-theme='cvs'] .receipt-teeth.bottom {
+  bottom: -21px;
+}
+
+.receipt[data-theme='cvs'] .receipt-header::before {
+  content: '♥  CVS catastrophe\A pharmacy\A STORE #09174  ·  1450 VAGUE DREAD BLVD\A OPEN 24 HOURS EXCEPT EMOTIONALLY\A 1-800-NOT-TODAY\A ****************************************';
+  display: block;
+  margin: 0 0 16px;
+  color: var(--receipt-accent);
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.45;
+  white-space: pre-line;
+  letter-spacing: .035em;
+}
+
+.receipt[data-theme='cvs'] .receipt-header::first-line {
+  font-size: 24px;
+  letter-spacing: -.06em;
+}
+
+.receipt[data-theme='cvs'] .receipt-header {
+  padding: 10px 3px 11px;
+  border-top: 1px solid rgba(38, 36, 33, .72);
+  border-bottom: 1px solid rgba(38, 36, 33, .72);
+}
+
+.receipt[data-theme='cvs'] .receipt-header h2 {
+  margin: 6px 0 5px;
+  color: var(--receipt-accent);
+  font-size: 25px;
+  line-height: .95;
+  letter-spacing: -.055em;
+}
+
+.receipt[data-theme='cvs'] .receipt-header p {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: .075em;
+}
+
+.receipt[data-theme='cvs'] .receipt-meta {
+  grid-template-columns: 1fr auto;
+  gap: 3px 12px;
+  margin-top: 14px;
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: 7px;
+  line-height: 1.35;
+}
+
+.receipt[data-theme='cvs'] .receipt-meta span:nth-child(2) {
+  margin-top: 0;
+}
+
+.receipt[data-theme='cvs'] .receipt-meta::after {
+  content: 'REG 03     ITEMS SCANNED: EMOTIONALLY ENOUGH\A AUTH: BARELY     TERMINAL: 04\A EXTRACARE CARD ************0417\A CASHIER ID 000-NERVE';
+  grid-column: 1 / -1;
+  display: block;
+  margin-top: 6px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(38, 36, 33, .55);
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+.receipt[data-theme='cvs'] .receipt-rule {
+  margin: 12px 0;
+  opacity: .82;
+}
+
+.receipt[data-theme='cvs'] .receipt-lines {
+  gap: 6px;
+}
+
+.receipt[data-theme='cvs'] .receipt-line,
+.receipt[data-theme='cvs'] .totals > div {
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: -.02em;
+}
+
+.receipt[data-theme='cvs'] .receipt-line:nth-child(4n) {
+  opacity: .84;
+  transform: translateX(.3px);
+}
+
+.receipt[data-theme='cvs'] .totals {
+  gap: 5px;
+}
+
+.receipt[data-theme='cvs'] .grand-total {
+  margin-top: 5px;
+  padding: 8px 0;
+  border-top: 1px solid var(--receipt-ink);
+  border-bottom: 1px solid var(--receipt-ink);
+  font-size: 11px !important;
+}
+
+.receipt[data-theme='cvs'] .totals::after {
+  content: '****************************************\A YOUR SAVINGS SUMMARY\A ****************************************\A TODAY YOU SAVED                 $33.00\A EXTRACARE SAVINGS               $20.46\A COUPON SAVINGS                  $12.54\A \A YOU SAVED: YOUR LAST NERVE\A ****************************************';
+  display: block;
+  margin-top: 11px;
+  color: var(--receipt-ink);
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: 7px;
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: pre-line;
+  text-align: left;
+}
+
+.receipt[data-theme='cvs'] .status-stamp {
+  margin: 20px auto 18px;
+  padding: 7px 10px;
+  border-width: 2px;
+  font-size: 9px;
+  transform: rotate(-.8deg);
+}
+
+.receipt[data-theme='cvs'] .receipt-note {
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: 7px;
+  line-height: 1.35;
+  letter-spacing: .015em;
+}
+
+.receipt[data-theme='cvs'] .coupon-tail {
+  gap: 0;
+  margin-top: 25px;
+  padding-top: 18px;
+  border-top: 2px dashed var(--receipt-ink);
+}
+
+.receipt[data-theme='cvs'] .coupon-title {
+  margin-bottom: 8px;
+  padding: 10px 7px;
+  color: #fff;
+  background: var(--receipt-accent);
+  font-size: 10px;
+  letter-spacing: .045em;
+}
+
+.receipt[data-theme='cvs'] .coupon {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-height: 174px;
+  padding: 29px 5px 18px;
+  border: 0;
+  border-bottom: 1px dashed rgba(38, 36, 33, .72);
+  color: var(--receipt-ink);
+}
+
+.receipt[data-theme='cvs'] .coupon::before {
+  content: '✂  - - - - - - - - - - - - - - - - -';
+  position: absolute;
+  top: 7px;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  color: rgba(38, 36, 33, .66);
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: 7px;
+  white-space: nowrap;
+}
+
+.receipt[data-theme='cvs'] .coupon::after {
+  content: '||| || |||| | ||| || |||| || | |||\A 4019 0400 0001';
+  display: block;
+  width: 76%;
+  margin-top: 5px;
+  color: var(--receipt-ink);
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.35;
+  white-space: pre-line;
+  letter-spacing: .08em;
+}
+
+.receipt[data-theme='cvs'] .coupon strong {
+  max-width: 96%;
+  color: var(--receipt-accent);
+  font-size: 18px;
+  line-height: 1.04;
+  letter-spacing: -.045em;
+  white-space: normal;
+}
+
+.receipt[data-theme='cvs'] .coupon strong::before {
+  content: 'EXTRACARE COUPON';
+  display: block;
+  margin-bottom: 7px;
+  color: var(--receipt-accent);
+  font-size: 7px;
+  letter-spacing: .11em;
+}
+
+.receipt[data-theme='cvs'] .coupon small {
+  max-width: 96%;
+  font-size: 6px;
+  line-height: 1.25;
+}
+
+.receipt[data-theme='cvs'] .coupon small::after {
+  content: '\A Valid on one qualifying emotional event. Limit one offer per household, nervous system, and minor catastrophe. Void where being perceived is prohibited.';
+  white-space: pre-line;
+}
+
+.receipt[data-theme='cvs'] .coupon:nth-of-type(2) strong::before { content: 'EXTRABUCKS REWARD'; }
+.receipt[data-theme='cvs'] .coupon:nth-of-type(3) strong::before { content: 'MEMBER-ONLY PRICE'; }
+.receipt[data-theme='cvs'] .coupon:nth-of-type(4) strong::before { content: 'PHARMACY REWARD'; }
+.receipt[data-theme='cvs'] .coupon:nth-of-type(5) strong::before { content: 'JUST FOR YOU'; }
+.receipt[data-theme='cvs'] .coupon:nth-of-type(6) strong::before { content: 'BONUS REWARD'; }
+.receipt[data-theme='cvs'] .coupon:nth-of-type(7) strong::before { content: 'SURVEY OFFER'; }
+
+.receipt[data-theme='cvs'] .coupon:nth-of-type(2)::after { content: '|| ||||| | || ||| |||| | |||| ||\A 0200 0000 7772'; }
+.receipt[data-theme='cvs'] .coupon:nth-of-type(3)::after { content: '|||| | || ||||| || | |||| ||| |\A 5150 1111 0050'; }
+.receipt[data-theme='cvs'] .coupon:nth-of-type(4)::after { content: '||| ||| || ||||| | || |||| |||\A 2400 8888 0000'; }
+.receipt[data-theme='cvs'] .coupon:nth-of-type(5)::after { content: '|| |||| ||| | ||||| || ||| ||\A 3000 4040 0003'; }
+.receipt[data-theme='cvs'] .coupon:nth-of-type(6)::after { content: '|||| || | |||| ||| || ||||| |\A 1600 2000 0040'; }
+.receipt[data-theme='cvs'] .coupon:nth-of-type(7)::after { content: '||| ||||| || ||| | |||| || ||\A 5000 4747 0005'; }
+
+.receipt[data-theme='cvs'] .coupon:nth-of-type(1) small::after {
+  content: '\A Excludes grief, taxes, weddings, and anything beginning before noon. Limit one future obligation per exhausted household.';
+}
+
+.receipt[data-theme='cvs'] .coupon:nth-of-type(2) small::after {
+  content: '\A Issued after one verified period of staring into space without converting it into a productivity system.';
+}
+
+.receipt[data-theme='cvs'] .coupon:nth-of-type(3) small::after {
+  content: '\A Second coping mechanism must be of equal or lesser chaos. Doomscrolling does not qualify.';
+}
+
+.receipt[data-theme='cvs'] .coupon:nth-of-type(4) small::after {
+  content: '\A Delivery window unavailable. Rest may arrive unexpectedly. Signature waived due to low social battery.';
+}
+
+.receipt[data-theme='cvs'] .coupon:nth-of-type(5) small::after {
+  content: '\A Offer ends when a follow-up arrives. Not valid on messages marked urgent by the person who made them urgent.';
+}
+
+.receipt[data-theme='cvs'] .coupon:nth-of-type(6) small::after {
+  content: '\A Points have no cash value, but your nervous system has submitted a formal letter of appreciation.';
+}
+
+.receipt[data-theme='cvs'] .coupon:nth-of-type(7) small::after {
+  content: '\A Complete our 47-question survey. Estimated completion time: emotionally indefinite.';
+}
+
+.receipt[data-theme='cvs'] .coupon-tail::after {
+  content: '****************************************\A WE WANT TO HEAR ABOUT YOUR INCIDENT\A Tell us how today hurt and enter for a chance to win $1,000 in imaginary ExtraBucks.\A \A SURVEY CODE: 0417-777-09174\A www.cvs-catastrophe.invalid/survey\A Estimated completion time: emotionally indefinite.\A ****************************************';
+  display: block;
+  margin-top: 18px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--receipt-ink);
+  font-family: 'DM Mono', ui-monospace, monospace;
+  font-size: 6.5px;
+  line-height: 1.45;
+  white-space: pre-line;
+  text-align: center;
+}
+
+.receipt[data-theme='cvs'] .barcode {
+  height: 62px;
+  margin-top: 22px;
+  gap: 1px;
+}
+
+.receipt[data-theme='cvs'] .barcode i {
+  width: 1px;
+  height: 47px;
+}
+
+.receipt[data-theme='cvs'] .barcode i:nth-child(3n) {
+  width: 3px;
+  height: 56px;
+}
+
+@media (max-width: 590px) {
+  .receipt[data-theme='cvs'] {
+    padding-left: 17px;
+    padding-right: 17px;
+  }
+}
