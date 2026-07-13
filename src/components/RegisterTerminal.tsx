@@ -33,6 +33,12 @@ export function getPhysicalPrintContract(phase: PrinterPhase) {
     printedContentVisible: phase !== 'idle' && phase !== 'arming',
     couponTailMounted: phase === 'printingCoupons' || phase === 'complete',
     slotLipOverlap: 10,
+    viewportOverlap: 31,
+    blankLeaderHeight: 30,
+    cvsBlankLeaderHeight: 38,
+    topReceiptTeethMounted: false,
+    contactShadowInset: 10,
+    cvsBandVisible: phase !== 'idle' && phase !== 'arming',
     reducedMotionDuration: 120,
   }
 }
