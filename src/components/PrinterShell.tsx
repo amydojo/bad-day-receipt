@@ -28,6 +28,7 @@ export function PrinterShell({ phase, theme }: PrinterShellProps) {
       <div className="printer-slot" aria-hidden="true">
         <div className="printer-slot__void" />
         <div className="printer-slot__roller" />
+        <div className="printer-slot__lip" />
       </div>
       <div className="tear-bar" aria-hidden="true" />
     </div>
