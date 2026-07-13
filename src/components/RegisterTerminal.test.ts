@@ -57,10 +57,28 @@ describe('register terminal reveal contract', () => {
     expect(contract.cvsBlankLeaderHeight).toBeGreaterThan(contract.blankLeaderHeight)
   })
 
-  it('removes the loose-sheet top edge and localizes the contact shadow', () => {
+  it('uses a full-width paper contact treatment with soft edges', () => {
     const contract = getPhysicalPrintContract('arming')
     expect(contract.topReceiptTeethMounted).toBe(false)
-    expect(contract.contactShadowInset).toBeGreaterThan(0)
+    expect(contract.contactShadowInset).toBe(0)
+    expect(contract.pressureShadowInset).toBe(0)
+    expect(contract.contactShadowMatchesPaperWidth).toBe(true)
+    expect(contract.contactShadowHasEdgeFade).toBe(true)
+  })
+
+  it('keeps the contact layer narrower than the slot because the paper is narrower', () => {
+    const { slot, receipt } = getMachineGeometry()
+    expect(receipt).toBeLessThan(slot)
+    expect(getPhysicalPrintContract('feeding').contactShadowMatchesPaperWidth).toBe(true)
+  })
+
+  it('shows contact pressure only while paper is actively moving', () => {
+    expect(getPhysicalPrintContract('arming').contactOverlaysVisible).toBe(true)
+    expect(getPhysicalPrintContract('feeding').contactOverlaysVisible).toBe(true)
+    expect(getPhysicalPrintContract('printingCoupons').contactOverlaysVisible).toBe(true)
+    expect(getPhysicalPrintContract('stamping').contactOverlaysVisible).toBe(false)
+    expect(getPhysicalPrintContract('falseComplete').contactOverlaysVisible).toBe(false)
+    expect(getPhysicalPrintContract('complete').contactOverlaysVisible).toBe(false)
   })
 
   it('uses a slot lip overlap that physically covers the paper edge', () => {
