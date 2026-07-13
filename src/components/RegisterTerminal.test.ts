@@ -3,6 +3,7 @@ import { getTheme } from '../themes'
 import type { ReceiptItem } from '../types'
 import {
   getMachineGeometry,
+  getPhysicalPrintContract,
   getTerminalSnapshot,
   getTerminalStatus,
   shouldRenderIssuedReceipt,
@@ -17,6 +18,15 @@ describe('register terminal reveal contract', () => {
   it('hides the issued receipt while the transaction is idle', () => {
     expect(shouldRenderIssuedReceipt('idle')).toBe(false)
     expect(shouldRenderIssuedReceipt('arming')).toBe(true)
+  })
+
+  it('mounts blank paper during arming with printed content hidden', () => {
+    expect(getPhysicalPrintContract('arming')).toMatchObject({
+      receiptMounted: true,
+      blankTipOnly: true,
+      printedContentVisible: false,
+      couponTailMounted: false,
+    })
   })
 
   it('shows live item count, total, paper stock, and uncommitted status', () => {
@@ -39,8 +49,19 @@ describe('register terminal reveal contract', () => {
     expect(slot).toBeGreaterThan(receipt)
   })
 
-  it('announces the CVS reward continuation phase', () => {
+  it('uses a slot lip overlap that physically covers the paper edge', () => {
+    expect(getPhysicalPrintContract('arming').slotLipOverlap).toBeGreaterThanOrEqual(8)
+    expect(getPhysicalPrintContract('arming').slotLipOverlap).toBeLessThanOrEqual(12)
+  })
+
+  it('keeps the CVS coupon tail absent until the second feed', () => {
+    expect(getPhysicalPrintContract('falseComplete').couponTailMounted).toBe(false)
     expect(getTerminalStatus('falseComplete')).toBe('PRINT COMPLETE')
     expect(getTerminalStatus('printingCoupons')).toBe('ADDITIONAL REWARDS FOUND')
+    expect(getPhysicalPrintContract('printingCoupons').couponTailMounted).toBe(true)
+  })
+
+  it('keeps reduced motion completion below 250ms', () => {
+    expect(getPhysicalPrintContract('arming').reducedMotionDuration).toBeLessThan(250)
   })
 })
