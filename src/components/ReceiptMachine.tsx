@@ -135,6 +135,7 @@ export function ReceiptMachine({
               items={items}
               receiptNumber={receiptNumber}
               theme={theme}
+              phase={state.phase}
               visibleLineCount={state.visibleLineCount}
               visibleTotalRows={state.visibleTotalRows}
               showVerdict={showVerdict}
@@ -178,19 +179,13 @@ export function ReceiptMachine({
 
           <div className="export-grid" aria-label="Save receipt formats">
             <button type="button" onClick={() => onExport('full')}>
-              <span>FULL</span>
-              <strong>SAVE THE EVIDENCE</strong>
-              <small>complete artifact</small>
+              <span>FULL</span><strong>SAVE THE EVIDENCE</strong><small>complete artifact</small>
             </button>
             <button type="button" onClick={() => onExport('share')}>
-              <span>4:5</span>
-              <strong>SHARE CARD</strong>
-              <small>1080 × 1350</small>
+              <span>4:5</span><strong>SHARE CARD</strong><small>1080 × 1350</small>
             </button>
             <button type="button" onClick={() => onExport('story')}>
-              <span>9:16</span>
-              <strong>STORY STRIP</strong>
-              <small>1080 × 1920</small>
+              <span>9:16</span><strong>STORY STRIP</strong><small>1080 × 1920</small>
             </button>
           </div>
 
