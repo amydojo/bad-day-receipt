@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { currency, summarizeReceipt } from '../receipt'
+import type { PrinterPhase } from '../printer/printerTypes'
 import {
   getThemeItemLabel,
   getThemeStatus,
@@ -11,6 +12,7 @@ interface ReceiptProps {
   items: ReceiptItem[]
   receiptNumber: string
   theme: ReceiptTheme
+  phase: PrinterPhase
   visibleLineCount: number
   visibleTotalRows: number
   showVerdict: boolean
@@ -22,6 +24,7 @@ export function Receipt({
   items,
   receiptNumber,
   theme,
+  phase,
   visibleLineCount,
   visibleTotalRows,
   showVerdict,
@@ -45,27 +48,36 @@ export function Receipt({
   ]
 
   const coupons = theme.coupons ?? []
+  const headerPrinted = !['arming'].includes(phase)
+  const bodyPrinted = ['scanning', 'calculating', 'feeding', 'stamping', 'falseComplete', 'printingCoupons', 'complete'].includes(phase)
+  const couponTailMounted = ['printingCoupons', 'complete'].includes(phase)
 
   return (
-    <article className="receipt" id="receipt" data-theme={theme.id}>
-      <div className="receipt-teeth top" aria-hidden="true" />
-      <div className="theme-mark" aria-hidden="true">{theme.mark}</div>
+    <article
+      className="receipt"
+      id="receipt"
+      data-theme={theme.id}
+      data-phase={phase}
+      data-blank-tip={phase === 'arming'}
+    >
+      <div className="receipt-teeth top" aria-hidden="true" data-printed={headerPrinted} />
+      <div className="theme-mark" aria-hidden="true" data-printed={headerPrinted}>{theme.mark}</div>
 
-      <div className="receipt-header">
+      <div className="receipt-header" data-printed={headerPrinted}>
         <p>{theme.eyebrow}</p>
         <h2>{theme.title}</h2>
         <p>{theme.department}</p>
       </div>
 
-      <div className="receipt-meta">
+      <div className="receipt-meta" data-printed={headerPrinted}>
         <span>{date}</span>
         <span>{receiptNumber}</span>
         <span>{theme.servedBy}</span>
       </div>
 
-      <div className="receipt-rule" />
+      <div className="receipt-rule" data-printed={headerPrinted} />
 
-      <div className="receipt-lines">
+      <div className="receipt-lines" data-printed={bodyPrinted}>
         {items.length === 0 ? (
           <div className="empty-receipt">
             {theme.emptyState[0]}<br />{theme.emptyState[1]}
@@ -82,9 +94,9 @@ export function Receipt({
         ))}
       </div>
 
-      <div className="receipt-rule dashed" />
+      <div className="receipt-rule dashed" data-printed={visibleLineCount >= items.length && items.length > 0} />
 
-      <div className="totals">
+      <div className="totals" data-printed={visibleTotalRows > 0}>
         {totalRows.map(([label, amount, isGrandTotal], index) => (
           <div
             className={isGrandTotal ? 'grand-total' : undefined}
@@ -112,7 +124,7 @@ export function Receipt({
         {theme.notes.map((note) => <p key={note}>{note}</p>)}
       </div>
 
-      {coupons.length > 0 && (
+      {couponTailMounted && coupons.length > 0 && (
         <div
           className="coupon-tail"
           aria-label="CVS catastrophe coupons"
@@ -121,13 +133,8 @@ export function Receipt({
           <p className="coupon-title">YOUR ABSURDLY LONG COUPONS</p>
           {coupons.map((coupon, index) => {
             const visible = couponProgress >= (index + 1) / coupons.length
-
             return (
-              <div
-                className="coupon"
-                data-visible={visible}
-                key={coupon.code}
-              >
+              <div className="coupon" data-visible={visible} key={coupon.code}>
                 <strong>{coupon.headline} — {coupon.detail}</strong>
                 <small>VALID UNTIL YOUR NEXT MINOR INCONVENIENCE</small>
               </div>
@@ -136,10 +143,10 @@ export function Receipt({
         </div>
       )}
 
-      <div className="barcode" aria-hidden="true">
+      <div className="barcode" aria-hidden="true" data-printed={showVerdict}>
         {Array.from({ length: 42 }, (_, index) => <i key={index} />)}
       </div>
-      <div className="receipt-teeth bottom" aria-hidden="true" />
+      <div className="receipt-teeth bottom" aria-hidden="true" data-printed={showVerdict} />
     </article>
   )
 }
