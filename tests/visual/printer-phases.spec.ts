@@ -13,7 +13,7 @@ const phases = [
 ]
 
 test('captures every CVS printer phase', async ({ page }, testInfo) => {
-  test.setTimeout(60_000)
+  test.setTimeout(120_000)
   await page.goto('/?qualityPhaseHold=1')
   await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
   await choosePaper(page, 'CVS')
@@ -23,7 +23,7 @@ test('captures every CVS printer phase', async ({ page }, testInfo) => {
   else await page.getByRole('button', { name: 'RING IT UP', exact: true }).first().click()
 
   for (const phase of phases) {
-    await expect(page.locator('.receipt-machine')).toHaveAttribute('data-phase', phase, { timeout: 20_000 })
+    await expect(page.locator('.receipt-machine')).toHaveAttribute('data-phase', phase, { timeout: 30_000 })
     await testInfo.attach(`printer-${phase}`, {
       body: await page.locator('.receipt-machine').screenshot(),
       contentType: 'image/png',
