@@ -14,6 +14,7 @@ import './soft-machine/machineStage.css'
 import './soft-machine/artifactActions.css'
 import './soft-machine/bottomSheet.css'
 import './soft-machine/pwa.css'
+import './soft-machine/accessibility.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
