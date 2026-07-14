@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bad-day-receipt-shell-v1'
+const CACHE_NAME = 'bad-day-receipt-shell-v2'
 const CORE_ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/icon-maskable.svg']
 
 self.addEventListener('install', (event) => {
