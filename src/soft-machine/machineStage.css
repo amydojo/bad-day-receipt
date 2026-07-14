@@ -1,3 +1,12 @@
+.soft-machine-shell[data-phase='complete'] .receipt-viewport {
+  max-height: none;
+  overflow: visible;
+}
+
+.soft-machine-shell[data-phase='complete'] .receipt-track {
+  transform: none !important;
+}
+
 @media (max-width: 767px) {
   .soft-machine-shell[data-focused='true'] {
     padding-top: var(--sm-safe-top);
@@ -60,15 +69,6 @@
     width: min(calc(100vw - 24px), 346px);
     max-width: 100%;
     margin-inline: auto;
-  }
-
-  .soft-machine-shell[data-phase='complete'] .receipt-viewport {
-    max-height: none;
-    overflow: visible;
-  }
-
-  .soft-machine-shell[data-phase='complete'] .receipt-track {
-    transform: none !important;
   }
 
   .soft-machine-shell[data-phase='complete'] .post-print-panel {
