@@ -28,5 +28,10 @@ test('preserves false completion and the separate CVS coupon feed', async ({ pag
   expect(phases.indexOf('printingCoupons')).toBeLessThan(phases.indexOf('complete'))
 
   await expect(page.locator('.coupon-tail .coupon')).toHaveCount(7)
-  await expect(page.locator('.receipt-viewport')).toHaveCSS('overflow', /visible|clip/)
+  const receiptIsClipped = await page.locator('.receipt-viewport').evaluate((viewport) => {
+    const style = getComputedStyle(viewport)
+    const clipsOverflow = ['hidden', 'clip'].includes(style.overflowY)
+    return clipsOverflow && viewport.scrollHeight > viewport.clientHeight + 1
+  })
+  expect(receiptIsClipped).toBe(false)
 })
