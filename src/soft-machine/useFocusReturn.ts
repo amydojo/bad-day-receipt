@@ -12,15 +12,16 @@ export function useFocusReturn(
       ? document.activeElement
       : null
 
-    const frame = window.requestAnimationFrame(() => {
+    const focusFrame = window.requestAnimationFrame(() => {
       const first = getFocusableElements(containerRef.current)[0]
       first?.focus()
     })
 
     return () => {
-      window.cancelAnimationFrame(frame)
-      returnTarget.current?.focus()
+      window.cancelAnimationFrame(focusFrame)
+      const target = returnTarget.current
       returnTarget.current = null
+      window.setTimeout(() => target?.focus(), 0)
     }
   }, [containerRef, open])
 }
@@ -34,5 +35,8 @@ export function getFocusableElements(container: HTMLElement | null): HTMLElement
     'select:not([disabled])',
     'textarea:not([disabled])',
     '[tabindex]:not([tabindex="-1"])',
-  ].join(','))).filter((element) => !element.hasAttribute('hidden'))
+  ].join(','))).filter((element) => (
+    !element.hasAttribute('hidden')
+    && element.getAttribute('aria-hidden') !== 'true'
+  ))
 }
