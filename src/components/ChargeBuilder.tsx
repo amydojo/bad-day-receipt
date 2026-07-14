@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { currency } from '../receipt'
 import type { CatalogItem, LineItemKind, ReceiptItem } from '../types'
 
@@ -26,6 +26,11 @@ export function ChargeBuilder({
   const [customLabel, setCustomLabel] = useState('')
   const [customKind, setCustomKind] = useState<LineItemKind>('charge')
   const [customAmount, setCustomAmount] = useState('7.00')
+  const knownIds = useMemo(
+    () => new Set([...charges, ...credits].map((item) => item.id)),
+    [charges, credits],
+  )
+  const customItems = selected.filter((item) => !knownIds.has(item.id))
 
   const addCustomItem = (event: FormEvent) => {
     event.preventDefault()
@@ -65,9 +70,30 @@ export function ChargeBuilder({
         disabled={disabled}
       />
 
+      {customItems.length > 0 && (
+        <section className="picker-section" aria-labelledby="specific-lines-heading">
+          <div className="section-heading">
+            <span>04</span>
+            <h2 id="specific-lines-heading">Your suspiciously specific lines</h2>
+          </div>
+          <div className="chip-grid">
+            {customItems.map((item) => (
+              <ChoiceRow
+                key={item.id}
+                item={item}
+                selectedItem={item}
+                disabled={disabled}
+                onToggle={onToggle}
+                onQuantityChange={onQuantityChange}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       <form className="custom-form" onSubmit={addCustomItem} aria-disabled={disabled}>
         <div className="section-heading">
-          <span>04</span>
+          <span>{customItems.length > 0 ? '05' : '04'}</span>
           <h2>Add something suspiciously specific</h2>
         </div>
         <div className="custom-grid">
@@ -135,54 +161,79 @@ function Picker({
         <h2>{title}</h2>
       </div>
       <div className="chip-grid">
-        {items.map((item) => {
-          const selectedItem = selected.find((candidate) => candidate.id === item.id)
-          const active = Boolean(selectedItem)
-          const quantity = selectedItem?.quantity ?? 0
-          const isDaily = item.id === dailyId
-
-          return (
-            <div className="choice-row" data-active={active} key={item.id}>
-              <button
-                type="button"
-                className={`choice-chip ${active ? 'active' : ''}`}
-                aria-pressed={active}
-                onClick={() => onToggle(item)}
-                disabled={disabled}
-              >
-                <span>
-                  {isDaily && <small>DAILY REGISTER SPECIAL</small>}
-                  {item.label}
-                  {active && <em>SCANNED</em>}
-                </span>
-                <strong>{currency(item.amount)}</strong>
-              </button>
-
-              {active && (
-                <div className="quantity-stepper" aria-label={`${item.label} quantity`}>
-                  <button
-                    type="button"
-                    aria-label={`Decrease ${item.label}`}
-                    onClick={() => onQuantityChange(item.id, quantity - 1)}
-                    disabled={disabled}
-                  >
-                    −
-                  </button>
-                  <output aria-live="polite">QTY {quantity}</output>
-                  <button
-                    type="button"
-                    aria-label={`Increase ${item.label}`}
-                    onClick={() => onQuantityChange(item.id, quantity + 1)}
-                    disabled={disabled || quantity >= 9}
-                  >
-                    +
-                  </button>
-                </div>
-              )}
-            </div>
-          )
-        })}
+        {items.map((item) => (
+          <ChoiceRow
+            key={item.id}
+            item={item}
+            selectedItem={selected.find((candidate) => candidate.id === item.id)}
+            isDaily={item.id === dailyId}
+            disabled={disabled}
+            onToggle={onToggle}
+            onQuantityChange={onQuantityChange}
+          />
+        ))}
       </div>
     </section>
+  )
+}
+
+function ChoiceRow({
+  item,
+  selectedItem,
+  isDaily = false,
+  disabled,
+  onToggle,
+  onQuantityChange,
+}: {
+  item: CatalogItem
+  selectedItem?: ReceiptItem
+  isDaily?: boolean
+  disabled: boolean
+  onToggle: (item: CatalogItem) => void
+  onQuantityChange: (itemId: string, quantity: number) => void
+}) {
+  const active = Boolean(selectedItem)
+  const quantity = selectedItem?.quantity ?? 0
+
+  return (
+    <div className="choice-row" data-active={active}>
+      <button
+        type="button"
+        className={`choice-chip ${active ? 'active' : ''}`}
+        data-item-id={item.id}
+        aria-pressed={active}
+        onClick={() => onToggle(item)}
+        disabled={disabled}
+      >
+        <span>
+          {isDaily && <small>DAILY REGISTER SPECIAL</small>}
+          {item.label}
+          {active && <em>SCANNED</em>}
+        </span>
+        <strong>{currency(item.amount)}</strong>
+      </button>
+
+      {active && (
+        <div className="quantity-stepper" aria-label={`${item.label} quantity`}>
+          <button
+            type="button"
+            aria-label={`Decrease ${item.label}`}
+            onClick={() => onQuantityChange(item.id, quantity - 1)}
+            disabled={disabled}
+          >
+            −
+          </button>
+          <output aria-live="polite">QTY {quantity}</output>
+          <button
+            type="button"
+            aria-label={`Increase ${item.label}`}
+            onClick={() => onQuantityChange(item.id, quantity + 1)}
+            disabled={disabled || quantity >= 9}
+          >
+            +
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
