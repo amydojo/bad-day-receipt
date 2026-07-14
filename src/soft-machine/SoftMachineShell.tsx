@@ -10,7 +10,7 @@ export function SoftMachineShell({
   children,
 }: SoftMachineShellProps) {
   return (
-    <main
+    <div
       className={`soft-machine-shell ${className}`.trim()}
       data-machine-id={machineId}
       data-phase={phase}
@@ -19,6 +19,6 @@ export function SoftMachineShell({
       data-active-theme={activeTheme}
     >
       {children}
-    </main>
+    </div>
   )
 }
