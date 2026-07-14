@@ -17,7 +17,7 @@
   padding-left: max(var(--sm-viewport-gutter), var(--sm-safe-left));
   padding-right: max(var(--sm-viewport-gutter), var(--sm-safe-right));
   padding-bottom: var(--sm-safe-bottom);
-  scroll-padding-bottom: calc(96px + var(--sm-safe-bottom));
+  scroll-padding-bottom: calc(110px + var(--sm-safe-bottom));
 }
 
 @supports (min-height: 100dvh) {
@@ -33,19 +33,11 @@
 }
 
 .soft-machine-commit-bar {
-  position: sticky;
-  z-index: 90;
-  bottom: 0;
-  display: grid;
-  gap: 8px;
-  width: 100%;
-  margin-top: 20px;
-  padding: 10px 0 calc(10px + var(--sm-safe-bottom));
-  background: linear-gradient(to top, var(--page, #d7c9ab) 78%, transparent);
+  display: none;
 }
 
 .soft-machine-commit-bar[data-hidden='true'] {
-  display: none;
+  display: none !important;
 }
 
 .soft-machine-commit-summary {
@@ -58,12 +50,61 @@
 }
 
 .soft-machine-commit-bar > button {
-  min-height: var(--sm-control-min-height);
+  min-height: 52px;
   width: 100%;
+  border: 1px solid var(--ink, #181612);
+  border-radius: 0;
+  background: var(--ink, #181612);
+  color: var(--paper, #fffdf5);
+  font: 800 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .12em;
 }
 
 .soft-machine-shell :where(button, input, select, textarea) {
-  scroll-margin-bottom: calc(110px + var(--sm-safe-bottom));
+  scroll-margin-bottom: calc(120px + var(--sm-safe-bottom));
+}
+
+.choice-row {
+  min-width: 0;
+}
+
+.choice-row .choice-chip {
+  width: 100%;
+}
+
+.quantity-stepper {
+  display: grid;
+  grid-template-columns: 44px minmax(72px, 1fr) 44px;
+  align-items: center;
+  margin-top: -1px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+}
+
+.quantity-stepper button {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: 800 18px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.quantity-stepper button:focus-visible,
+.soft-machine-commit-bar > button:focus-visible {
+  outline: 3px solid var(--signal, currentColor);
+  outline-offset: 2px;
+}
+
+.quantity-stepper output {
+  text-align: center;
+  font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .1em;
+}
+
+.builder-panel[data-locked='true'] {
+  opacity: .62;
 }
 
 @media (max-width: 767px) {
@@ -76,12 +117,48 @@
     padding-top: var(--sm-safe-top);
   }
 
+  .soft-machine-shell > .app-shell {
+    width: 100%;
+    padding-bottom: calc(124px + var(--sm-safe-bottom));
+  }
+
   .soft-machine-shell[data-focused='true'] {
     scroll-snap-type: y proximity;
   }
 
   .soft-machine-shell[data-focused='true'] .soft-machine-stage {
     scroll-snap-align: start;
+  }
+
+  .soft-machine-commit-bar {
+    position: fixed;
+    z-index: 90;
+    right: max(12px, var(--sm-safe-right));
+    bottom: 0;
+    left: max(12px, var(--sm-safe-left));
+    display: grid;
+    gap: 8px;
+    padding: 12px 12px calc(12px + var(--sm-safe-bottom));
+    border: 1px solid var(--line, rgba(0, 0, 0, .28));
+    background: color-mix(in srgb, var(--page, #d7c9ab) 94%, transparent);
+    box-shadow: 0 -12px 32px rgba(18, 16, 12, .16);
+    backdrop-filter: blur(12px);
+  }
+
+  .chip-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .choice-row .choice-chip {
+    min-height: 64px;
+  }
+
+  .theme-tab,
+  .choice-chip,
+  .add-button,
+  .field input,
+  .field select {
+    min-height: var(--sm-control-min-height);
   }
 }
 
@@ -96,18 +173,14 @@
     max-width: none;
     padding-inline: max(var(--sm-viewport-gutter), calc((100vw - var(--sm-content-max-width)) / 2));
   }
-
-  .soft-machine-commit-bar {
-    position: static;
-    max-width: 430px;
-    margin-inline: auto;
-    background: none;
-    padding-bottom: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .soft-machine-shell {
     scroll-behavior: auto;
+  }
+
+  .soft-machine-commit-bar {
+    backdrop-filter: none;
   }
 }
