@@ -1,0 +1,97 @@
+@media (max-width: 767px) {
+  .soft-machine-shell[data-focused='true'] {
+    padding-top: var(--sm-safe-top);
+  }
+
+  .soft-machine-shell[data-focused='true'] .v2-masthead,
+  .soft-machine-shell[data-focused='true'] .theme-section,
+  .soft-machine-shell[data-focused='true'] .builder-panel,
+  .soft-machine-shell[data-focused='true'] .transaction-drawer,
+  .soft-machine-shell[data-focused='true'] footer {
+    display: none;
+  }
+
+  .soft-machine-shell[data-focused='true'] .workspace {
+    display: block;
+    min-height: calc(100dvh - var(--sm-safe-top) - var(--sm-safe-bottom));
+    margin: 0;
+    padding: 0;
+  }
+
+  .soft-machine-shell[data-focused='true'] .receipt-stage {
+    display: grid;
+    align-content: start;
+    width: 100%;
+    min-height: calc(100dvh - var(--sm-safe-top) - var(--sm-safe-bottom));
+    padding-top: 8px;
+  }
+
+  .soft-machine-shell[data-focused='true'] .receipt-machine {
+    width: 100%;
+    margin-inline: auto;
+  }
+
+  .soft-machine-shell[data-focused='true'] .receipt-actions,
+  .soft-machine-shell[data-focused='true'] .sound-toggle,
+  .soft-machine-shell[data-focused='true'] .privacy-note {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .soft-machine-shell[data-phase='complete'] .v2-masthead,
+  .soft-machine-shell[data-phase='complete'] .theme-section,
+  .soft-machine-shell[data-phase='complete'] .builder-panel,
+  .soft-machine-shell[data-phase='complete'] .transaction-drawer,
+  .soft-machine-shell[data-phase='complete'] footer {
+    display: none;
+  }
+
+  .soft-machine-shell[data-phase='complete'] .workspace {
+    display: block;
+    margin: 0;
+  }
+
+  .soft-machine-shell[data-phase='complete'] .receipt-stage,
+  .soft-machine-shell[data-phase='complete'] .receipt-machine,
+  .soft-machine-shell[data-phase='complete'] .receipt-viewport,
+  .soft-machine-shell[data-phase='complete'] .receipt-wrap,
+  .soft-machine-shell[data-phase='complete'] .receipt-actions,
+  .soft-machine-shell[data-phase='complete'] .post-print-panel {
+    width: min(calc(100vw - 24px), 346px);
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .soft-machine-shell[data-phase='complete'] .receipt-viewport {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .soft-machine-shell[data-phase='complete'] .receipt-track {
+    transform: none !important;
+  }
+
+  .soft-machine-shell[data-phase='complete'] .post-print-panel {
+    padding-bottom: calc(24px + var(--sm-safe-bottom));
+  }
+
+  .soft-machine-shell[data-phase='complete'] .sound-toggle,
+  .soft-machine-shell[data-phase='complete'] .privacy-note {
+    display: none;
+  }
+}
+
+@supports not (min-height: 100dvh) {
+  @media (max-width: 767px) {
+    .soft-machine-shell[data-focused='true'] .workspace,
+    .soft-machine-shell[data-focused='true'] .receipt-stage {
+      min-height: calc(100vh - var(--sm-safe-top) - var(--sm-safe-bottom));
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .soft-machine-shell[data-focused='true'] {
+    scroll-snap-type: none;
+  }
+}
