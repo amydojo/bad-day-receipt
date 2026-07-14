@@ -75,6 +75,7 @@ export function useReceiptPrinter({
   couponCount,
   themeId,
   reducedMotion,
+  hapticsEnabled = true,
   onReceiptNumberChange,
   sounds,
 }: UseReceiptPrinterOptions): UseReceiptPrinterResult {
@@ -105,7 +106,7 @@ export function useReceiptPrinter({
     onReceiptNumberChange(nextReceiptNumber)
     dispatch({ type: 'START', receiptNumber: nextReceiptNumber })
     sounds?.playPress()
-    tinyHaptic(8)
+    if (hapticsEnabled) tinyHaptic(8)
 
     try {
       if (reducedMotion) {
@@ -162,7 +163,7 @@ export function useReceiptPrinter({
 
       dispatch({ type: 'STAMP' })
       sounds?.playStamp()
-      tinyHaptic(12)
+      if (hapticsEnabled) tinyHaptic(12)
       await wait(PRINTER_TIMING.stampDuration, signal)
 
       if (themeId === 'cvs' && couponCount > 0) {
@@ -171,7 +172,7 @@ export function useReceiptPrinter({
 
         dispatch({ type: 'BEGIN_COUPONS' })
         sounds?.playCouponResume()
-        tinyHaptic(6)
+        if (hapticsEnabled) tinyHaptic(6)
         sounds?.playFeed()
 
         await animatePaperProgress({
@@ -200,6 +201,7 @@ export function useReceiptPrinter({
     }
   }, [
     couponCount,
+    hapticsEnabled,
     itemCount,
     onReceiptNumberChange,
     reducedMotion,
