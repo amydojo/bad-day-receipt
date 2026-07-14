@@ -1,0 +1,24 @@
+{
+  "name": "Bad Day Receipt",
+  "short_name": "Bad Day",
+  "description": "A tiny emotional point of sale for days that cost too much.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#d7c9ab",
+  "theme_color": "#d7c9ab",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
