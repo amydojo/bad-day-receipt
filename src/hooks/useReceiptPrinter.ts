@@ -33,7 +33,7 @@ export function wait(ms: number, signal: AbortSignal): Promise<void> {
 export function getDevelopmentPhaseHold(): number {
   if (!import.meta.env.DEV || typeof window === 'undefined') return 0
   return new URLSearchParams(window.location.search).get('qualityPhaseHold') === '1'
-    ? 1200
+    ? 5000
     : 0
 }
 
