@@ -40,6 +40,9 @@ interface ReceiptMachineProps {
   theme: ReceiptTheme
   anomaly?: string | null
   shareCopy: string
+  soundEnabled: boolean
+  hapticsEnabled: boolean
+  onSoundChange: (enabled: boolean) => void
   onReceiptNumberChange: (receiptNumber: string) => void
   createExport: (format: ExportFormat) => Promise<ArtifactExport>
   onTransactionComplete: (receiptNumber: string) => void
@@ -55,6 +58,9 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     theme,
     anomaly,
     shareCopy,
+    soundEnabled,
+    hapticsEnabled,
+    onSoundChange,
     onReceiptNumberChange,
     createExport,
     onTransactionComplete,
@@ -62,12 +68,12 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     onClear,
     onStateChange,
   }, ref) {
-    const [soundEnabled, setSoundEnabled] = useState(false)
     const [committedItems, setCommittedItems] = useState<ReceiptItem[]>(() => snapshotDraft(items))
     const soundEnabledRef = useRef(soundEnabled)
     const recordedReceipt = useRef<string | null>(null)
     const commitGuard = useRef(false)
     const completionRef = useRef<HTMLDivElement | null>(null)
+    const completionFrame = useRef<number | null>(null)
     soundEnabledRef.current = soundEnabled
 
     const sounds = useMemo(
@@ -88,6 +94,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       couponCount,
       themeId: theme.id,
       reducedMotion,
+      hapticsEnabled,
       onReceiptNumberChange,
       sounds,
     })
@@ -113,11 +120,12 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       if (recordedReceipt.current === state.receiptNumber) return
       recordedReceipt.current = state.receiptNumber
       onTransactionComplete(state.receiptNumber)
-      window.requestAnimationFrame(() => completionRef.current?.focus())
+      completionFrame.current = window.requestAnimationFrame(() => completionRef.current?.focus())
     }, [isComplete, onTransactionComplete, state.receiptNumber])
 
     useEffect(() => () => {
       commitGuard.current = false
+      if (completionFrame.current !== null) window.cancelAnimationFrame(completionFrame.current)
     }, [])
 
     const couponProgress = state.couponProgress
@@ -238,7 +246,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           className="sound-toggle"
           type="button"
           aria-pressed={soundEnabled}
-          onClick={() => setSoundEnabled((current) => !current)}
+          onClick={() => onSoundChange(!soundEnabled)}
         >
           SOUND: {soundEnabled ? 'TINY' : 'OFF'}
         </button>
