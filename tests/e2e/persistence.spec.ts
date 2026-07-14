@@ -26,7 +26,7 @@ test('restores draft, paper stock, and preferences', async ({ page }) => {
   await seedMachineStorage(page, persistedData())
   await openMachine(page)
 
-  await expect(page.getByRole('button', { name: /Recovered local draft/i })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.choice-chip[data-item-id="recovered"]')).toHaveAttribute('aria-pressed', 'true')
 
   const mobileTools = page.locator('.mobile-machine-tools')
   if (await mobileTools.isVisible()) {
@@ -48,7 +48,7 @@ test('recovers pending work as a clean idle draft', async ({ page }) => {
   await openMachine(page)
 
   await expect(page.locator('.receipt-machine')).toHaveAttribute('data-phase', 'idle')
-  await expect(page.getByRole('button', { name: /Recovered local draft/i })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.choice-chip[data-item-id="recovered"]')).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('malformed state does not crash the machine', async ({ page }) => {
