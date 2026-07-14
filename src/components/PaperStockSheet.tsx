@@ -11,13 +11,12 @@ export function PaperStockSheet({
   onSelect: (id: ReceiptThemeId) => void
 }) {
   return (
-    <div className="sheet-option-list" role="list">
+    <div className="sheet-option-list" aria-label="Available paper stock">
       {themes.map((theme, index) => {
         const active = selected === theme.id
         return (
           <button
             type="button"
-            role="listitem"
             key={theme.id}
             className="sheet-paper-option"
             data-active={active}
