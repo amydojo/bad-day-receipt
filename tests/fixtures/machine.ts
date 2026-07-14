@@ -6,14 +6,14 @@ export async function openMachine(page: Page) {
 }
 
 export async function choosePaper(page: Page, name: string) {
-  const mobilePaper = page.getByRole('button', { name: /PAPER/ }).first()
-  if (await mobilePaper.isVisible()) {
-    await mobilePaper.click()
-    await page.getByRole('dialog').getByRole('button', { name: new RegExp(name, 'i') }).click()
+  const mobileTools = page.locator('.mobile-machine-tools')
+  if (await mobileTools.isVisible()) {
+    await mobileTools.getByRole('button', { name: /PAPER/ }).click()
+    await page.locator('.sheet-paper-option').filter({ hasText: name }).click()
     return
   }
 
-  await page.getByRole('button', { name: new RegExp(name, 'i') }).first().click()
+  await page.locator('.theme-tab').filter({ hasText: name }).click()
 }
 
 export async function commitTransaction(page: Page) {
@@ -38,6 +38,8 @@ export async function waitForComplete(page: Page) {
 export async function selectOneAdditionalCharge(page: Page) {
   const unselected = page.locator('.choice-chip[aria-pressed="false"]').first()
   await expect(unselected).toBeVisible()
+  const itemId = await unselected.getAttribute('data-item-id')
+  expect(itemId).toBeTruthy()
   await unselected.click()
-  await expect(unselected).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator(`.choice-chip[data-item-id="${itemId}"]`)).toHaveAttribute('aria-pressed', 'true')
 }
