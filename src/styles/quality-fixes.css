@@ -1,0 +1,5 @@
+.theme-tab span,
+.theme-tab small {
+  color: var(--card-ink);
+  opacity: 1;
+}
