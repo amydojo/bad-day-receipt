@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { MachineErrorBoundary } from './components/MachineErrorBoundary'
 import './styles.css'
 import './cvs-realism'
 import './styles/printer.css'
@@ -15,9 +16,12 @@ import './soft-machine/artifactActions.css'
 import './soft-machine/bottomSheet.css'
 import './soft-machine/pwa.css'
 import './soft-machine/accessibility.css'
+import './soft-machine/performance.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <MachineErrorBoundary>
+      <App />
+    </MachineErrorBoundary>
   </StrictMode>,
 )
