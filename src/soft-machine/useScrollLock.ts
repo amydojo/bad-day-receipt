@@ -23,7 +23,7 @@ export function useScrollLock(locked: boolean) {
       body.style.top = previous.top
       body.style.width = previous.width
       body.style.overflow = previous.overflow
-      window.scrollTo({ top: scrollY, behavior: 'instant' })
+      window.scrollTo(0, scrollY)
     }
   }, [locked])
 }
