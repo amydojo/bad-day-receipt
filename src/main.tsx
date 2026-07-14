@@ -11,6 +11,7 @@ import './styles/slot-depth.css'
 import './styles/slot-finish.css'
 import './soft-machine/softMachine.css'
 import './soft-machine/machineStage.css'
+import './soft-machine/artifactActions.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

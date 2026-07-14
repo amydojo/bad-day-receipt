@@ -16,8 +16,12 @@ import {
   setDraftItemQuantity,
   toggleDraftItem,
 } from './draftReceipt'
+import type { ArtifactExport } from './export/exportTypes'
+import {
+  isFocusedMachinePhase,
+  isReceiptEditingLocked,
+} from './machinePresentation'
 import { catalog, currency, makeReceiptNumber } from './receipt'
-import { downloadExport } from './socialExports'
 import { CommitBar } from './soft-machine/CommitBar'
 import { SoftMachineShell } from './soft-machine/SoftMachineShell'
 import {
@@ -70,8 +74,8 @@ function App() {
   const live = getDraftSummary(items)
   const anomaly = getRareAnomaly(receiptNumber)
   const shareCopy = createShareCopy(items, live.total, theme.name)
-  const editingLocked = machineState.phase !== 'idle'
-  const focusedMode = machineState.phase !== 'idle' && machineState.phase !== 'complete'
+  const editingLocked = isReceiptEditingLocked(machineState.phase)
+  const focusedMode = isFocusedMachinePhase(machineState.phase)
 
   useEffect(() => {
     const node = printerRef.current
@@ -132,21 +136,15 @@ function App() {
     setHistory(writeHistory(transaction))
   }
 
-  const exportReceipt = (format: ExportFormat) => {
-    downloadExport(items, receiptNumber, theme, format)
-  }
-
-  const copyShareText = async () => {
-    try {
-      await navigator.clipboard.writeText(shareCopy)
-    } catch {
-      const textArea = document.createElement('textarea')
-      textArea.value = shareCopy
-      document.body.appendChild(textArea)
-      textArea.select()
-      document.execCommand('copy')
-      textArea.remove()
-    }
+  const createExport = async (format: ExportFormat): Promise<ArtifactExport> => {
+    const { createReceiptArtifactExport } = await import('./export/renderReceiptExport')
+    return createReceiptArtifactExport({
+      items,
+      receiptNumber,
+      theme,
+      format,
+      shareText: shareCopy,
+    })
   }
 
   return (
@@ -204,8 +202,7 @@ function App() {
               anomaly={anomaly}
               shareCopy={shareCopy}
               onReceiptNumberChange={setReceiptNumber}
-              onExport={exportReceipt}
-              onCopyShare={copyShareText}
+              createExport={createExport}
               onTransactionComplete={recordTransaction}
               onMakeAnother={makeAnother}
               onClear={clearReceipt}

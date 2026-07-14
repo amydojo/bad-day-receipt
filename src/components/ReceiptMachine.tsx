@@ -7,13 +7,13 @@ import {
   useState,
 } from 'react'
 import { snapshotDraft } from '../draftReceipt'
+import type { ArtifactExport } from '../export/exportTypes'
 import { useReceiptPrinter } from '../hooks/useReceiptPrinter'
-import {
-  getPrinterAnnouncement,
-  getRingButtonLabel,
-} from '../printer/printerMachine'
+import { getConciseMachineAnnouncement } from '../machinePresentation'
+import { getRingButtonLabel } from '../printer/printerMachine'
 import { createPrinterSoundController } from '../printer/printerSounds'
 import type { PrinterPhase } from '../printer/printerTypes'
+import { ArtifactActions } from '../soft-machine/ArtifactActions'
 import type { ReceiptTheme } from '../themes'
 import type { ReceiptItem } from '../types'
 import type { ExportFormat } from '../v2'
@@ -41,8 +41,7 @@ interface ReceiptMachineProps {
   anomaly?: string | null
   shareCopy: string
   onReceiptNumberChange: (receiptNumber: string) => void
-  onExport: (format: ExportFormat) => void
-  onCopyShare: () => void | Promise<void>
+  createExport: (format: ExportFormat) => Promise<ArtifactExport>
   onTransactionComplete: (receiptNumber: string) => void
   onMakeAnother: () => void
   onClear: () => void
@@ -57,20 +56,18 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     anomaly,
     shareCopy,
     onReceiptNumberChange,
-    onExport,
-    onCopyShare,
+    createExport,
     onTransactionComplete,
     onMakeAnother,
     onClear,
     onStateChange,
   }, ref) {
     const [soundEnabled, setSoundEnabled] = useState(false)
-    const [shareCopied, setShareCopied] = useState(false)
     const [committedItems, setCommittedItems] = useState<ReceiptItem[]>(() => snapshotDraft(items))
     const soundEnabledRef = useRef(soundEnabled)
     const recordedReceipt = useRef<string | null>(null)
-    const copyResetTimer = useRef<number | null>(null)
     const commitGuard = useRef(false)
+    const completionRef = useRef<HTMLDivElement | null>(null)
     soundEnabledRef.current = soundEnabled
 
     const sounds = useMemo(
@@ -116,10 +113,10 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       if (recordedReceipt.current === state.receiptNumber) return
       recordedReceipt.current = state.receiptNumber
       onTransactionComplete(state.receiptNumber)
+      window.requestAnimationFrame(() => completionRef.current?.focus())
     }, [isComplete, onTransactionComplete, state.receiptNumber])
 
     useEffect(() => () => {
-      if (copyResetTimer.current !== null) window.clearTimeout(copyResetTimer.current)
       commitGuard.current = false
     }, [])
 
@@ -135,7 +132,6 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     const resetForNew = () => {
       commitGuard.current = false
       recordedReceipt.current = null
-      setShareCopied(false)
       resetPrinter()
     }
 
@@ -153,7 +149,6 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       if (commitGuard.current || isBusy || items.length === 0) return
       commitGuard.current = true
       recordedReceipt.current = null
-      setShareCopied(false)
       setCommittedItems(snapshotDraft(items))
       void startPrinting().finally(() => {
         commitGuard.current = false
@@ -164,13 +159,6 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       ringItUp: printAgain,
       reset: resetForNew,
     }))
-
-    const copyShare = async () => {
-      await onCopyShare()
-      setShareCopied(true)
-      if (copyResetTimer.current !== null) window.clearTimeout(copyResetTimer.current)
-      copyResetTimer.current = window.setTimeout(() => setShareCopied(false), 1800)
-    }
 
     return (
       <section
@@ -232,39 +220,17 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           </div>
         ) : (
           <div className="post-print-panel">
-            <div className="post-print-status">
+            <div className="post-print-status" ref={completionRef} tabIndex={-1}>
               <span>TRANSACTION RECORDED</span>
               <strong>Evidence issued. No further explanation required.</strong>
             </div>
 
-            <div className="export-grid" aria-label="Save receipt formats">
-              <button type="button" onClick={() => onExport('full')}>
-                <span>FULL</span><strong>SAVE THE EVIDENCE</strong><small>complete artifact</small>
-              </button>
-              <button type="button" onClick={() => onExport('share')}>
-                <span>4:5</span><strong>SHARE CARD</strong><small>1080 × 1350</small>
-              </button>
-              <button type="button" onClick={() => onExport('story')}>
-                <span>9:16</span><strong>STORY STRIP</strong><small>1080 × 1920</small>
-              </button>
-            </div>
-
-            <div className="share-copy">
-              <span>GENERATED SHARE COPY</span>
-              <p>{shareCopy}</p>
-              <button type="button" onClick={() => { void copyShare() }}>
-                {shareCopied ? 'COPIED TO CLIPBOARD' : 'COPY SHARE TEXT'}
-              </button>
-            </div>
-
-            <div className="post-print-actions">
-              <button type="button" className="secondary-button" onClick={makeAnother}>
-                MAKE ANOTHER TRANSACTION
-              </button>
-              <button type="button" className="text-button" onClick={printAgain}>
-                REPRINT THIS ONE
-              </button>
-            </div>
+            <ArtifactActions
+              shareText={shareCopy}
+              createExport={createExport}
+              onReset={makeAnother}
+              onReprint={printAgain}
+            />
           </div>
         )}
 
@@ -282,7 +248,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         </p>
 
         <p className="sr-only" aria-live="polite">
-          {getPrinterAnnouncement(state.phase)}
+          {getConciseMachineAnnouncement(state.phase)}
         </p>
       </section>
     )
