@@ -1,7 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
-import { SoftMachineShell } from './soft-machine/SoftMachineShell'
 import './styles.css'
 import './cvs-realism'
 import './styles/printer.css'
@@ -14,8 +13,6 @@ import './soft-machine/softMachine.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <SoftMachineShell machineId="bad-day-receipt" phase="idle">
-      <App />
-    </SoftMachineShell>
+    <App />
   </StrictMode>,
 )
