@@ -4,58 +4,143 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type FormEvent,
 } from 'react'
-import { ReceiptMachine } from './components/ReceiptMachine'
+import { ChargeBuilder } from './components/ChargeBuilder'
+import { ExportFormatSheet } from './components/ExportFormatSheet'
+import { MachineSettingsSheet } from './components/MachineSettingsSheet'
+import { PaperStockSheet } from './components/PaperStockSheet'
+import {
+  ReceiptMachine,
+  type ReceiptMachineHandle,
+  type ReceiptMachineStateSnapshot,
+} from './components/ReceiptMachine'
+import { TransactionHistorySheet } from './components/TransactionHistorySheet'
+import {
+  getDraftSummary,
+  setDraftItemQuantity,
+  snapshotDraft,
+  toggleDraftItem,
+} from './draftReceipt'
+import type { ArtifactExport } from './export/exportTypes'
+import {
+  isFocusedMachinePhase,
+  isReceiptEditingLocked,
+} from './machinePresentation'
+import { applyPwaUpdate, registerPwa } from './pwa'
 import { catalog, currency, makeReceiptNumber } from './receipt'
-import { downloadExport } from './socialExports'
+import {
+  createBrowserArtifactPlatform,
+  saveArtifact,
+} from './soft-machine/artifactActions'
+import { CommitBar } from './soft-machine/CommitBar'
+import { MachineBottomSheet } from './soft-machine/MachineBottomSheet'
+import {
+  appendValidHistory,
+  createDefaultMachineData,
+  loadMachineData,
+  saveMachineData,
+  type PendingCommit,
+  type PersistedMachineData,
+} from './soft-machine/persistence'
+import {
+  getMachineSheetTitle,
+  type MachineSheetId,
+} from './soft-machine/sheetState'
+import { SoftMachineShell } from './soft-machine/SoftMachineShell'
 import {
   getTheme,
   themes,
   type ReceiptThemeId,
 } from './themes'
-import type { CatalogItem, LineItemKind, ReceiptItem } from './types'
+import type { CatalogItem, ReceiptItem } from './types'
 import {
   createSavedTransaction,
   createShareCopy,
   getDailyItem,
-  getLiveSummary,
   getRareAnomaly,
-  getStickyBarState,
-  readHistory,
-  writeHistory,
   type ExportFormat,
   type SavedTransaction,
 } from './v2'
 
 const starterIds = ['normal', 'worry', 'decisions', 'food', 'through']
+const initialMachineState: ReceiptMachineStateSnapshot = {
+  phase: 'idle',
+  isBusy: false,
+  isComplete: false,
+}
+
+function createStarterItems(): ReceiptItem[] {
+  return catalog
+    .filter((item) => starterIds.includes(item.id))
+    .map((item) => ({ ...item, quantity: 1 }))
+}
 
 function App() {
-  const dailyItem = useMemo(() => getDailyItem(), [])
-  const [items, setItems] = useState<ReceiptItem[]>(
-    catalog
-      .filter((item) => starterIds.includes(item.id))
-      .map((item) => ({ ...item, quantity: 1 })),
+  const initialPersisted = useMemo(
+    () => loadMachineData(createDefaultMachineData(createStarterItems())),
+    [],
   )
-  const [customLabel, setCustomLabel] = useState('')
-  const [customKind, setCustomKind] = useState<LineItemKind>('charge')
-  const [customAmount, setCustomAmount] = useState('7.00')
+  const dailyItem = useMemo(() => getDailyItem(), [])
+  const browserArtifactPlatform = useMemo(createBrowserArtifactPlatform, [])
+  const [items, setItems] = useState<ReceiptItem[]>(initialPersisted.draft)
   const [receiptNumber, setReceiptNumber] = useState(makeReceiptNumber)
-  const [themeId, setThemeId] = useState<ReceiptThemeId>('original')
-  const [history, setHistory] = useState<SavedTransaction[]>(() => readHistory())
+  const [themeId, setThemeId] = useState<ReceiptThemeId>(initialPersisted.themeId)
+  const [history, setHistory] = useState<SavedTransaction[]>(initialPersisted.history)
   const [printerVisible, setPrinterVisible] = useState(false)
+  const [machineState, setMachineState] = useState(initialMachineState)
+  const [activeSheet, setActiveSheet] = useState<MachineSheetId | null>(null)
+  const [soundEnabled, setSoundEnabled] = useState(initialPersisted.preferences.soundEnabled)
+  const [hapticsEnabled, setHapticsEnabled] = useState(initialPersisted.preferences.hapticsEnabled)
+  const [pendingCommit, setPendingCommit] = useState<PendingCommit | null>(null)
+  const [lastCompleted, setLastCompleted] = useState<PersistedMachineData['lastCompleted']>(
+    initialPersisted.lastCompleted,
+  )
+  const [sheetExportBusy, setSheetExportBusy] = useState(false)
+  const [sheetExportMessage, setSheetExportMessage] = useState('')
+  const [pwaUpdate, setPwaUpdate] = useState<ServiceWorkerRegistration | null>(null)
+  const [offlineReady, setOfflineReady] = useState(false)
+  const mainRef = useRef<HTMLElement | null>(null)
   const printerRef = useRef<HTMLElement | null>(null)
+  const machineRef = useRef<ReceiptMachineHandle | null>(null)
 
   const theme = getTheme(themeId)
   const charges = useMemo(
     () => [dailyItem, ...catalog.filter((item) => item.kind === 'charge')],
     [dailyItem],
   )
-  const credits = catalog.filter((item) => item.kind === 'credit')
-  const live = getLiveSummary(items)
-  const sticky = getStickyBarState(items, printerVisible)
+  const credits = useMemo(() => catalog.filter((item) => item.kind === 'credit'), [])
+  const live = getDraftSummary(items)
   const anomaly = getRareAnomaly(receiptNumber)
   const shareCopy = createShareCopy(items, live.total, theme.name)
+  const editingLocked = isReceiptEditingLocked(machineState.phase)
+  const focusedMode = isFocusedMachinePhase(machineState.phase)
+
+  useEffect(() => {
+    void registerPwa({
+      onUpdateAvailable: setPwaUpdate,
+      onOfflineReady: () => setOfflineReady(true),
+    })
+  }, [])
+
+  useEffect(() => {
+    saveMachineData({
+      draft: items,
+      themeId,
+      history,
+      preferences: { soundEnabled, hapticsEnabled },
+      pendingCommit,
+      lastCompleted,
+    })
+  }, [hapticsEnabled, history, items, lastCompleted, pendingCommit, soundEnabled, themeId])
+
+  useEffect(() => {
+    if (machineState.phase !== 'arming' || pendingCommit) return
+    setPendingCommit({
+      items: snapshotDraft(items),
+      themeId,
+      startedAt: new Date().toISOString(),
+    })
+  }, [items, machineState.phase, pendingCommit, themeId])
 
   useEffect(() => {
     const node = printerRef.current
@@ -70,51 +155,50 @@ function App() {
   }, [])
 
   const toggleItem = (catalogItem: CatalogItem) => {
-    setItems((current) => {
-      const exists = current.some((item) => item.id === catalogItem.id)
-      if (exists) return current.filter((item) => item.id !== catalogItem.id)
-      return [...current, { ...catalogItem, quantity: 1 }]
-    })
+    if (editingLocked) return
+    setItems((current) => toggleDraftItem(current, catalogItem))
   }
 
-  const addCustomItem = (event: FormEvent) => {
-    event.preventDefault()
-    const parsedAmount = Number.parseFloat(customAmount)
-    if (!customLabel.trim() || Number.isNaN(parsedAmount) || parsedAmount <= 0) return
+  const changeQuantity = (itemId: string, quantity: number) => {
+    if (editingLocked) return
+    setItems((current) => setDraftItemQuantity(current, itemId, quantity))
+  }
 
-    const item: ReceiptItem = {
-      id: `custom-${crypto.randomUUID()}`,
-      label: customLabel.trim(),
-      amount: customKind === 'credit' ? -parsedAmount : parsedAmount,
-      kind: customKind,
-      quantity: 1,
-    }
+  const addCustomItem = (item: ReceiptItem) => {
+    if (editingLocked) return
     setItems((current) => [...current, item])
-    setCustomLabel('')
   }
 
   const clearReceipt = () => {
     setItems([])
+    setPendingCommit(null)
     setReceiptNumber(makeReceiptNumber())
+    setMachineState(initialMachineState)
   }
 
   const makeAnother = () => {
     setReceiptNumber(makeReceiptNumber())
-    setItems(
-      catalog
-        .filter((item) => starterIds.includes(item.id))
-        .map((item) => ({ ...item, quantity: 1 })),
-    )
+    setItems(createStarterItems())
+    setPendingCommit(null)
+    setMachineState(initialMachineState)
+    setActiveSheet(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const scrollToPrinter = () => {
+  const commitFromMobile = () => {
+    if (editingLocked || items.length === 0) return
+    setPendingCommit({
+      items: snapshotDraft(items),
+      themeId,
+      startedAt: new Date().toISOString(),
+    })
+    machineRef.current?.ringItUp()
     printerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const recordTransaction = () => {
+  const recordTransaction = (completedReceiptNumber: string) => {
     const transaction = createSavedTransaction({
-      receiptNumber,
+      receiptNumber: completedReceiptNumber,
       themeId: theme.id,
       themeName: theme.name,
       total: live.total,
@@ -122,206 +206,207 @@ function App() {
       status: live.status,
       shareCopy,
     })
-    setHistory(writeHistory(transaction))
+    setHistory((current) => appendValidHistory(current, transaction))
+    setPendingCommit(null)
+    setLastCompleted({
+      receiptNumber: completedReceiptNumber,
+      completedAt: new Date().toISOString(),
+    })
   }
 
-  const exportReceipt = (format: ExportFormat) => {
-    downloadExport(items, receiptNumber, theme, format)
+  const createExport = async (format: ExportFormat): Promise<ArtifactExport> => {
+    const { createReceiptArtifactExport } = await import('./export/renderReceiptExport')
+    return createReceiptArtifactExport({
+      items,
+      receiptNumber,
+      theme,
+      format,
+      shareText: shareCopy,
+    })
   }
 
-  const copyShareText = async () => {
+  const saveSheetExport = async (format: ExportFormat) => {
+    if (sheetExportBusy) return
+    setSheetExportBusy(true)
+    setSheetExportMessage('PREPARING EVIDENCE…')
     try {
-      await navigator.clipboard.writeText(shareCopy)
+      const artifact = await createExport(format)
+      const result = saveArtifact(artifact, browserArtifactPlatform)
+      setSheetExportMessage(
+        result.status === 'saved'
+          ? 'EVIDENCE SAVED'
+          : 'EXPORT JAMMED · THE RECEIPT IS SAFE',
+      )
     } catch {
-      const textArea = document.createElement('textarea')
-      textArea.value = shareCopy
-      document.body.appendChild(textArea)
-      textArea.select()
-      document.execCommand('copy')
-      textArea.remove()
+      setSheetExportMessage('EXPORT JAMMED · THE RECEIPT IS SAFE')
+    } finally {
+      setSheetExportBusy(false)
     }
   }
 
   return (
-    <main className="app-shell v2-shell" data-active-theme={theme.id}>
-      <header className="masthead v2-masthead">
-        <div className="system-row" aria-label="System status">
-          <span>SOFT MACHINE 001 · EMOTIONAL POS</span>
-          <span><i aria-hidden="true" /> READY · LOCAL ONLY</span>
-        </div>
-        <div className="brand-lockup">
-          <h1>bad day<br />receipt</h1>
-        </div>
-        <div className="hero-copy">
-          <p className="intro">Turn today’s invisible costs into official documentation.</p>
-          <p>NO ACCOUNT · NO DIAGNOSIS · JUST RECEIPTS</p>
-        </div>
-        <div className="hero-transaction" aria-live="polite">
-          <span>CURRENT TRANSACTION</span>
-          <strong>{live.itemCount} ITEMS · {currency(live.total)}</strong>
-        </div>
-      </header>
+    <SoftMachineShell
+      machineId="bad-day-receipt"
+      phase={machineState.phase}
+      focused={focusedMode}
+      activeTheme={theme.id}
+    >
+      <main ref={mainRef} className="app-shell v2-shell" data-active-theme={theme.id}>
+        {(pwaUpdate || offlineReady) && (
+          <div className="pwa-status" role="status">
+            <span>{pwaUpdate ? 'A FRESH PAPER ROLL IS READY' : 'MACHINE AVAILABLE OFFLINE'}</span>
+            {pwaUpdate && (
+              <button type="button" onClick={() => applyPwaUpdate(pwaUpdate)}>
+                RELOAD UPDATE
+              </button>
+            )}
+            {!pwaUpdate && <button type="button" onClick={() => setOfflineReady(false)}>OK</button>}
+          </div>
+        )}
 
-      <section className="theme-section theme-section-first" aria-labelledby="paperwork-heading">
-        <div className="section-heading">
-          <span>01</span>
-          <h2 id="paperwork-heading">Choose your paperwork</h2>
-        </div>
-        <ThemePicker selected={themeId} onSelect={setThemeId} />
-      </section>
+        <header className="masthead v2-masthead">
+          <div className="system-row" aria-label="System status">
+            <span>SOFT MACHINE 001 · EMOTIONAL POS</span>
+            <span><i aria-hidden="true" /> {editingLocked ? 'PROCESSING' : 'READY'} · LOCAL ONLY</span>
+          </div>
+          <div className="brand-lockup">
+            <h1>bad day<br />receipt</h1>
+          </div>
+          <div className="hero-copy">
+            <p className="intro">Turn today’s invisible costs into official documentation.</p>
+            <p>NO ACCOUNT · NO DIAGNOSIS · JUST RECEIPTS</p>
+          </div>
+          <div className="hero-transaction" aria-live="polite">
+            <span>CURRENT TRANSACTION</span>
+            <strong>{live.itemCount} ITEMS · {currency(live.total)}</strong>
+          </div>
+        </header>
 
-      <section className="workspace" aria-label="Emotional point of sale">
-        <div className="builder-panel">
-          <Picker
-            title="What charged you today?"
-            number="02"
-            items={charges}
+        <nav className="mobile-machine-tools" aria-label="Machine drawers">
+          <button type="button" disabled={editingLocked} onClick={() => setActiveSheet('paper')}>
+            <span>PAPER</span><strong>{theme.shortName}</strong>
+          </button>
+          <button type="button" onClick={() => setActiveSheet('history')}>
+            <span>HISTORY</span><strong>{history.length}</strong>
+          </button>
+          <button type="button" onClick={() => setActiveSheet('settings')}>
+            <span>SETTINGS</span><strong>{soundEnabled ? 'SOUND ON' : 'QUIET'}</strong>
+          </button>
+          <button
+            type="button"
+            disabled={!machineState.isComplete}
+            onClick={() => setActiveSheet('export')}
+          >
+            <span>EXPORT</span><strong>{machineState.isComplete ? 'READY' : 'AFTER PRINT'}</strong>
+          </button>
+        </nav>
+
+        <section className="theme-section theme-section-first" aria-labelledby="paperwork-heading">
+          <div className="section-heading">
+            <span>01</span>
+            <h2 id="paperwork-heading">Choose your paperwork</h2>
+          </div>
+          <ThemePicker selected={themeId} onSelect={setThemeId} disabled={editingLocked} />
+        </section>
+
+        <section className="workspace" aria-label="Emotional point of sale">
+          <ChargeBuilder
+            charges={charges}
+            credits={credits}
             selected={items}
-            onToggle={toggleItem}
             dailyId={dailyItem.id}
-          />
-          <Picker
-            title="What deserves store credit?"
-            number="03"
-            items={credits}
-            selected={items}
+            disabled={editingLocked}
             onToggle={toggleItem}
+            onQuantityChange={changeQuantity}
+            onAddCustom={addCustomItem}
           />
 
-          <form className="custom-form" onSubmit={addCustomItem}>
-            <div className="section-heading">
-              <span>04</span>
-              <h2>Add something suspiciously specific</h2>
-            </div>
-            <div className="custom-grid">
-              <label className="field field-wide">
-                <span>line item</span>
-                <input
-                  value={customLabel}
-                  onChange={(event) => setCustomLabel(event.target.value)}
-                  placeholder="Pretending the notification didn't scare me"
-                  maxLength={42}
-                />
-              </label>
-              <label className="field">
-                <span>type</span>
-                <select
-                  value={customKind}
-                  onChange={(event) => setCustomKind(event.target.value as LineItemKind)}
-                >
-                  <option value="charge">damage</option>
-                  <option value="credit">tiny win</option>
-                </select>
-              </label>
-              <label className="field">
-                <span>amount</span>
-                <input
-                  inputMode="decimal"
-                  value={customAmount}
-                  onChange={(event) => setCustomAmount(event.target.value)}
-                  aria-label="Amount"
-                />
-              </label>
-              <button className="add-button" type="submit">+ scan line</button>
-            </div>
-          </form>
-        </div>
+          <aside className="receipt-stage soft-machine-stage" ref={printerRef}>
+            <ReceiptMachine
+              ref={machineRef}
+              items={items}
+              receiptNumber={receiptNumber}
+              theme={theme}
+              anomaly={anomaly}
+              shareCopy={shareCopy}
+              soundEnabled={soundEnabled}
+              hapticsEnabled={hapticsEnabled}
+              onSoundChange={setSoundEnabled}
+              onReceiptNumberChange={setReceiptNumber}
+              createExport={createExport}
+              onTransactionComplete={recordTransaction}
+              onMakeAnother={makeAnother}
+              onClear={clearReceipt}
+              onStateChange={setMachineState}
+            />
+          </aside>
+        </section>
 
-        <aside className="receipt-stage" ref={printerRef}>
-          <ReceiptMachine
-            items={items}
-            receiptNumber={receiptNumber}
-            theme={theme}
-            anomaly={anomaly}
-            shareCopy={shareCopy}
-            onReceiptNumberChange={setReceiptNumber}
-            onExport={exportReceipt}
-            onCopyShare={copyShareText}
-            onTransactionComplete={recordTransaction}
-            onMakeAnother={makeAnother}
-            onClear={clearReceipt}
-          />
-        </aside>
-      </section>
+        <TransactionDrawer history={history} />
 
-      <TransactionDrawer history={history} />
+        <footer>
+          <span>made for tired little humans</span>
+          <span>all transactions remain locally sourced</span>
+        </footer>
 
-      <footer>
-        <span>made for tired little humans</span>
-        <span>all transactions remain locally sourced</span>
-      </footer>
+        <CommitBar
+          itemCount={live.itemCount}
+          totalLabel={currency(live.total)}
+          actionLabel="RING IT UP"
+          disabled={items.length === 0 || editingLocked}
+          hidden={printerVisible || editingLocked}
+          onCommit={commitFromMobile}
+        />
+      </main>
 
-      <button
-        type="button"
-        className="sticky-transaction"
-        data-visible={sticky.shouldStick}
-        onClick={scrollToPrinter}
-        aria-label={`View printer. ${live.itemCount} items totaling ${currency(live.total)}`}
+      <MachineBottomSheet
+        open={activeSheet !== null}
+        title={activeSheet ? getMachineSheetTitle(activeSheet) : 'Machine drawer'}
+        description={activeSheet === 'history' ? 'Last five receipts stored only on this device.' : undefined}
+        onClose={() => setActiveSheet(null)}
+        isolateRef={mainRef}
       >
-        <span><b>{live.itemCount}</b> ITEMS</span>
-        <strong>{currency(live.total)}</strong>
-        <span>{sticky.actionLabel} ↑</span>
-      </button>
-    </main>
-  )
-}
-
-function Picker({
-  title,
-  number,
-  items,
-  selected,
-  onToggle,
-  dailyId,
-}: {
-  title: string
-  number: string
-  items: CatalogItem[]
-  selected: ReceiptItem[]
-  onToggle: (item: CatalogItem) => void
-  dailyId?: string
-}) {
-  return (
-    <section className="picker-section">
-      <div className="section-heading">
-        <span>{number}</span>
-        <h2>{title}</h2>
-      </div>
-      <div className="chip-grid">
-        {items.map((item) => {
-          const active = selected.some((selectedItem) => selectedItem.id === item.id)
-          const isDaily = item.id === dailyId
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className={`choice-chip ${active ? 'active' : ''}`}
-              aria-pressed={active}
-              onClick={() => onToggle(item)}
-            >
-              <span>
-                {isDaily && <small>DAILY REGISTER SPECIAL</small>}
-                {item.label}
-                {active && <em>SCANNED</em>}
-              </span>
-              <strong>{currency(item.amount)}</strong>
-            </button>
-          )
-        })}
-      </div>
-    </section>
+        {activeSheet === 'paper' && (
+          <PaperStockSheet
+            selected={themeId}
+            disabled={editingLocked}
+            onSelect={(id) => {
+              setThemeId(id)
+              setActiveSheet(null)
+            }}
+          />
+        )}
+        {activeSheet === 'history' && <TransactionHistorySheet history={history} />}
+        {activeSheet === 'settings' && (
+          <MachineSettingsSheet
+            soundEnabled={soundEnabled}
+            hapticsEnabled={hapticsEnabled}
+            onSoundChange={setSoundEnabled}
+            onHapticsChange={setHapticsEnabled}
+          />
+        )}
+        {activeSheet === 'export' && (
+          <>
+            <ExportFormatSheet busy={sheetExportBusy} onSave={(format) => { void saveSheetExport(format) }} />
+            <p className="machine-sheet-status" aria-live="polite">{sheetExportMessage}</p>
+          </>
+        )}
+      </MachineBottomSheet>
+    </SoftMachineShell>
   )
 }
 
 function ThemePicker({
   selected,
   onSelect,
+  disabled,
 }: {
   selected: ReceiptThemeId
   onSelect: (id: ReceiptThemeId) => void
+  disabled: boolean
 }) {
   return (
-    <div className="theme-strip" role="list">
+    <div className="theme-strip" aria-label="Available paper stock">
       {themes.map((theme, index) => {
         const active = selected === theme.id
         return (
@@ -331,6 +416,7 @@ function ThemePicker({
             className={`theme-tab ${active ? 'active' : ''}`}
             aria-pressed={active}
             onClick={() => onSelect(theme.id)}
+            disabled={disabled}
             style={{
               '--card-paper': theme.palette.paper,
               '--card-ink': theme.palette.ink,

@@ -1,0 +1,52 @@
+.machine-fallback {
+  display: grid;
+  align-content: center;
+  gap: 16px;
+  min-height: 100dvh;
+  max-width: 560px;
+  margin-inline: auto;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  background: var(--page, #d7c9ab);
+  color: var(--ink, #181612);
+}
+
+.machine-fallback span {
+  font: 700 9px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .1em;
+}
+
+.machine-fallback h1,
+.machine-fallback p {
+  margin: 0;
+}
+
+.machine-fallback button {
+  min-height: 48px;
+  border: 1px solid currentColor;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+
+@media (max-width: 767px) {
+  .soft-machine-shell[data-focused='true'] .printer-shell,
+  .soft-machine-shell[data-focused='true'] .receipt-wrap {
+    filter: none;
+  }
+
+  .soft-machine-shell[data-focused='true'] .machine-under-shadow {
+    filter: blur(6px);
+  }
+
+  .machine-sheet-backdrop {
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .machine-under-shadow,
+  .printer-shell,
+  .receipt-wrap {
+    filter: none !important;
+  }
+}

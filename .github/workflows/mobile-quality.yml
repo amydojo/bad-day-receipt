@@ -1,0 +1,82 @@
+name: mobile-quality
+
+on:
+  pull_request:
+    branches:
+      - main
+      - agent/mobile-soft-machine
+      - agent/mobile-shell
+      - agent/mobile-input
+      - agent/mobile-printer-stage
+      - agent/mobile-artifact-actions
+      - agent/mobile-surfaces
+      - agent/mobile-pwa
+      - agent/mobile-accessibility
+      - agent/mobile-performance
+
+jobs:
+  validate-mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Unit tests
+        shell: bash
+        run: set -o pipefail; npm test 2>&1 | tee unit-tests.log
+
+      - name: Type and production build
+        shell: bash
+        run: set -o pipefail; npm run build 2>&1 | tee build.log
+
+      - name: Bundle budget
+        shell: bash
+        run: set -o pipefail; node scripts/analyze-build.mjs 2>&1 | tee bundle.log
+
+      - name: Cross browser journeys
+        shell: bash
+        run: set -o pipefail; npm run test:e2e 2>&1 | tee e2e.log
+
+      - name: Visual evidence
+        shell: bash
+        run: set -o pipefail; npm run test:visual -- --project=chromium-mobile --project=chromium-desktop 2>&1 | tee visual.log
+
+      - name: Upload command logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-quality-command-logs
+          path: '*.log'
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 14

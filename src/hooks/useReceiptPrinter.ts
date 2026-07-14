@@ -30,6 +30,13 @@ export function wait(ms: number, signal: AbortSignal): Promise<void> {
   })
 }
 
+export function getDevelopmentPhaseHold(): number {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return 0
+  return new URLSearchParams(window.location.search).get('qualityPhaseHold') === '1'
+    ? 5000
+    : 0
+}
+
 export function animatePaperProgress({
   duration,
   signal,
@@ -75,6 +82,7 @@ export function useReceiptPrinter({
   couponCount,
   themeId,
   reducedMotion,
+  hapticsEnabled = true,
   onReceiptNumberChange,
   sounds,
 }: UseReceiptPrinterOptions): UseReceiptPrinterResult {
@@ -101,13 +109,17 @@ export function useReceiptPrinter({
     activeController.current = controller
     const { signal } = controller
     const nextReceiptNumber = makeReceiptNumber()
+    const phaseHold = getDevelopmentPhaseHold()
+    const hold = () => phaseHold > 0 ? wait(phaseHold, signal) : Promise.resolve()
 
     onReceiptNumberChange(nextReceiptNumber)
     dispatch({ type: 'START', receiptNumber: nextReceiptNumber })
     sounds?.playPress()
-    tinyHaptic(8)
+    if (hapticsEnabled) tinyHaptic(8)
 
     try {
+      await hold()
+
       if (reducedMotion) {
         if (itemCount > 0) {
           dispatch({ type: 'REVEAL_LINE', lineIndex: itemCount - 1 })
@@ -125,6 +137,7 @@ export function useReceiptPrinter({
 
       await wait(PRINTER_TIMING.arming + PRINTER_TIMING.scanStartDelay, signal)
       dispatch({ type: 'BEGIN_SCAN' })
+      await hold()
 
       const revealCounts = getScanRevealCounts(itemCount)
       for (let index = 0; index < revealCounts.length; index += 1) {
@@ -142,6 +155,7 @@ export function useReceiptPrinter({
       }
 
       dispatch({ type: 'BEGIN_TOTALS' })
+      await hold()
       await wait(PRINTER_TIMING.totalsGap, signal)
 
       for (let index = 0; index < 4; index += 1) {
@@ -150,6 +164,7 @@ export function useReceiptPrinter({
       }
 
       dispatch({ type: 'BEGIN_FEED' })
+      await hold()
       sounds?.playFeed()
       await animatePaperProgress({
         duration: PRINTER_TIMING.feedDuration,
@@ -161,17 +176,20 @@ export function useReceiptPrinter({
       sounds?.stopFeed()
 
       dispatch({ type: 'STAMP' })
+      await hold()
       sounds?.playStamp()
-      tinyHaptic(12)
+      if (hapticsEnabled) tinyHaptic(12)
       await wait(PRINTER_TIMING.stampDuration, signal)
 
       if (themeId === 'cvs' && couponCount > 0) {
         dispatch({ type: 'FALSE_COMPLETE' })
+        await hold()
         await wait(PRINTER_TIMING.falseCompletePause, signal)
 
         dispatch({ type: 'BEGIN_COUPONS' })
+        await hold()
         sounds?.playCouponResume()
-        tinyHaptic(6)
+        if (hapticsEnabled) tinyHaptic(6)
         sounds?.playFeed()
 
         await animatePaperProgress({
@@ -200,6 +218,7 @@ export function useReceiptPrinter({
     }
   }, [
     couponCount,
+    hapticsEnabled,
     itemCount,
     onReceiptNumberChange,
     reducedMotion,

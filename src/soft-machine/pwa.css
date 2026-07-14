@@ -1,0 +1,34 @@
+.pwa-status {
+  position: sticky;
+  z-index: 120;
+  top: var(--sm-safe-top);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font: 700 8px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .08em;
+}
+
+.pwa-status button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid currentColor;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+@media (max-width: 767px) {
+  .pwa-status {
+    margin-inline: -12px;
+    padding-left: max(12px, var(--sm-safe-left));
+    padding-right: max(12px, var(--sm-safe-right));
+  }
+}
