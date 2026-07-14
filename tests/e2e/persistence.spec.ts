@@ -27,8 +27,13 @@ test('restores draft, paper stock, and preferences', async ({ page }) => {
   await openMachine(page)
 
   await expect(page.getByRole('button', { name: /Recovered local draft/i })).toHaveAttribute('aria-pressed', 'true')
-  const paperButton = page.getByRole('button', { name: /PAPER/ }).first()
-  if (await paperButton.isVisible()) await expect(paperButton).toContainText('CVS')
+
+  const mobileTools = page.locator('.mobile-machine-tools')
+  if (await mobileTools.isVisible()) {
+    await expect(mobileTools.getByRole('button', { name: /PAPER/ })).toContainText('CVS')
+  } else {
+    await expect(page.locator('.theme-tab[aria-pressed="true"]')).toContainText('CVS')
+  }
 })
 
 test('recovers pending work as a clean idle draft', async ({ page }) => {
