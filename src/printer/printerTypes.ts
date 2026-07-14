@@ -54,6 +54,7 @@ export interface UseReceiptPrinterOptions {
   couponCount: number
   themeId: ReceiptThemeId
   reducedMotion: boolean
+  hapticsEnabled?: boolean
   onReceiptNumberChange: (receiptNumber: string) => void
   sounds?: PrinterSoundController
 }
