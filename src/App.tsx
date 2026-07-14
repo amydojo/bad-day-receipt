@@ -6,11 +6,15 @@ import {
   type CSSProperties,
 } from 'react'
 import { ChargeBuilder } from './components/ChargeBuilder'
+import { ExportFormatSheet } from './components/ExportFormatSheet'
+import { MachineSettingsSheet } from './components/MachineSettingsSheet'
+import { PaperStockSheet } from './components/PaperStockSheet'
 import {
   ReceiptMachine,
   type ReceiptMachineHandle,
   type ReceiptMachineStateSnapshot,
 } from './components/ReceiptMachine'
+import { TransactionHistorySheet } from './components/TransactionHistorySheet'
 import {
   getDraftSummary,
   setDraftItemQuantity,
@@ -22,7 +26,16 @@ import {
   isReceiptEditingLocked,
 } from './machinePresentation'
 import { catalog, currency, makeReceiptNumber } from './receipt'
+import {
+  createBrowserArtifactPlatform,
+  saveArtifact,
+} from './soft-machine/artifactActions'
 import { CommitBar } from './soft-machine/CommitBar'
+import { MachineBottomSheet } from './soft-machine/MachineBottomSheet'
+import {
+  getMachineSheetTitle,
+  type MachineSheetId,
+} from './soft-machine/sheetState'
 import { SoftMachineShell } from './soft-machine/SoftMachineShell'
 import {
   getTheme,
@@ -56,12 +69,19 @@ function createStarterItems(): ReceiptItem[] {
 
 function App() {
   const dailyItem = useMemo(() => getDailyItem(), [])
+  const browserArtifactPlatform = useMemo(createBrowserArtifactPlatform, [])
   const [items, setItems] = useState<ReceiptItem[]>(createStarterItems)
   const [receiptNumber, setReceiptNumber] = useState(makeReceiptNumber)
   const [themeId, setThemeId] = useState<ReceiptThemeId>('original')
   const [history, setHistory] = useState<SavedTransaction[]>(() => readHistory())
   const [printerVisible, setPrinterVisible] = useState(false)
   const [machineState, setMachineState] = useState(initialMachineState)
+  const [activeSheet, setActiveSheet] = useState<MachineSheetId | null>(null)
+  const [soundEnabled, setSoundEnabled] = useState(false)
+  const [hapticsEnabled, setHapticsEnabled] = useState(true)
+  const [sheetExportBusy, setSheetExportBusy] = useState(false)
+  const [sheetExportMessage, setSheetExportMessage] = useState('')
+  const mainRef = useRef<HTMLElement | null>(null)
   const printerRef = useRef<HTMLElement | null>(null)
   const machineRef = useRef<ReceiptMachineHandle | null>(null)
 
@@ -114,6 +134,7 @@ function App() {
     setReceiptNumber(makeReceiptNumber())
     setItems(createStarterItems())
     setMachineState(initialMachineState)
+    setActiveSheet(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -147,6 +168,25 @@ function App() {
     })
   }
 
+  const saveSheetExport = async (format: ExportFormat) => {
+    if (sheetExportBusy) return
+    setSheetExportBusy(true)
+    setSheetExportMessage('PREPARING EVIDENCE…')
+    try {
+      const artifact = await createExport(format)
+      const result = saveArtifact(artifact, browserArtifactPlatform)
+      setSheetExportMessage(
+        result.status === 'saved'
+          ? 'EVIDENCE SAVED'
+          : 'EXPORT JAMMED · THE RECEIPT IS SAFE',
+      )
+    } catch {
+      setSheetExportMessage('EXPORT JAMMED · THE RECEIPT IS SAFE')
+    } finally {
+      setSheetExportBusy(false)
+    }
+  }
+
   return (
     <SoftMachineShell
       machineId="bad-day-receipt"
@@ -154,7 +194,7 @@ function App() {
       focused={focusedMode}
       activeTheme={theme.id}
     >
-      <main className="app-shell v2-shell" data-active-theme={theme.id}>
+      <main ref={mainRef} className="app-shell v2-shell" data-active-theme={theme.id}>
         <header className="masthead v2-masthead">
           <div className="system-row" aria-label="System status">
             <span>SOFT MACHINE 001 · EMOTIONAL POS</span>
@@ -172,6 +212,25 @@ function App() {
             <strong>{live.itemCount} ITEMS · {currency(live.total)}</strong>
           </div>
         </header>
+
+        <nav className="mobile-machine-tools" aria-label="Machine drawers">
+          <button type="button" disabled={editingLocked} onClick={() => setActiveSheet('paper')}>
+            <span>PAPER</span><strong>{theme.shortName}</strong>
+          </button>
+          <button type="button" onClick={() => setActiveSheet('history')}>
+            <span>HISTORY</span><strong>{history.length}</strong>
+          </button>
+          <button type="button" onClick={() => setActiveSheet('settings')}>
+            <span>SETTINGS</span><strong>{soundEnabled ? 'SOUND ON' : 'QUIET'}</strong>
+          </button>
+          <button
+            type="button"
+            disabled={!machineState.isComplete}
+            onClick={() => setActiveSheet('export')}
+          >
+            <span>EXPORT</span><strong>{machineState.isComplete ? 'READY' : 'AFTER PRINT'}</strong>
+          </button>
+        </nav>
 
         <section className="theme-section theme-section-first" aria-labelledby="paperwork-heading">
           <div className="section-heading">
@@ -201,6 +260,9 @@ function App() {
               theme={theme}
               anomaly={anomaly}
               shareCopy={shareCopy}
+              soundEnabled={soundEnabled}
+              hapticsEnabled={hapticsEnabled}
+              onSoundChange={setSoundEnabled}
               onReceiptNumberChange={setReceiptNumber}
               createExport={createExport}
               onTransactionComplete={recordTransaction}
@@ -227,6 +289,40 @@ function App() {
           onCommit={commitFromMobile}
         />
       </main>
+
+      <MachineBottomSheet
+        open={activeSheet !== null}
+        title={activeSheet ? getMachineSheetTitle(activeSheet) : 'Machine drawer'}
+        description={activeSheet === 'history' ? 'Last five receipts stored only on this device.' : undefined}
+        onClose={() => setActiveSheet(null)}
+        isolateRef={mainRef}
+      >
+        {activeSheet === 'paper' && (
+          <PaperStockSheet
+            selected={themeId}
+            disabled={editingLocked}
+            onSelect={(id) => {
+              setThemeId(id)
+              setActiveSheet(null)
+            }}
+          />
+        )}
+        {activeSheet === 'history' && <TransactionHistorySheet history={history} />}
+        {activeSheet === 'settings' && (
+          <MachineSettingsSheet
+            soundEnabled={soundEnabled}
+            hapticsEnabled={hapticsEnabled}
+            onSoundChange={setSoundEnabled}
+            onHapticsChange={setHapticsEnabled}
+          />
+        )}
+        {activeSheet === 'export' && (
+          <>
+            <ExportFormatSheet busy={sheetExportBusy} onSave={(format) => { void saveSheetExport(format) }} />
+            <p className="machine-sheet-status" aria-live="polite">{sheetExportMessage}</p>
+          </>
+        )}
+      </MachineBottomSheet>
     </SoftMachineShell>
   )
 }
