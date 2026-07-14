@@ -17,6 +17,7 @@ import './soft-machine/bottomSheet.css'
 import './soft-machine/pwa.css'
 import './soft-machine/accessibility.css'
 import './soft-machine/performance.css'
+import './styles/quality-fixes.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
