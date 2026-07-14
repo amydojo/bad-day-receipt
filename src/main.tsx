@@ -13,6 +13,7 @@ import './soft-machine/softMachine.css'
 import './soft-machine/machineStage.css'
 import './soft-machine/artifactActions.css'
 import './soft-machine/bottomSheet.css'
+import './soft-machine/pwa.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
