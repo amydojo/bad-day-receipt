@@ -406,7 +406,7 @@ function ThemePicker({
   disabled: boolean
 }) {
   return (
-    <div className="theme-strip" role="list">
+    <div className="theme-strip" aria-label="Available paper stock">
       {themes.map((theme, index) => {
         const active = selected === theme.id
         return (
