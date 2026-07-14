@@ -16,6 +16,11 @@
   cursor: not-allowed;
 }
 
+.theme-tab :where(span, small) {
+  color: var(--card-ink);
+  opacity: 1;
+}
+
 .receipt-machine :where(.printer-slot, .tear-bar, .machine-under-shadow, .paper-contact-shadow, .paper-pressure-shadow) {
   user-select: none;
 }
