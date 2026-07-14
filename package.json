@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "analyze": "npm run build && node scripts/analyze-build.mjs"
   },
   "dependencies": {
     "react": "19.2.7",
