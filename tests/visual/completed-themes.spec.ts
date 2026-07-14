@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { choosePaper, waitForComplete } from '../fixtures/machine'
 
-const papers = ['Original', 'CVS', 'Form BD-17', 'Luxury', 'Apothecary']
+const papers = ['Standard', 'CVS', 'Form BD-17', 'Luxury', 'Apothecary']
 
 for (const paper of papers) {
   test(`captures completed ${paper} artifact`, async ({ page }, testInfo) => {
