@@ -70,6 +70,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     const soundEnabledRef = useRef(soundEnabled)
     const recordedReceipt = useRef<string | null>(null)
     const copyResetTimer = useRef<number | null>(null)
+    const commitGuard = useRef(false)
     soundEnabledRef.current = soundEnabled
 
     const sounds = useMemo(
@@ -101,6 +102,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       if (previousTheme.current !== theme.id) {
         previousTheme.current = theme.id
         recordedReceipt.current = null
+        commitGuard.current = false
         resetPrinter()
       }
     }, [resetPrinter, theme.id])
@@ -118,6 +120,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
 
     useEffect(() => () => {
       if (copyResetTimer.current !== null) window.clearTimeout(copyResetTimer.current)
+      commitGuard.current = false
     }, [])
 
     const couponProgress = state.couponProgress
@@ -130,6 +133,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     const showReceipt = shouldRenderIssuedReceipt(state.phase)
 
     const resetForNew = () => {
+      commitGuard.current = false
       recordedReceipt.current = null
       setShareCopied(false)
       resetPrinter()
@@ -146,11 +150,14 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     }
 
     const printAgain = () => {
-      if (isBusy || items.length === 0) return
+      if (commitGuard.current || isBusy || items.length === 0) return
+      commitGuard.current = true
       recordedReceipt.current = null
       setShareCopied(false)
       setCommittedItems(snapshotDraft(items))
-      void startPrinting()
+      void startPrinting().finally(() => {
+        commitGuard.current = false
+      })
     }
 
     useImperativeHandle(ref, () => ({
