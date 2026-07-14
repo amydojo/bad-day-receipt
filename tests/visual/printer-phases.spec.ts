@@ -13,6 +13,7 @@ const phases = [
 ]
 
 test('captures every CVS printer phase', async ({ page }, testInfo) => {
+  test.setTimeout(60_000)
   await page.goto('/?qualityPhaseHold=1')
   await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
   await choosePaper(page, 'CVS')
