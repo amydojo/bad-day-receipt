@@ -18,6 +18,7 @@ import { TransactionHistorySheet } from './components/TransactionHistorySheet'
 import {
   getDraftSummary,
   setDraftItemQuantity,
+  snapshotDraft,
   toggleDraftItem,
 } from './draftReceipt'
 import type { ArtifactExport } from './export/exportTypes'
@@ -25,6 +26,7 @@ import {
   isFocusedMachinePhase,
   isReceiptEditingLocked,
 } from './machinePresentation'
+import { applyPwaUpdate, registerPwa } from './pwa'
 import { catalog, currency, makeReceiptNumber } from './receipt'
 import {
   createBrowserArtifactPlatform,
@@ -32,6 +34,14 @@ import {
 } from './soft-machine/artifactActions'
 import { CommitBar } from './soft-machine/CommitBar'
 import { MachineBottomSheet } from './soft-machine/MachineBottomSheet'
+import {
+  appendValidHistory,
+  createDefaultMachineData,
+  loadMachineData,
+  saveMachineData,
+  type PendingCommit,
+  type PersistedMachineData,
+} from './soft-machine/persistence'
 import {
   getMachineSheetTitle,
   type MachineSheetId,
@@ -48,8 +58,6 @@ import {
   createShareCopy,
   getDailyItem,
   getRareAnomaly,
-  readHistory,
-  writeHistory,
   type ExportFormat,
   type SavedTransaction,
 } from './v2'
@@ -68,19 +76,29 @@ function createStarterItems(): ReceiptItem[] {
 }
 
 function App() {
+  const initialPersisted = useMemo(
+    () => loadMachineData(createDefaultMachineData(createStarterItems())),
+    [],
+  )
   const dailyItem = useMemo(() => getDailyItem(), [])
   const browserArtifactPlatform = useMemo(createBrowserArtifactPlatform, [])
-  const [items, setItems] = useState<ReceiptItem[]>(createStarterItems)
+  const [items, setItems] = useState<ReceiptItem[]>(initialPersisted.draft)
   const [receiptNumber, setReceiptNumber] = useState(makeReceiptNumber)
-  const [themeId, setThemeId] = useState<ReceiptThemeId>('original')
-  const [history, setHistory] = useState<SavedTransaction[]>(() => readHistory())
+  const [themeId, setThemeId] = useState<ReceiptThemeId>(initialPersisted.themeId)
+  const [history, setHistory] = useState<SavedTransaction[]>(initialPersisted.history)
   const [printerVisible, setPrinterVisible] = useState(false)
   const [machineState, setMachineState] = useState(initialMachineState)
   const [activeSheet, setActiveSheet] = useState<MachineSheetId | null>(null)
-  const [soundEnabled, setSoundEnabled] = useState(false)
-  const [hapticsEnabled, setHapticsEnabled] = useState(true)
+  const [soundEnabled, setSoundEnabled] = useState(initialPersisted.preferences.soundEnabled)
+  const [hapticsEnabled, setHapticsEnabled] = useState(initialPersisted.preferences.hapticsEnabled)
+  const [pendingCommit, setPendingCommit] = useState<PendingCommit | null>(null)
+  const [lastCompleted, setLastCompleted] = useState<PersistedMachineData['lastCompleted']>(
+    initialPersisted.lastCompleted,
+  )
   const [sheetExportBusy, setSheetExportBusy] = useState(false)
   const [sheetExportMessage, setSheetExportMessage] = useState('')
+  const [pwaUpdate, setPwaUpdate] = useState<ServiceWorkerRegistration | null>(null)
+  const [offlineReady, setOfflineReady] = useState(false)
   const mainRef = useRef<HTMLElement | null>(null)
   const printerRef = useRef<HTMLElement | null>(null)
   const machineRef = useRef<ReceiptMachineHandle | null>(null)
@@ -96,6 +114,33 @@ function App() {
   const shareCopy = createShareCopy(items, live.total, theme.name)
   const editingLocked = isReceiptEditingLocked(machineState.phase)
   const focusedMode = isFocusedMachinePhase(machineState.phase)
+
+  useEffect(() => {
+    void registerPwa({
+      onUpdateAvailable: setPwaUpdate,
+      onOfflineReady: () => setOfflineReady(true),
+    })
+  }, [])
+
+  useEffect(() => {
+    saveMachineData({
+      draft: items,
+      themeId,
+      history,
+      preferences: { soundEnabled, hapticsEnabled },
+      pendingCommit,
+      lastCompleted,
+    })
+  }, [hapticsEnabled, history, items, lastCompleted, pendingCommit, soundEnabled, themeId])
+
+  useEffect(() => {
+    if (machineState.phase !== 'arming' || pendingCommit) return
+    setPendingCommit({
+      items: snapshotDraft(items),
+      themeId,
+      startedAt: new Date().toISOString(),
+    })
+  }, [items, machineState.phase, pendingCommit, themeId])
 
   useEffect(() => {
     const node = printerRef.current
@@ -126,6 +171,7 @@ function App() {
 
   const clearReceipt = () => {
     setItems([])
+    setPendingCommit(null)
     setReceiptNumber(makeReceiptNumber())
     setMachineState(initialMachineState)
   }
@@ -133,6 +179,7 @@ function App() {
   const makeAnother = () => {
     setReceiptNumber(makeReceiptNumber())
     setItems(createStarterItems())
+    setPendingCommit(null)
     setMachineState(initialMachineState)
     setActiveSheet(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -140,13 +187,18 @@ function App() {
 
   const commitFromMobile = () => {
     if (editingLocked || items.length === 0) return
+    setPendingCommit({
+      items: snapshotDraft(items),
+      themeId,
+      startedAt: new Date().toISOString(),
+    })
     machineRef.current?.ringItUp()
     printerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const recordTransaction = () => {
+  const recordTransaction = (completedReceiptNumber: string) => {
     const transaction = createSavedTransaction({
-      receiptNumber,
+      receiptNumber: completedReceiptNumber,
       themeId: theme.id,
       themeName: theme.name,
       total: live.total,
@@ -154,7 +206,12 @@ function App() {
       status: live.status,
       shareCopy,
     })
-    setHistory(writeHistory(transaction))
+    setHistory((current) => appendValidHistory(current, transaction))
+    setPendingCommit(null)
+    setLastCompleted({
+      receiptNumber: completedReceiptNumber,
+      completedAt: new Date().toISOString(),
+    })
   }
 
   const createExport = async (format: ExportFormat): Promise<ArtifactExport> => {
@@ -195,6 +252,18 @@ function App() {
       activeTheme={theme.id}
     >
       <main ref={mainRef} className="app-shell v2-shell" data-active-theme={theme.id}>
+        {(pwaUpdate || offlineReady) && (
+          <div className="pwa-status" role="status">
+            <span>{pwaUpdate ? 'A FRESH PAPER ROLL IS READY' : 'MACHINE AVAILABLE OFFLINE'}</span>
+            {pwaUpdate && (
+              <button type="button" onClick={() => applyPwaUpdate(pwaUpdate)}>
+                RELOAD UPDATE
+              </button>
+            )}
+            {!pwaUpdate && <button type="button" onClick={() => setOfflineReady(false)}>OK</button>}
+          </div>
+        )}
+
         <header className="masthead v2-masthead">
           <div className="system-row" aria-label="System status">
             <span>SOFT MACHINE 001 · EMOTIONAL POS</span>
