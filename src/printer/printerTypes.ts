@@ -1,5 +1,5 @@
+import type { MachineSensoryDirector } from '../mobile-instrument/sensory/sensoryTypes'
 import type { ReceiptThemeId } from '../themes'
-import type { SensoryEvent } from './productionMotion'
 
 export type PrinterPhase =
   | 'idle'
@@ -41,24 +41,13 @@ export type PrinterEvent =
 
 export type LedStatus = 'idle' | 'busy' | 'complete' | 'error'
 
-export interface PrinterSoundController {
-  playPress: () => void
-  playScan: () => void
-  playFeed: () => void
-  stopFeed: () => void
-  playStamp: () => void
-  playCouponResume: () => void
-}
-
 export interface UseReceiptPrinterOptions {
   itemCount: number
   couponCount: number
   themeId: ReceiptThemeId
   reducedMotion: boolean
-  hapticsEnabled?: boolean
   onReceiptNumberChange: (receiptNumber: string) => void
-  onSensoryEvent?: (event: SensoryEvent) => void
-  sounds?: PrinterSoundController
+  sensory?: MachineSensoryDirector
 }
 
 export interface UseReceiptPrinterResult {
