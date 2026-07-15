@@ -19,14 +19,33 @@ for (const viewport of viewports) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     expect(overflow).toBeLessThanOrEqual(1)
 
+    const instrument = page.locator('.mobile-instrument')
+
     if (viewport.width < 768) {
+      await expect(instrument).toHaveAttribute('data-mobile', 'true')
+      await expect(instrument).toHaveAttribute('data-mobile-scene', 'compose')
+      await expect(instrument).toHaveAttribute('data-scroll-owner', 'compose')
+
+      const lock = await page.evaluate(() => ({
+        rootLocked: document.documentElement.dataset.mobileInstrumentLocked,
+        bodyPosition: document.body.style.position,
+        windowScrollY: window.scrollY,
+      }))
+      expect(lock).toEqual({
+        rootLocked: 'true',
+        bodyPosition: 'fixed',
+        windowScrollY: 0,
+      })
+
       const commit = page.getByTestId('mobile-commit')
       if (await commit.isVisible()) {
         const box = await commit.boundingBox()
         expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
       }
     } else {
+      await expect(instrument).toHaveAttribute('data-mobile', 'false')
       await expect(page.locator('.workspace')).toBeVisible()
+      expect(await page.evaluate(() => document.body.style.position)).not.toBe('fixed')
     }
   })
 }
