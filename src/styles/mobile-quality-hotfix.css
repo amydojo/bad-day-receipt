@@ -74,9 +74,17 @@
     overflow-y: auto !important;
   }
 
+  /*
+   * Legacy focused/complete rules hide every footer. The new Evidence Viewer
+   * intentionally uses a footer as its fixed action dock, so restore only this
+   * semantic footer after those older rules have run.
+   */
+  .soft-machine-shell[data-focused='true'] .evidence-viewer__dock,
+  .soft-machine-shell[data-phase='complete'] .evidence-viewer__dock,
   .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__dock {
     position: relative;
     z-index: 18;
+    display: block !important;
     flex: none;
     min-height: 0;
   }
