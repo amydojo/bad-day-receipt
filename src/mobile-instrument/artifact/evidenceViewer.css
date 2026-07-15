@@ -119,6 +119,7 @@
   min-width: 118px;
   padding: 6px 7px;
   border: 1px solid rgba(20,20,18,.22);
+  background: var(--page, #d7c9ab);
   background: color-mix(in srgb, var(--page, #d7c9ab) 90%, transparent);
   color: var(--ink, #171715);
   font: 700 7px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -156,7 +157,10 @@
 }
 
 .evidence-viewer__dock .artifact-actions {
+  position: static;
   gap: 0;
+  padding-bottom: 0;
+  background: transparent;
 }
 
 .evidence-viewer__dock .artifact-action-primary {
@@ -254,6 +258,10 @@
     background: #454744;
   }
 
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine {
+    display: block;
+  }
+
   .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine,
   .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer,
   .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__surface {
@@ -273,6 +281,12 @@
 
   .mobile-instrument[data-mobile-scene='artifact'] .mobile-instrument__machine {
     overflow: hidden;
+  }
+}
+
+@media (max-width: 240px) {
+  .evidence-viewer__dock .artifact-action-primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
