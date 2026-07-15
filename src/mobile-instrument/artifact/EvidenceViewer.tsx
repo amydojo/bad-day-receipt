@@ -31,7 +31,7 @@ export function EvidenceViewer({
 }: {
   paperName: string
   receiptNumber: string
-  headingRef: Ref<HTMLElement>
+  headingRef: Ref<HTMLHeadingElement>
   printerHead: ReactNode
   receipt: ReactNode
   shareText: string
