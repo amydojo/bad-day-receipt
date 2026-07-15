@@ -1,0 +1,173 @@
+.mobile-instrument {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.mobile-instrument-scene {
+  min-width: 0;
+}
+
+@supports (min-height: 100dvh) {
+  .mobile-instrument {
+    min-height: 100dvh;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-instrument-scene {
+    display: contents;
+  }
+}
+
+@media (max-width: 767px) {
+  html[data-mobile-instrument-locked='true'] {
+    overflow: hidden;
+    background: var(--page, #d7c9ab);
+  }
+
+  .mobile-instrument[data-mobile='true'] {
+    position: fixed;
+    z-index: 0;
+    inset: 0;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100vh;
+    min-height: 0;
+    overflow: hidden;
+    padding:
+      var(--sm-safe-top)
+      var(--sm-safe-right)
+      var(--sm-safe-bottom)
+      var(--sm-safe-left);
+    background: var(--page, #d7c9ab);
+    isolation: isolate;
+  }
+
+  @supports (height: 100dvh) {
+    .mobile-instrument[data-mobile='true'] {
+      height: 100dvh;
+    }
+  }
+
+  .mobile-instrument[data-mobile='true'] > .soft-machine-shell {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    scroll-padding: 0;
+  }
+
+  .mobile-instrument[data-mobile='true'] .app-shell {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .mobile-instrument-scene[data-scene-active='false'] {
+    display: none !important;
+  }
+
+  .mobile-instrument__chrome[data-scene-active='true'],
+  .mobile-instrument__tail[data-scene-active='true'] {
+    display: contents;
+  }
+
+  .mobile-instrument__catalog[data-scene-active='true'],
+  .mobile-instrument__machine[data-scene-active='true'] {
+    display: block;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .mobile-instrument[data-mobile-scene='compose'] .app-shell {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-instrument[data-mobile-scene='compose'] .workspace {
+    min-height: 0;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'] .app-shell,
+  .mobile-instrument[data-mobile-scene='artifact'] .app-shell,
+  .mobile-instrument[data-mobile-scene='recovery'] .app-shell,
+  .mobile-instrument[data-scroll-owner='sheet'] .app-shell {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'] .workspace,
+  .mobile-instrument[data-mobile-scene='artifact'] .workspace,
+  .mobile-instrument[data-mobile-scene='recovery'] .workspace {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'] .mobile-instrument__machine {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .mobile-instrument__machine,
+  .mobile-instrument[data-mobile-scene='recovery'] .mobile-instrument__machine {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'] .receipt-stage,
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-stage,
+  .mobile-instrument[data-mobile-scene='recovery'] .receipt-stage {
+    position: static;
+    top: auto;
+    align-content: start;
+    width: 100%;
+    min-height: 100%;
+    padding:
+      8px
+      max(12px, var(--sm-safe-right))
+      max(20px, var(--sm-safe-bottom))
+      max(12px, var(--sm-safe-left));
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'] .receipt-machine,
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine,
+  .mobile-instrument[data-mobile-scene='recovery'] .receipt-machine {
+    margin-inline: auto;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'] .soft-machine-commit-bar,
+  .mobile-instrument[data-mobile-scene='artifact'] .soft-machine-commit-bar,
+  .mobile-instrument[data-mobile-scene='recovery'] .soft-machine-commit-bar {
+    display: none !important;
+  }
+
+  .mobile-instrument[data-sheet-open='true'] .mobile-instrument-scene {
+    overscroll-behavior: none;
+  }
+}
+
+@media (max-width: 767px) and (orientation: landscape) {
+  .mobile-instrument[data-mobile-scene='printing'] .receipt-stage,
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-stage,
+  .mobile-instrument[data-mobile-scene='recovery'] .receipt-stage {
+    padding-top: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-instrument,
+  .mobile-instrument * {
+    scroll-behavior: auto !important;
+  }
+}
