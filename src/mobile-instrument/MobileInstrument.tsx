@@ -118,7 +118,9 @@ function includesScene(
   activeWhen: MobileScene | readonly MobileScene[],
   scene: MobileScene,
 ): boolean {
-  return Array.isArray(activeWhen) ? activeWhen.includes(scene) : activeWhen === scene
+  return typeof activeWhen === 'string'
+    ? activeWhen === scene
+    : activeWhen.includes(scene)
 }
 
 function resolveScrollOwner(
