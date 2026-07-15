@@ -10,8 +10,8 @@ import { snapshotDraft } from '../draftReceipt'
 import type { ArtifactExport } from '../export/exportTypes'
 import { useReceiptPrinter } from '../hooks/useReceiptPrinter'
 import { getConciseMachineAnnouncement } from '../machinePresentation'
+import { createSensoryDirector } from '../mobile-instrument/sensory/SensoryDirector'
 import { getRingButtonLabel } from '../printer/printerMachine'
-import { createPrinterSoundController } from '../printer/printerSounds'
 import type { PrinterPhase } from '../printer/printerTypes'
 import { ArtifactActions } from '../soft-machine/ArtifactActions'
 import type { ReceiptTheme } from '../themes'
@@ -69,19 +69,21 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     onStateChange,
   }, ref) {
     const [committedItems, setCommittedItems] = useState<ReceiptItem[]>(() => snapshotDraft(items))
-    const soundEnabledRef = useRef(soundEnabled)
     const recordedReceipt = useRef<string | null>(null)
     const commitGuard = useRef(false)
     const completionRef = useRef<HTMLDivElement | null>(null)
     const completionFrame = useRef<number | null>(null)
-    soundEnabledRef.current = soundEnabled
+    const sensory = useMemo(() => createSensoryDirector({
+      soundEnabled,
+      hapticsEnabled,
+    }), [])
 
-    const sounds = useMemo(
-      () => createPrinterSoundController(() => soundEnabledRef.current),
-      [],
-    )
     const reducedMotion = usePrefersReducedMotion()
     const couponCount = theme.coupons?.length ?? 0
+
+    useEffect(() => {
+      sensory.updatePreferences({ soundEnabled, hapticsEnabled })
+    }, [hapticsEnabled, sensory, soundEnabled])
 
     const {
       state,
@@ -94,9 +96,8 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       couponCount,
       themeId: theme.id,
       reducedMotion,
-      hapticsEnabled,
       onReceiptNumberChange,
-      sounds,
+      sensory,
     })
 
     const issuedItems = state.phase === 'idle' ? items : committedItems
@@ -125,8 +126,9 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
 
     useEffect(() => () => {
       commitGuard.current = false
+      sensory.dispose()
       if (completionFrame.current !== null) window.cancelAnimationFrame(completionFrame.current)
-    }, [])
+    }, [sensory])
 
     const couponProgress = state.couponProgress
     const showVerdict = [
@@ -158,9 +160,16 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       commitGuard.current = true
       recordedReceipt.current = null
       setCommittedItems(snapshotDraft(items))
+      sensory.prime()
       void startPrinting().finally(() => {
         commitGuard.current = false
       })
+    }
+
+    const toggleSound = () => {
+      const nextEnabled = !soundEnabled
+      sensory.updatePreferences({ soundEnabled: nextEnabled, hapticsEnabled })
+      onSoundChange(nextEnabled)
     }
 
     useImperativeHandle(ref, () => ({
@@ -206,7 +215,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           <div className="printer-error" role="alert">
             <strong>REGISTER JAMMED</strong>
             <span>{state.errorMessage}</span>
-            <small>The paper machine is simply being difficult.</small>
+            <small>The emotional transaction remains valid.</small>
           </div>
         )}
 
@@ -246,9 +255,9 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           className="sound-toggle"
           type="button"
           aria-pressed={soundEnabled}
-          onClick={() => onSoundChange(!soundEnabled)}
+          onClick={toggleSound}
         >
-          SOUND: {soundEnabled ? 'TINY' : 'OFF'}
+          SOUND: {soundEnabled ? 'LOW' : 'OFF'}
         </button>
 
         <p className="privacy-note">

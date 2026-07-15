@@ -1,5 +1,7 @@
 import type { PrinterPhase } from './printerTypes'
 
+export type { MachineSensoryEvent as SensoryEvent } from '../mobile-instrument/sensory/sensoryTypes'
+
 export const V4_MOTION = {
   selectionResponse: 180,
   commitResponse: 100,
@@ -53,14 +55,6 @@ export type MotionMilestone =
   | 'verdict'
   | 'artifact'
   | 'error'
-
-export type SensoryEvent =
-  | 'register-clack'
-  | 'barcode-scan'
-  | 'thermal-feed-start'
-  | 'thermal-feed-stop'
-  | 'verdict-impact'
-  | 'cvs-printer-restart'
 
 export function milestoneForPhase(phase: PrinterPhase): MotionMilestone {
   switch (phase) {
