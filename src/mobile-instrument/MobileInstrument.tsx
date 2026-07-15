@@ -2,7 +2,9 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import {
@@ -81,8 +83,24 @@ export function MobileInstrument({
   const isMobile = useMediaQuery(MOBILE_QUERY)
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
   const standalone = useMediaQuery(STANDALONE_QUERY) || isIosStandalone()
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const previousScene = useRef(scene)
 
   useViewportLock(isMobile)
+
+  useLayoutEffect(() => {
+    const previous = previousScene.current
+    previousScene.current = scene
+    if (!isMobile || previous === scene) return
+
+    const root = rootRef.current
+    const active = document.activeElement
+    if (!root || !(active instanceof HTMLElement) || !root.contains(active)) return
+
+    const targetName = scene === 'compose' ? 'compose-catalog' : 'machine'
+    const target = root.querySelector<HTMLElement>(`[data-instrument-scene="${targetName}"]`)
+    if (target && !target.contains(active)) target.focus({ preventScroll: true })
+  }, [isMobile, scene])
 
   const environment = useMemo<MobileInstrumentEnvironment>(() => ({
     scene,
@@ -104,7 +122,11 @@ export function MobileInstrument({
 
   return (
     <MobileInstrumentContext.Provider value={environment}>
-      <div className={`mobile-instrument ${className}`.trim()} {...attributes}>
+      <div
+        ref={rootRef}
+        className={`mobile-instrument ${className}`.trim()}
+        {...attributes}
+      >
         {children}
         <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {isMobile ? getMobileSceneAnnouncement(scene) : ''}
@@ -158,6 +180,7 @@ export function MobileInstrumentScene({
       data-scroll-owner={owner}
       aria-hidden={hiddenOnMobile || undefined}
       inert={hiddenOnMobile || undefined}
+      tabIndex={environment.isMobile && sceneActive ? -1 : undefined}
     >
       {children}
     </div>
