@@ -27,7 +27,7 @@
 
   .mobile-instrument[data-mobile='true'] {
     position: fixed;
-    z-index: 0;
+    z-index: 1;
     inset: 0;
     box-sizing: border-box;
     width: 100%;
@@ -133,11 +133,7 @@
     align-content: start;
     width: 100%;
     min-height: 100%;
-    padding:
-      8px
-      max(12px, var(--sm-safe-right))
-      max(20px, var(--sm-safe-bottom))
-      max(12px, var(--sm-safe-left));
+    padding: 8px 12px 20px;
   }
 
   .mobile-instrument[data-mobile-scene='printing'] .receipt-machine,
