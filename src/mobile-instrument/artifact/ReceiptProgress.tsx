@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 interface ReceiptProgressState {
   visible: boolean
   percent: number
@@ -31,7 +33,7 @@ export function ReceiptProgress({
     <div className="evidence-progress" aria-hidden="true">
       <span>RECEIPT LENGTH</span>
       <strong>{percent}%</strong>
-      <i style={{ '--evidence-progress': `${percent}%` } as React.CSSProperties} />
+      <i style={{ '--evidence-progress': `${percent}%` } as CSSProperties} />
     </div>
   )
 }
