@@ -10,8 +10,11 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "analyze": "npm run build && node scripts/analyze-build.mjs",
-    "test:e2e": "playwright test tests/e2e",
-    "test:visual": "playwright test tests/visual"
+    "test:e2e": "playwright test tests/e2e --grep-invert \"@accessibility|@viewport\"",
+    "test:accessibility": "playwright test tests/e2e/accessibility-gate.spec.ts",
+    "test:viewports": "playwright test tests/e2e/viewport-matrix.spec.ts --project=chromium-mobile --project=webkit-mobile",
+    "test:visual": "playwright test tests/visual",
+    "test:visual:release": "playwright test tests/visual/mobile-instrument-release.spec.ts --project=chromium-mobile --project=chromium-desktop"
   },
   "dependencies": {
     "react": "19.2.7",
