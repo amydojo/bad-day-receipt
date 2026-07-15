@@ -14,7 +14,6 @@ import { EvidenceViewer } from '../mobile-instrument/artifact/EvidenceViewer'
 import { createSensoryDirector } from '../mobile-instrument/sensory/SensoryDirector'
 import { getRingButtonLabel } from '../printer/printerMachine'
 import type { PrinterPhase } from '../printer/printerTypes'
-import { ArtifactActions } from '../soft-machine/ArtifactActions'
 import type { ReceiptTheme } from '../themes'
 import type { ReceiptItem } from '../types'
 import type { ExportFormat } from '../v2'
@@ -48,7 +47,6 @@ interface ReceiptMachineProps {
   createExport: (format: ExportFormat) => Promise<ArtifactExport>
   onTransactionComplete: (receiptNumber: string) => void
   onMakeAnother: () => void
-  onOpenMore: () => void
   onClear: () => void
   onStateChange?: (snapshot: ReceiptMachineStateSnapshot) => void
 }
@@ -67,7 +65,6 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     createExport,
     onTransactionComplete,
     onMakeAnother,
-    onOpenMore,
     onClear,
     onStateChange,
   }, ref) {
@@ -216,15 +213,10 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
             headingRef={completionRef}
             printerHead={<PrinterShell phase={state.phase} theme={theme} />}
             receipt={receipt}
-            actions={(
-              <ArtifactActions
-                shareText={shareCopy}
-                createExport={createExport}
-                onReset={makeAnother}
-                onReprint={printAgain}
-                onMore={onOpenMore}
-              />
-            )}
+            shareText={shareCopy}
+            createExport={createExport}
+            onNew={makeAnother}
+            onReprint={printAgain}
           />
         ) : (
           <>
