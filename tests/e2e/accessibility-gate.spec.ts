@@ -17,7 +17,7 @@ async function expectNoSeriousAccessibilityViolations(page: Page): Promise<void>
   )).join('\n\n')).toEqual([])
 }
 
-test.describe('accessibility release gate', () => {
+test.describe('@accessibility accessibility release gate', () => {
   test.setTimeout(45_000)
 
   test.beforeEach(async ({ page }) => {
