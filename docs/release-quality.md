@@ -22,7 +22,7 @@ The `mobile-quality` GitHub Actions workflow runs these gates for every pull req
 
 | Scene | Required scroll owner | Body behavior |
 | --- | --- | --- |
-| Compose | catalog | fixed and stationary |
+| Compose | `compose` root token; catalog viewport performs the scrolling | fixed and stationary |
 | Printing | none | fixed and stationary |
 | Artifact | receipt | fixed and stationary |
 | Recovery | recovery | fixed and stationary |
