@@ -26,6 +26,11 @@ test('keeps the completed artifact inside a pinned Evidence Viewer', async ({ pa
   await expect(viewer.getByRole('button', { name: 'SAVE', exact: true })).toBeVisible()
   await expect(viewer.getByRole('button', { name: 'MORE', exact: true })).toBeVisible()
   await expect(viewer.getByRole('button', { name: 'NEW', exact: true })).toBeVisible()
+
+  const dockBox = await viewer.locator('.evidence-viewer__dock').boundingBox()
+  const viewportHeight = page.viewportSize()?.height ?? 0
+  expect(dockBox).not.toBeNull()
+  expect((dockBox?.y ?? 0) + (dockBox?.height ?? 0)).toBeLessThanOrEqual(viewportHeight + 1)
   expect(await page.evaluate(() => window.scrollY)).toBe(initialBodyScroll)
 })
 
