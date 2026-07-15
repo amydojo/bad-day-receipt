@@ -1,4 +1,5 @@
 import type { ReceiptThemeId } from '../themes'
+import type { SensoryEvent } from './productionMotion'
 
 export type PrinterPhase =
   | 'idle'
@@ -56,6 +57,7 @@ export interface UseReceiptPrinterOptions {
   reducedMotion: boolean
   hapticsEnabled?: boolean
   onReceiptNumberChange: (receiptNumber: string) => void
+  onSensoryEvent?: (event: SensoryEvent) => void
   sounds?: PrinterSoundController
 }
 
