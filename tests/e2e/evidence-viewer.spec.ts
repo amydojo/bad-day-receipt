@@ -7,7 +7,8 @@ import {
 } from '../fixtures/machine'
 import { mockPlatformApis } from '../fixtures/platformApis'
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.includes('mobile'), 'Evidence Viewer ownership is mobile-specific.')
   await mockPlatformApis(page)
 })
 
