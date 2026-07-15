@@ -10,50 +10,83 @@
 }
 
 @media (max-width: 767px) {
-  .mobile-instrument[data-mobile-scene='artifact'] .receipt-stage,
-  .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine,
-  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer,
-  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__surface {
-    height: 100%;
-    min-height: 0;
-    max-height: 100%;
+  /*
+   * The legacy complete-state rules allow the issued paper to size the whole
+   * machine. The Evidence Viewer instead needs a hard viewport boundary with
+   * one internal scroll owner. Absolute inset geometry prevents a long receipt
+   * from contributing to the height of the fixed instrument scene.
+   */
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-stage {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
   }
 
   .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine {
-    display: block;
-    overflow: hidden;
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
   }
 
-  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer {
-    align-self: stretch;
-    justify-self: stretch;
-    overflow: hidden;
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer,
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__surface {
+    position: absolute !important;
+    inset: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
   }
 
   .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__surface {
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    overflow: hidden;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
   }
 
   .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__reader {
-    min-height: 0;
-    overflow: hidden;
+    position: relative;
+    min-height: 0 !important;
+    overflow: hidden !important;
   }
 
   .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__scroll {
-    height: 100%;
-    min-height: 0;
-    max-height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
   }
 
   .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__dock {
     position: relative;
+    z-index: 18;
     flex: none;
+    min-height: 0;
   }
 
-  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__scroll .receipt-viewport {
-    min-height: 100%;
+  /* Override the old global complete-state `overflow: visible` rule. */
+  .soft-machine-shell[data-phase='complete']
+    .evidence-viewer__scroll
+    .receipt-viewport {
+    width: 100% !important;
+    max-height: none !important;
+    overflow: hidden !important;
   }
 }
