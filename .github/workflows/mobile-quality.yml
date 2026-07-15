@@ -4,20 +4,19 @@ on:
   pull_request:
     branches:
       - main
-      - agent/mobile-soft-machine
-      - agent/mobile-shell
-      - agent/mobile-input
-      - agent/mobile-printer-stage
-      - agent/mobile-artifact-actions
-      - agent/mobile-surfaces
-      - agent/mobile-pwa
-      - agent/mobile-accessibility
-      - agent/mobile-performance
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate-mobile:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Check out repository
@@ -46,13 +45,41 @@ jobs:
         shell: bash
         run: set -o pipefail; node scripts/analyze-build.mjs 2>&1 | tee bundle.log
 
-      - name: Cross browser journeys
+      - name: Cross-browser product journeys
         shell: bash
         run: set -o pipefail; npm run test:e2e 2>&1 | tee e2e.log
 
-      - name: Visual evidence
+      - name: Automated accessibility gate
+        shell: bash
+        run: set -o pipefail; npm run test:accessibility 2>&1 | tee accessibility.log
+
+      - name: Viewport and orientation matrix
+        shell: bash
+        run: set -o pipefail; npm run test:viewports 2>&1 | tee viewports.log
+
+      - name: Deterministic visual evidence
         shell: bash
         run: set -o pipefail; npm run test:visual -- --project=chromium-mobile --project=chromium-desktop 2>&1 | tee visual.log
+
+      - name: Write release-gate summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Mobile Instrument release gate'
+            echo
+            echo '| Gate | Result source |'
+            echo '| --- | --- |'
+            echo '| Unit contracts | `unit-tests.log` |'
+            echo '| Type and production build | `build.log` |'
+            echo '| Bundle budgets | `bundle.log` |'
+            echo '| Chromium and WebKit journeys | `e2e.log` |'
+            echo '| Automated accessibility | `accessibility.log` |'
+            echo '| Viewport and orientation matrix | `viewports.log` |'
+            echo '| Visual evidence | `visual.log` and Playwright report |'
+            echo
+            echo 'Manual real-device evidence remains recorded in `docs/release-quality.md`.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload command logs
         if: always()
@@ -72,11 +99,11 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      - name: Upload failure traces
-        if: failure()
+      - name: Upload visual and failure evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-test-results
+          name: mobile-instrument-test-results
           path: test-results
           if-no-files-found: ignore
           retention-days: 14
