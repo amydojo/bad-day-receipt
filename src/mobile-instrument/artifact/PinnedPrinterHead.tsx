@@ -1,6 +1,6 @@
 import { forwardRef, type ReactNode } from 'react'
 
-export const PinnedPrinterHead = forwardRef<HTMLElement, {
+export const PinnedPrinterHead = forwardRef<HTMLHeadingElement, {
   paperName: string
   children: ReactNode
 }>(function PinnedPrinterHead({ paperName, children }, ref) {
