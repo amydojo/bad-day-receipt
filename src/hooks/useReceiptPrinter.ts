@@ -8,7 +8,6 @@ import {
   printerReducer,
 } from '../printer/printerMachine'
 import { REDUCED_MOTION } from '../printer/productionMotion'
-import { tinyHaptic } from '../printer/printerSounds'
 import { PRINTER_TIMING } from '../printer/printerTiming'
 import type {
   UseReceiptPrinterOptions,
@@ -83,34 +82,31 @@ export function useReceiptPrinter({
   couponCount,
   themeId,
   reducedMotion,
-  hapticsEnabled = true,
   onReceiptNumberChange,
-  onSensoryEvent,
-  sounds,
+  sensory,
 }: UseReceiptPrinterOptions): UseReceiptPrinterResult {
   const [state, dispatch] = useReducer(printerReducer, initialPrinterState)
   const activeController = useRef<AbortController | null>(null)
 
   const stopFeed = useCallback(() => {
-    sounds?.stopFeed()
-    onSensoryEvent?.('thermal-feed-stop')
-  }, [onSensoryEvent, sounds])
+    sensory?.emit('thermal-feed-stop')
+  }, [sensory])
 
   const resetPrinter = useCallback(() => {
     activeController.current?.abort()
     activeController.current = null
-    stopFeed()
+    sensory?.reset()
     dispatch({ type: 'RESET' })
-  }, [stopFeed])
+  }, [sensory])
 
   useEffect(() => () => {
     activeController.current?.abort()
-    stopFeed()
-  }, [stopFeed])
+    sensory?.reset()
+  }, [sensory])
 
   const startPrinting = useCallback(async () => {
     activeController.current?.abort()
-    stopFeed()
+    sensory?.reset()
 
     const controller = new AbortController()
     activeController.current = controller
@@ -121,9 +117,7 @@ export function useReceiptPrinter({
 
     onReceiptNumberChange(nextReceiptNumber)
     dispatch({ type: 'START', receiptNumber: nextReceiptNumber })
-    onSensoryEvent?.('register-clack')
-    sounds?.playPress()
-    if (hapticsEnabled) tinyHaptic(8)
+    sensory?.emit('register-clack')
 
     try {
       await hold()
@@ -131,30 +125,34 @@ export function useReceiptPrinter({
       if (reducedMotion) {
         await wait(REDUCED_MOTION.accepted, signal)
         dispatch({ type: 'BEGIN_SCAN' })
-        onSensoryEvent?.('barcode-scan')
-        sounds?.playScan()
+        sensory?.emit('barcode-scan')
         await wait(REDUCED_MOTION.scanned, signal)
         if (itemCount > 0) dispatch({ type: 'REVEAL_LINE', lineIndex: itemCount - 1 })
         dispatch({ type: 'BEGIN_TOTALS' })
         dispatch({ type: 'REVEAL_TOTAL', rowIndex: 3 })
         await wait(REDUCED_MOTION.blankPaper, signal)
         dispatch({ type: 'BEGIN_FEED' })
+        sensory?.emit('thermal-feed-start')
         dispatch({ type: 'SET_PAPER_PROGRESS', progress: 1 })
         await wait(REDUCED_MOTION.printedEvidence, signal)
+        stopFeed()
 
         if (themeId === 'cvs' && couponCount > 0) {
           dispatch({ type: 'FALSE_COMPLETE' })
           await wait(REDUCED_MOTION.apparentCompletion, signal)
           dispatch({ type: 'BEGIN_COUPONS' })
-          onSensoryEvent?.('cvs-printer-restart')
+          sensory?.emit('cvs-printer-restart')
+          sensory?.emit('thermal-feed-start')
           dispatch({ type: 'SET_COUPON_PROGRESS', progress: 1 })
           await wait(REDUCED_MOTION.couponReveal, signal)
+          stopFeed()
         }
 
         dispatch({ type: 'STAMP' })
-        onSensoryEvent?.('verdict-impact')
+        sensory?.emit('verdict-impact')
         await wait(REDUCED_MOTION.complete, signal)
         dispatch({ type: 'COMPLETE' })
+        sensory?.emit('machine-complete')
         return
       }
 
@@ -167,8 +165,7 @@ export function useReceiptPrinter({
       )
 
       dispatch({ type: 'BEGIN_SCAN' })
-      onSensoryEvent?.('barcode-scan')
-      sounds?.playScan()
+      sensory?.emit('barcode-scan')
       await hold()
 
       const revealCounts = getScanRevealCounts(itemCount)
@@ -195,8 +192,7 @@ export function useReceiptPrinter({
 
       dispatch({ type: 'BEGIN_FEED' })
       await hold()
-      onSensoryEvent?.('thermal-feed-start')
-      sounds?.playFeed()
+      sensory?.emit('thermal-feed-start')
       await animatePaperProgress({
         duration: themeId === 'cvs'
           ? PRINTER_TIMING.cvsPrimaryFeedDuration
@@ -222,12 +218,9 @@ export function useReceiptPrinter({
 
         dispatch({ type: 'BEGIN_COUPONS' })
         await hold()
-        onSensoryEvent?.('cvs-printer-restart')
-        sounds?.playCouponResume()
-        if (hapticsEnabled) tinyHaptic(6)
+        sensory?.emit('cvs-printer-restart')
         await wait(PRINTER_TIMING.cvsPrinterRestart, signal)
-        onSensoryEvent?.('thermal-feed-start')
-        sounds?.playFeed()
+        sensory?.emit('thermal-feed-start')
         await animatePaperProgress({
           duration: PRINTER_TIMING.couponFeedDuration,
           signal,
@@ -240,27 +233,25 @@ export function useReceiptPrinter({
       await wait(PRINTER_TIMING.verdictSilence, signal)
       dispatch({ type: 'STAMP' })
       await hold()
-      onSensoryEvent?.('verdict-impact')
-      sounds?.playStamp()
-      if (hapticsEnabled) tinyHaptic(12)
+      sensory?.emit('verdict-impact')
       await wait(PRINTER_TIMING.stampDuration, signal)
       await wait(PRINTER_TIMING.evidenceSettlement, signal)
       dispatch({ type: 'COMPLETE' })
+      sensory?.emit('machine-complete')
     } catch (error) {
       stopFeed()
       if (error instanceof DOMException && error.name === 'AbortError') return
+      sensory?.emit('machine-error')
       dispatch({ type: 'FAIL', message: 'The emotional transaction remains valid.' })
     } finally {
       if (activeController.current === controller) activeController.current = null
     }
   }, [
     couponCount,
-    hapticsEnabled,
     itemCount,
     onReceiptNumberChange,
-    onSensoryEvent,
     reducedMotion,
-    sounds,
+    sensory,
     stopFeed,
     themeId,
   ])
