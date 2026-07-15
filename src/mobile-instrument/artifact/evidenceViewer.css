@@ -1,0 +1,293 @@
+.evidence-viewer {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.evidence-viewer__surface {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  min-height: 0;
+}
+
+.evidence-viewer__head {
+  position: relative;
+  z-index: 12;
+  display: grid;
+  background: #454744;
+}
+
+.evidence-viewer__identity {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 2px 12px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
+  color: rgba(255, 255, 255, .78);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  text-transform: uppercase;
+}
+
+.evidence-viewer__identity span {
+  grid-column: 1 / -1;
+  font-size: 7px;
+  letter-spacing: .12em;
+  opacity: .62;
+}
+
+.evidence-viewer__identity h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.1;
+  letter-spacing: .04em;
+}
+
+.evidence-viewer__identity h2:focus-visible {
+  outline: 2px solid var(--signal, #ff5b4d);
+  outline-offset: 3px;
+}
+
+.evidence-viewer__identity strong {
+  font-size: 7px;
+  line-height: 1.2;
+  text-align: right;
+  letter-spacing: .08em;
+}
+
+.evidence-viewer__printer {
+  margin-bottom: -13px;
+}
+
+.evidence-viewer__printer .printer-shell {
+  width: 100%;
+  max-width: none;
+  border-radius: 0 0 7px 7px;
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.26),
+    inset 0 -8px 18px rgba(0,0,0,.2),
+    0 12px 20px rgba(24,20,15,.22);
+}
+
+.evidence-viewer__reader {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.04), transparent 12%, transparent 88%, rgba(0,0,0,.04)),
+    var(--page, #d7c9ab);
+}
+
+.evidence-viewer__scroll {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  scroll-padding-block: 18px;
+}
+
+.evidence-viewer__scroll:focus-visible {
+  outline: 2px solid var(--signal, #ff5b4d);
+  outline-offset: -2px;
+}
+
+.evidence-viewer__scroll .receipt-viewport {
+  width: 100%;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.evidence-viewer__scroll .receipt-track {
+  will-change: auto;
+}
+
+.evidence-progress {
+  position: absolute;
+  z-index: 8;
+  right: 9px;
+  bottom: 9px;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 3px 8px;
+  min-width: 118px;
+  padding: 6px 7px;
+  border: 1px solid rgba(20,20,18,.22);
+  background: color-mix(in srgb, var(--page, #d7c9ab) 90%, transparent);
+  color: var(--ink, #171715);
+  font: 700 7px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .08em;
+  pointer-events: none;
+  backdrop-filter: blur(5px);
+}
+
+.evidence-progress strong {
+  text-align: right;
+}
+
+.evidence-progress i {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 2px;
+  overflow: hidden;
+  background: rgba(20,20,18,.16);
+}
+
+.evidence-progress i::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--evidence-progress, 0%);
+  background: var(--signal, #ff5b4d);
+}
+
+.evidence-viewer__dock {
+  position: relative;
+  z-index: 18;
+  min-width: 0;
+  border-top: 1px solid rgba(20,20,18,.28);
+  background: var(--page, #d7c9ab);
+}
+
+.evidence-viewer__dock .artifact-actions {
+  gap: 0;
+}
+
+.evidence-viewer__dock .artifact-action-primary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.evidence-viewer__dock .artifact-action-primary button {
+  min-height: 52px;
+  border-right: 1px solid var(--line);
+}
+
+.evidence-viewer__dock .artifact-action-primary button:last-child {
+  border-right: 0;
+}
+
+.evidence-viewer__dock .artifact-action-status {
+  min-height: 20px;
+  padding: 4px 8px;
+}
+
+.evidence-more-sheet {
+  display: grid;
+  gap: 18px;
+}
+
+.evidence-details {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  background: var(--line);
+}
+
+.evidence-details div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--paper);
+}
+
+.evidence-details dt,
+.evidence-details dd {
+  margin: 0;
+  font: 700 8px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .06em;
+}
+
+.evidence-details dt {
+  color: var(--muted);
+}
+
+.evidence-details dd {
+  overflow-wrap: anywhere;
+}
+
+.evidence-more-actions,
+.evidence-more-formats {
+  display: grid;
+  gap: 8px;
+}
+
+.evidence-more-actions button {
+  display: grid;
+  gap: 3px;
+  min-height: 54px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+}
+
+.evidence-more-actions strong,
+.evidence-more-formats > span {
+  font: 800 8px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .08em;
+}
+
+.evidence-more-actions small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.evidence-more-formats > span {
+  color: var(--muted);
+}
+
+@media (max-width: 767px) {
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-stage {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    background: #454744;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine,
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer,
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__surface {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .evidence-viewer__identity {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+
+  .evidence-viewer__dock {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .mobile-instrument__machine {
+    overflow: hidden;
+  }
+}
+
+@media (min-width: 768px) {
+  .evidence-viewer__surface {
+    min-height: min(820px, calc(100vh - 80px));
+  }
+
+  .evidence-viewer__scroll {
+    max-height: 620px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .evidence-progress i::after {
+    transition: none;
+  }
+}
