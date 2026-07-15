@@ -26,6 +26,10 @@ import {
   isFocusedMachinePhase,
   isReceiptEditingLocked,
 } from './machinePresentation'
+import {
+  MobileInstrument,
+  MobileInstrumentScene,
+} from './mobile-instrument/MobileInstrument'
 import { applyPwaUpdate, registerPwa } from './pwa'
 import { catalog, currency, makeReceiptNumber } from './receipt'
 import {
@@ -63,6 +67,7 @@ import {
 } from './v2'
 
 const starterIds = ['normal', 'worry', 'decisions', 'food', 'through']
+const machineScenes = ['printing', 'artifact', 'recovery'] as const
 const initialMachineState: ReceiptMachineStateSnapshot = {
   phase: 'idle',
   isBusy: false,
@@ -86,7 +91,6 @@ function App() {
   const [receiptNumber, setReceiptNumber] = useState(makeReceiptNumber)
   const [themeId, setThemeId] = useState<ReceiptThemeId>(initialPersisted.themeId)
   const [history, setHistory] = useState<SavedTransaction[]>(initialPersisted.history)
-  const [printerVisible, setPrinterVisible] = useState(false)
   const [machineState, setMachineState] = useState(initialMachineState)
   const [activeSheet, setActiveSheet] = useState<MachineSheetId | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(initialPersisted.preferences.soundEnabled)
@@ -100,7 +104,6 @@ function App() {
   const [pwaUpdate, setPwaUpdate] = useState<ServiceWorkerRegistration | null>(null)
   const [offlineReady, setOfflineReady] = useState(false)
   const mainRef = useRef<HTMLElement | null>(null)
-  const printerRef = useRef<HTMLElement | null>(null)
   const machineRef = useRef<ReceiptMachineHandle | null>(null)
 
   const theme = getTheme(themeId)
@@ -142,18 +145,6 @@ function App() {
     })
   }, [items, machineState.phase, pendingCommit, themeId])
 
-  useEffect(() => {
-    const node = printerRef.current
-    if (!node || !('IntersectionObserver' in window)) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setPrinterVisible(entry.isIntersecting),
-      { threshold: 0.16 },
-    )
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [])
-
   const toggleItem = (catalogItem: CatalogItem) => {
     if (editingLocked) return
     setItems((current) => toggleDraftItem(current, catalogItem))
@@ -176,13 +167,21 @@ function App() {
     setMachineState(initialMachineState)
   }
 
+  const focusFirstComposeControl = () => {
+    window.requestAnimationFrame(() => {
+      mainRef.current
+        ?.querySelector<HTMLButtonElement>('.choice-chip:not(:disabled), .theme-tab:not(:disabled)')
+        ?.focus()
+    })
+  }
+
   const makeAnother = () => {
     setReceiptNumber(makeReceiptNumber())
     setItems(createStarterItems())
     setPendingCommit(null)
     setMachineState(initialMachineState)
     setActiveSheet(null)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    focusFirstComposeControl()
   }
 
   const commitFromMobile = () => {
@@ -193,7 +192,6 @@ function App() {
       startedAt: new Date().toISOString(),
     })
     machineRef.current?.ringItUp()
-    printerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const recordTransaction = (completedReceiptNumber: string) => {
@@ -245,154 +243,190 @@ function App() {
   }
 
   return (
-    <SoftMachineShell
-      machineId="bad-day-receipt"
+    <MobileInstrument
       phase={machineState.phase}
-      focused={focusedMode}
-      activeTheme={theme.id}
+      theme={theme.id}
+      sheetOpen={activeSheet !== null}
     >
-      <main ref={mainRef} className="app-shell v2-shell" data-active-theme={theme.id}>
-        {(pwaUpdate || offlineReady) && (
-          <div className="pwa-status" role="status">
-            <span>{pwaUpdate ? 'A FRESH PAPER ROLL IS READY' : 'MACHINE AVAILABLE OFFLINE'}</span>
-            {pwaUpdate && (
-              <button type="button" onClick={() => applyPwaUpdate(pwaUpdate)}>
-                RELOAD UPDATE
-              </button>
-            )}
-            {!pwaUpdate && <button type="button" onClick={() => setOfflineReady(false)}>OK</button>}
-          </div>
-        )}
-
-        <header className="masthead v2-masthead">
-          <div className="system-row" aria-label="System status">
-            <span>SOFT MACHINE 001 · EMOTIONAL POS</span>
-            <span><i aria-hidden="true" /> {editingLocked ? 'PROCESSING' : 'READY'} · LOCAL ONLY</span>
-          </div>
-          <div className="brand-lockup">
-            <h1>bad day<br />receipt</h1>
-          </div>
-          <div className="hero-copy">
-            <p className="intro">Turn today’s invisible costs into official documentation.</p>
-            <p>NO ACCOUNT · NO DIAGNOSIS · JUST RECEIPTS</p>
-          </div>
-          <div className="hero-transaction" aria-live="polite">
-            <span>CURRENT TRANSACTION</span>
-            <strong>{live.itemCount} ITEMS · {currency(live.total)}</strong>
-          </div>
-        </header>
-
-        <nav className="mobile-machine-tools" aria-label="Machine drawers">
-          <button type="button" disabled={editingLocked} onClick={() => setActiveSheet('paper')}>
-            <span>PAPER</span><strong>{theme.shortName}</strong>
-          </button>
-          <button type="button" onClick={() => setActiveSheet('history')}>
-            <span>HISTORY</span><strong>{history.length}</strong>
-          </button>
-          <button type="button" onClick={() => setActiveSheet('settings')}>
-            <span>SETTINGS</span><strong>{soundEnabled ? 'SOUND ON' : 'QUIET'}</strong>
-          </button>
-          <button
-            type="button"
-            disabled={!machineState.isComplete}
-            onClick={() => setActiveSheet('export')}
+      <SoftMachineShell
+        machineId="bad-day-receipt"
+        phase={machineState.phase}
+        focused={focusedMode}
+        activeTheme={theme.id}
+      >
+        <main ref={mainRef} className="app-shell v2-shell" data-active-theme={theme.id}>
+          <MobileInstrumentScene
+            name="compose-chrome"
+            activeWhen="compose"
+            className="mobile-instrument__chrome"
           >
-            <span>EXPORT</span><strong>{machineState.isComplete ? 'READY' : 'AFTER PRINT'}</strong>
-          </button>
-        </nav>
+            {(pwaUpdate || offlineReady) && (
+              <div className="pwa-status" role="status">
+                <span>{pwaUpdate ? 'A FRESH PAPER ROLL IS READY' : 'MACHINE AVAILABLE OFFLINE'}</span>
+                {pwaUpdate && (
+                  <button type="button" onClick={() => applyPwaUpdate(pwaUpdate)}>
+                    RELOAD UPDATE
+                  </button>
+                )}
+                {!pwaUpdate && <button type="button" onClick={() => setOfflineReady(false)}>OK</button>}
+              </div>
+            )}
 
-        <section className="theme-section theme-section-first" aria-labelledby="paperwork-heading">
-          <div className="section-heading">
-            <span>01</span>
-            <h2 id="paperwork-heading">Choose your paperwork</h2>
-          </div>
-          <ThemePicker selected={themeId} onSelect={setThemeId} disabled={editingLocked} />
-        </section>
+            <header className="masthead v2-masthead">
+              <div className="system-row" aria-label="System status">
+                <span>SOFT MACHINE 001 · EMOTIONAL POS</span>
+                <span><i aria-hidden="true" /> {editingLocked ? 'PROCESSING' : 'READY'} · LOCAL ONLY</span>
+              </div>
+              <div className="brand-lockup">
+                <h1>bad day<br />receipt</h1>
+              </div>
+              <div className="hero-copy">
+                <p className="intro">Turn today’s invisible costs into official documentation.</p>
+                <p>NO ACCOUNT · NO DIAGNOSIS · JUST RECEIPTS</p>
+              </div>
+              <div className="hero-transaction" aria-live="polite">
+                <span>CURRENT TRANSACTION</span>
+                <strong>{live.itemCount} ITEMS · {currency(live.total)}</strong>
+              </div>
+            </header>
 
-        <section className="workspace" aria-label="Emotional point of sale">
-          <ChargeBuilder
-            charges={charges}
-            credits={credits}
-            selected={items}
-            dailyId={dailyItem.id}
-            disabled={editingLocked}
-            onToggle={toggleItem}
-            onQuantityChange={changeQuantity}
-            onAddCustom={addCustomItem}
-          />
+            <nav className="mobile-machine-tools" aria-label="Machine drawers">
+              <button type="button" disabled={editingLocked} onClick={() => setActiveSheet('paper')}>
+                <span>PAPER</span><strong>{theme.shortName}</strong>
+              </button>
+              <button type="button" onClick={() => setActiveSheet('history')}>
+                <span>HISTORY</span><strong>{history.length}</strong>
+              </button>
+              <button type="button" onClick={() => setActiveSheet('settings')}>
+                <span>SETTINGS</span><strong>{soundEnabled ? 'SOUND ON' : 'QUIET'}</strong>
+              </button>
+              <button
+                type="button"
+                disabled={!machineState.isComplete}
+                onClick={() => setActiveSheet('export')}
+              >
+                <span>EXPORT</span><strong>{machineState.isComplete ? 'READY' : 'AFTER PRINT'}</strong>
+              </button>
+            </nav>
 
-          <aside className="receipt-stage soft-machine-stage" ref={printerRef}>
-            <ReceiptMachine
-              ref={machineRef}
-              items={items}
-              receiptNumber={receiptNumber}
-              theme={theme}
-              anomaly={anomaly}
-              shareCopy={shareCopy}
+            <section className="theme-section theme-section-first" aria-labelledby="paperwork-heading">
+              <div className="section-heading">
+                <span>01</span>
+                <h2 id="paperwork-heading">Choose your paperwork</h2>
+              </div>
+              <ThemePicker selected={themeId} onSelect={setThemeId} disabled={editingLocked} />
+            </section>
+          </MobileInstrumentScene>
+
+          <section className="workspace" aria-label="Emotional point of sale">
+            <MobileInstrumentScene
+              name="compose-catalog"
+              activeWhen="compose"
+              scrollOwner="compose"
+              className="mobile-instrument__catalog"
+            >
+              <ChargeBuilder
+                charges={charges}
+                credits={credits}
+                selected={items}
+                dailyId={dailyItem.id}
+                disabled={editingLocked}
+                onToggle={toggleItem}
+                onQuantityChange={changeQuantity}
+                onAddCustom={addCustomItem}
+              />
+            </MobileInstrumentScene>
+
+            <MobileInstrumentScene
+              name="machine"
+              activeWhen={machineScenes}
+              scrollOwner={{
+                printing: 'none',
+                artifact: 'receipt',
+                recovery: 'recovery',
+              }}
+              className="mobile-instrument__machine"
+            >
+              <aside className="receipt-stage soft-machine-stage">
+                <ReceiptMachine
+                  ref={machineRef}
+                  items={items}
+                  receiptNumber={receiptNumber}
+                  theme={theme}
+                  anomaly={anomaly}
+                  shareCopy={shareCopy}
+                  soundEnabled={soundEnabled}
+                  hapticsEnabled={hapticsEnabled}
+                  onSoundChange={setSoundEnabled}
+                  onReceiptNumberChange={setReceiptNumber}
+                  createExport={createExport}
+                  onTransactionComplete={recordTransaction}
+                  onMakeAnother={makeAnother}
+                  onClear={clearReceipt}
+                  onStateChange={setMachineState}
+                />
+              </aside>
+            </MobileInstrumentScene>
+          </section>
+
+          <MobileInstrumentScene
+            name="compose-tail"
+            activeWhen="compose"
+            className="mobile-instrument__tail"
+          >
+            <TransactionDrawer history={history} />
+
+            <footer>
+              <span>made for tired little humans</span>
+              <span>all transactions remain locally sourced</span>
+            </footer>
+
+            <CommitBar
+              itemCount={live.itemCount}
+              totalLabel={currency(live.total)}
+              actionLabel="RING IT UP"
+              disabled={items.length === 0 || editingLocked}
+              hidden={editingLocked}
+              onCommit={commitFromMobile}
+            />
+          </MobileInstrumentScene>
+        </main>
+
+        <MachineBottomSheet
+          open={activeSheet !== null}
+          title={activeSheet ? getMachineSheetTitle(activeSheet) : 'Machine drawer'}
+          description={activeSheet === 'history' ? 'Last five receipts stored only on this device.' : undefined}
+          onClose={() => setActiveSheet(null)}
+          isolateRef={mainRef}
+        >
+          {activeSheet === 'paper' && (
+            <PaperStockSheet
+              selected={themeId}
+              disabled={editingLocked}
+              onSelect={(id) => {
+                setThemeId(id)
+                setActiveSheet(null)
+              }}
+            />
+          )}
+          {activeSheet === 'history' && <TransactionHistorySheet history={history} />}
+          {activeSheet === 'settings' && (
+            <MachineSettingsSheet
               soundEnabled={soundEnabled}
               hapticsEnabled={hapticsEnabled}
               onSoundChange={setSoundEnabled}
-              onReceiptNumberChange={setReceiptNumber}
-              createExport={createExport}
-              onTransactionComplete={recordTransaction}
-              onMakeAnother={makeAnother}
-              onClear={clearReceipt}
-              onStateChange={setMachineState}
+              onHapticsChange={setHapticsEnabled}
             />
-          </aside>
-        </section>
-
-        <TransactionDrawer history={history} />
-
-        <footer>
-          <span>made for tired little humans</span>
-          <span>all transactions remain locally sourced</span>
-        </footer>
-
-        <CommitBar
-          itemCount={live.itemCount}
-          totalLabel={currency(live.total)}
-          actionLabel="RING IT UP"
-          disabled={items.length === 0 || editingLocked}
-          hidden={printerVisible || editingLocked}
-          onCommit={commitFromMobile}
-        />
-      </main>
-
-      <MachineBottomSheet
-        open={activeSheet !== null}
-        title={activeSheet ? getMachineSheetTitle(activeSheet) : 'Machine drawer'}
-        description={activeSheet === 'history' ? 'Last five receipts stored only on this device.' : undefined}
-        onClose={() => setActiveSheet(null)}
-        isolateRef={mainRef}
-      >
-        {activeSheet === 'paper' && (
-          <PaperStockSheet
-            selected={themeId}
-            disabled={editingLocked}
-            onSelect={(id) => {
-              setThemeId(id)
-              setActiveSheet(null)
-            }}
-          />
-        )}
-        {activeSheet === 'history' && <TransactionHistorySheet history={history} />}
-        {activeSheet === 'settings' && (
-          <MachineSettingsSheet
-            soundEnabled={soundEnabled}
-            hapticsEnabled={hapticsEnabled}
-            onSoundChange={setSoundEnabled}
-            onHapticsChange={setHapticsEnabled}
-          />
-        )}
-        {activeSheet === 'export' && (
-          <>
-            <ExportFormatSheet busy={sheetExportBusy} onSave={(format) => { void saveSheetExport(format) }} />
-            <p className="machine-sheet-status" aria-live="polite">{sheetExportMessage}</p>
-          </>
-        )}
-      </MachineBottomSheet>
-    </SoftMachineShell>
+          )}
+          {activeSheet === 'export' && (
+            <>
+              <ExportFormatSheet busy={sheetExportBusy} onSave={(format) => { void saveSheetExport(format) }} />
+              <p className="machine-sheet-status" aria-live="polite">{sheetExportMessage}</p>
+            </>
+          )}
+        </MachineBottomSheet>
+      </SoftMachineShell>
+    </MobileInstrument>
   )
 }
 
