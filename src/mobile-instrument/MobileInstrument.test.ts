@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { getMobileInstrumentAttributes } from './MobileInstrument'
 
 describe('Mobile Instrument shell contract', () => {
-  it('exposes stable scene, environment, and scroll-owner attributes', () => {
+  it('exposes stable scene, motion, environment, and scroll-owner attributes', () => {
     expect(getMobileInstrumentAttributes({
       scene: 'printing',
       phase: 'feeding',
@@ -14,6 +14,7 @@ describe('Mobile Instrument shell contract', () => {
     })).toEqual({
       'data-mobile-scene': 'printing',
       'data-phase': 'feeding',
+      'data-motion-milestone': 'feeding',
       'data-theme': 'cvs',
       'data-mobile': true,
       'data-standalone': true,
