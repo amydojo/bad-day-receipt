@@ -121,7 +121,16 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       if (recordedReceipt.current === state.receiptNumber) return
       recordedReceipt.current = state.receiptNumber
       onTransactionComplete(state.receiptNumber)
-      completionFrame.current = window.requestAnimationFrame(() => completionRef.current?.focus())
+
+      if (completionFrame.current !== null) {
+        window.cancelAnimationFrame(completionFrame.current)
+      }
+      completionFrame.current = window.requestAnimationFrame(() => {
+        completionFrame.current = window.requestAnimationFrame(() => {
+          completionRef.current?.focus({ preventScroll: true })
+          completionFrame.current = null
+        })
+      })
     }, [isComplete, onTransactionComplete, state.receiptNumber])
 
     useEffect(() => () => {

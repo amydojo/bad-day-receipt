@@ -96,12 +96,18 @@ export function MobileInstrument({
     if (!isMobile || previous === scene) return
 
     const root = rootRef.current
-    const active = document.activeElement
-    if (!root || !(active instanceof HTMLElement) || !root.contains(active)) return
+    if (!root) return
 
-    const targetName = scene === 'compose' ? 'compose-catalog' : 'machine'
-    const target = root.querySelector<HTMLElement>(`[data-instrument-scene="${targetName}"]`)
-    if (target && !target.contains(active)) target.focus({ preventScroll: true })
+    if (scene === 'compose') {
+      const control = root.querySelector<HTMLButtonElement>(
+        '[data-instrument-scene="compose-catalog"] .choice-chip:not(:disabled), .theme-tab:not(:disabled)',
+      )
+      control?.focus({ preventScroll: true })
+      return
+    }
+
+    const target = root.querySelector<HTMLElement>('[data-instrument-scene="machine"]')
+    target?.focus({ preventScroll: true })
   }, [isMobile, scene])
 
   const environment = useMemo<MobileInstrumentEnvironment>(() => ({

@@ -1,0 +1,100 @@
+/*
+ * Release-gate corrections discovered by the first full mobile-quality run.
+ * Keep the completed artifact inside the fixed Mobile Instrument aperture so
+ * the receipt reader owns overflow and the action dock remains reachable.
+ */
+
+.evidence-viewer__identity > span {
+  color: rgba(255, 255, 255, .84);
+  opacity: 1;
+}
+
+@media (max-width: 767px) {
+  /*
+   * The legacy complete-state rules allow the issued paper to size the whole
+   * machine. The Evidence Viewer instead needs a hard viewport boundary with
+   * one internal scroll owner. Absolute inset geometry prevents a long receipt
+   * from contributing to the height of the fixed instrument scene.
+   */
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-stage {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer,
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__surface {
+    position: absolute !important;
+    inset: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__surface {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) auto !important;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__reader {
+    position: relative;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__scroll {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  /*
+   * Legacy focused/complete rules hide every footer. The new Evidence Viewer
+   * intentionally uses a footer as its fixed action dock, so restore only this
+   * semantic footer after those older rules have run.
+   */
+  .soft-machine-shell[data-focused='true'] .evidence-viewer__dock,
+  .soft-machine-shell[data-phase='complete'] .evidence-viewer__dock,
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__dock {
+    position: relative;
+    z-index: 18;
+    display: block !important;
+    flex: none;
+    min-height: 0;
+  }
+
+  /* Override the old global complete-state `overflow: visible` rule. */
+  .soft-machine-shell[data-phase='complete']
+    .evidence-viewer__scroll
+    .receipt-viewport {
+    width: 100% !important;
+    max-height: none !important;
+    overflow: hidden !important;
+  }
+}

@@ -6,9 +6,9 @@ const phases = [
   'scanning',
   'calculating',
   'feeding',
-  'stamping',
   'falseComplete',
   'printingCoupons',
+  'stamping',
   'complete',
 ]
 

@@ -30,7 +30,7 @@ test.describe('Mobile Instrument release quality gate', () => {
     await openMachine(page)
 
     await expect(mobileInstrument(page)).toHaveAttribute('data-mobile-scene', 'compose')
-    await expectScrollOwner(page, 'catalog')
+    await expectScrollOwner(page, 'compose')
     await expectViewportLocked(page)
     await expectHiddenScenesExcluded(page)
     await expectNoHorizontalOverflow(page)
@@ -87,8 +87,8 @@ test.describe('Mobile Instrument release quality gate', () => {
 
     await page.getByRole('button', { name: 'NEW', exact: true }).click()
     await expect(mobileInstrument(page)).toHaveAttribute('data-mobile-scene', 'compose')
-    await expectScrollOwner(page, 'catalog')
-    await expect(page.locator('.choice-chip:focus')).toHaveCount(1)
+    await expectScrollOwner(page, 'compose')
+    await expect(page.locator('.choice-chip:focus, .theme-tab:focus')).toHaveCount(1)
   })
 
   test('preserves the CVS false ending, restart, and internal artifact scroll', async ({ page }) => {
@@ -128,7 +128,7 @@ test.describe('Mobile Instrument release quality gate', () => {
 
   test('gives an open sheet temporary ownership without leaking body styles', async ({ page }) => {
     await openMachine(page)
-    await expectScrollOwner(page, 'catalog')
+    await expectScrollOwner(page, 'compose')
 
     await page.locator('.mobile-machine-tools').getByRole('button', { name: /SETTINGS/ }).click()
     await expect(page.getByRole('dialog', { name: 'Machine settings' })).toBeVisible()
@@ -137,7 +137,7 @@ test.describe('Mobile Instrument release quality gate', () => {
 
     await page.getByRole('button', { name: 'Close Machine settings' }).click()
     await expect(page.getByRole('dialog', { name: 'Machine settings' })).toHaveCount(0)
-    await expectScrollOwner(page, 'catalog')
+    await expectScrollOwner(page, 'compose')
     await expectViewportLocked(page)
   })
 
@@ -152,7 +152,7 @@ test.describe('Mobile Instrument release quality gate', () => {
     await openMachine(page)
     await expect(mobileInstrument(page)).toHaveAttribute('data-mobile-scene', 'compose')
     await expect(page.getByTestId('mobile-commit')).toBeVisible()
-    await expectScrollOwner(page, 'catalog')
+    await expectScrollOwner(page, 'compose')
     await expectViewportLocked(page)
   })
 })
