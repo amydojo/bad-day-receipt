@@ -51,7 +51,7 @@ test.describe('@viewport intentional viewport matrix', () => {
 
       if (viewport.mobile) {
         expect(bounds.bottom).toBeLessThanOrEqual(bounds.viewportHeight + 1)
-        await expectScrollOwner(page, 'catalog')
+        await expectScrollOwner(page, 'compose')
         await expectViewportLocked(page)
         await expect(page.getByTestId('mobile-commit')).toBeVisible()
       } else {
