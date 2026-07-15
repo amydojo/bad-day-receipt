@@ -21,7 +21,8 @@ import {
 test.describe('Mobile Instrument release quality gate', () => {
   test.setTimeout(45_000)
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes('mobile'), 'Mobile Instrument ownership is covered by mobile browser projects.')
     await mockPlatformApis(page)
   })
 
