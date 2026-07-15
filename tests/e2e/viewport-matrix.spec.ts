@@ -18,7 +18,7 @@ const viewports = [
   { label: 'desktop workbench', width: 1440, height: 900, mobile: false },
 ] as const
 
-test.describe('intentional viewport matrix', () => {
+test.describe('@viewport intentional viewport matrix', () => {
   test.beforeEach(async ({ page }) => {
     await mockPlatformApis(page)
   })
