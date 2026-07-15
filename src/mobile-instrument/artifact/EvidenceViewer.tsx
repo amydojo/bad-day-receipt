@@ -31,7 +31,7 @@ export function EvidenceViewer({
 }: {
   paperName: string
   receiptNumber: string
-  headingRef: Ref<HTMLHeadingElement>
+  headingRef: Ref<HTMLElement>
   printerHead: ReactNode
   receipt: ReactNode
   shareText: string
@@ -84,7 +84,7 @@ export function EvidenceViewer({
       data-evidence-viewer="true"
     >
       <div ref={surfaceRef} className="evidence-viewer__surface">
-        <PinnedPrinterHead ref={headingRef} paperName={paperName}>
+        <PinnedPrinterHead ref={headingRef as Ref<HTMLHeadingElement>} paperName={paperName}>
           {printerHead}
         </PinnedPrinterHead>
 
