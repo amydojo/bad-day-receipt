@@ -1,0 +1,59 @@
+/*
+ * Release-gate corrections discovered by the first full mobile-quality run.
+ * Keep the completed artifact inside the fixed Mobile Instrument aperture so
+ * the receipt reader owns overflow and the action dock remains reachable.
+ */
+
+.evidence-viewer__identity > span {
+  color: rgba(255, 255, 255, .84);
+  opacity: 1;
+}
+
+@media (max-width: 767px) {
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-stage,
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine,
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer,
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__surface {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine {
+    display: block;
+    overflow: hidden;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer {
+    align-self: stretch;
+    justify-self: stretch;
+    overflow: hidden;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__surface {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    overflow: hidden;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__reader {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__scroll {
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__dock {
+    position: relative;
+    flex: none;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .evidence-viewer__scroll .receipt-viewport {
+    min-height: 100%;
+  }
+}
