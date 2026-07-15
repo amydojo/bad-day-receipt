@@ -56,5 +56,6 @@ test('malformed state does not crash the machine', async ({ page }) => {
     localStorage.setItem('bad-day-receipt-machine-v1', '{not valid json')
   })
   await openMachine(page)
-  await expect(page.getByRole('heading', { name: /bad day receipt/i })).toBeVisible()
+  await expect(page.locator('.mobile-instrument')).toHaveAttribute('data-mobile-scene', 'compose')
+  await expect(page.locator('.receipt-machine')).toHaveAttribute('data-phase', 'idle')
 })
