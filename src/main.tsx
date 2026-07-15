@@ -20,6 +20,7 @@ import './soft-machine/accessibility.css'
 import './soft-machine/performance.css'
 import './styles/quality-fixes.css'
 import './styles/production-motion.css'
+import './mobile-instrument/artifact/evidenceViewer.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

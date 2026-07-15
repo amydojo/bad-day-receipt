@@ -14,6 +14,7 @@ interface ArtifactActionsProps {
   createExport: (format: ExportFormat) => Promise<ArtifactExport>
   onReset: () => void
   onReprint: () => void
+  onMore?: () => void
   platform?: ArtifactPlatform
 }
 
@@ -22,6 +23,7 @@ export function ArtifactActions({
   createExport,
   onReset,
   onReprint,
+  onMore,
   platform,
 }: ArtifactActionsProps) {
   const browserPlatform = useMemo(
@@ -69,7 +71,7 @@ export function ArtifactActions({
   }
 
   return (
-    <section className="artifact-actions" aria-label="Receipt actions" aria-busy={activeJob.current}>
+    <section className="artifact-actions" aria-label="Receipt actions" aria-busy={Boolean(busyAction)}>
       <div className="artifact-action-primary">
         <button
           type="button"
@@ -89,37 +91,45 @@ export function ArtifactActions({
         >
           SAVE
         </button>
-        <button type="button" disabled={Boolean(busyAction)} onClick={() => { void copyText() }}>
-          COPY TEXT
-        </button>
+        {onMore ? (
+          <button type="button" disabled={Boolean(busyAction)} onClick={onMore}>
+            MORE
+          </button>
+        ) : (
+          <button type="button" disabled={Boolean(busyAction)} onClick={() => { void copyText() }}>
+            COPY TEXT
+          </button>
+        )}
         <button type="button" disabled={Boolean(busyAction)} onClick={onReset}>
-          NEW RECEIPT
+          NEW
         </button>
       </div>
 
-      <div className="artifact-format-actions" aria-label="Additional export formats">
-        <button
-          type="button"
-          disabled={Boolean(busyAction)}
-          onClick={() => {
-            void runExportAction('share-card', 'share', (artifact) => saveArtifact(artifact, browserPlatform))
-          }}
-        >
-          SAVE 4:5
-        </button>
-        <button
-          type="button"
-          disabled={Boolean(busyAction)}
-          onClick={() => {
-            void runExportAction('story', 'story', (artifact) => saveArtifact(artifact, browserPlatform))
-          }}
-        >
-          SAVE 9:16
-        </button>
-        <button type="button" disabled={Boolean(busyAction)} onClick={onReprint}>
-          REPRINT
-        </button>
-      </div>
+      {!onMore && (
+        <div className="artifact-format-actions" aria-label="Additional export formats">
+          <button
+            type="button"
+            disabled={Boolean(busyAction)}
+            onClick={() => {
+              void runExportAction('share-card', 'share', (artifact) => saveArtifact(artifact, browserPlatform))
+            }}
+          >
+            SAVE 4:5
+          </button>
+          <button
+            type="button"
+            disabled={Boolean(busyAction)}
+            onClick={() => {
+              void runExportAction('story', 'story', (artifact) => saveArtifact(artifact, browserPlatform))
+            }}
+          >
+            SAVE 9:16
+          </button>
+          <button type="button" disabled={Boolean(busyAction)} onClick={onReprint}>
+            REPRINT
+          </button>
+        </div>
+      )}
 
       <p className="artifact-action-status" aria-live="polite">
         {showProgress ? 'PREPARING EVIDENCE…' : message}

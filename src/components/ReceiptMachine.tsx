@@ -10,10 +10,10 @@ import { snapshotDraft } from '../draftReceipt'
 import type { ArtifactExport } from '../export/exportTypes'
 import { useReceiptPrinter } from '../hooks/useReceiptPrinter'
 import { getConciseMachineAnnouncement } from '../machinePresentation'
+import { EvidenceViewer } from '../mobile-instrument/artifact/EvidenceViewer'
 import { createSensoryDirector } from '../mobile-instrument/sensory/SensoryDirector'
 import { getRingButtonLabel } from '../printer/printerMachine'
 import type { PrinterPhase } from '../printer/printerTypes'
-import { ArtifactActions } from '../soft-machine/ArtifactActions'
 import type { ReceiptTheme } from '../themes'
 import type { ReceiptItem } from '../types'
 import type { ExportFormat } from '../v2'
@@ -71,7 +71,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     const [committedItems, setCommittedItems] = useState<ReceiptItem[]>(() => snapshotDraft(items))
     const recordedReceipt = useRef<string | null>(null)
     const commitGuard = useRef(false)
-    const completionRef = useRef<HTMLDivElement | null>(null)
+    const completionRef = useRef<HTMLElement | null>(null)
     const completionFrame = useRef<number | null>(null)
     const sensory = useMemo(() => createSensoryDirector({
       soundEnabled,
@@ -177,6 +177,27 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       reset: resetForNew,
     }))
 
+    const receipt = showReceipt ? (
+      <ReceiptViewport
+        phase={state.phase}
+        paperProgress={state.paperProgress}
+        couponProgress={couponProgress}
+        couponCount={couponCount}
+      >
+        <Receipt
+          items={issuedItems}
+          receiptNumber={receiptNumber}
+          theme={theme}
+          phase={state.phase}
+          visibleLineCount={state.visibleLineCount}
+          visibleTotalRows={state.visibleTotalRows}
+          showVerdict={showVerdict}
+          couponProgress={couponProgress}
+          anomaly={anomaly}
+        />
+      </ReceiptViewport>
+    ) : null
+
     return (
       <section
         className="receipt-machine"
@@ -185,84 +206,64 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         aria-label="Emotional point of sale terminal and thermal printer"
         aria-busy={isBusy}
       >
-        <div className="pos-appliance">
-          <RegisterTerminal items={issuedItems} theme={theme} phase={state.phase} />
-          <PrinterShell phase={state.phase} theme={theme} />
-
-          {showReceipt && (
-            <ReceiptViewport
-              phase={state.phase}
-              paperProgress={state.paperProgress}
-              couponProgress={couponProgress}
-              couponCount={couponCount}
-            >
-              <Receipt
-                items={issuedItems}
-                receiptNumber={receiptNumber}
-                theme={theme}
-                phase={state.phase}
-                visibleLineCount={state.visibleLineCount}
-                visibleTotalRows={state.visibleTotalRows}
-                showVerdict={showVerdict}
-                couponProgress={couponProgress}
-                anomaly={anomaly}
-              />
-            </ReceiptViewport>
-          )}
-        </div>
-
-        {state.phase === 'error' && (
-          <div className="printer-error" role="alert">
-            <strong>REGISTER JAMMED</strong>
-            <span>{state.errorMessage}</span>
-            <small>The emotional transaction remains valid.</small>
-          </div>
-        )}
-
-        {!isComplete ? (
-          <div className="receipt-actions">
-            <RingItUpButton
-              label={getRingButtonLabel(state.phase, theme.id)}
-              disabled={items.length === 0 || isBusy}
-              onClick={printAgain}
-            />
-            <button
-              className="text-button"
-              type="button"
-              onClick={clear}
-              disabled={isBusy}
-            >
-              clear transaction
-            </button>
-          </div>
+        {isComplete ? (
+          <EvidenceViewer
+            paperName={theme.shortName}
+            receiptNumber={state.receiptNumber || receiptNumber}
+            headingRef={completionRef}
+            printerHead={<PrinterShell phase={state.phase} theme={theme} />}
+            receipt={receipt}
+            shareText={shareCopy}
+            createExport={createExport}
+            onNew={makeAnother}
+            onReprint={printAgain}
+          />
         ) : (
-          <div className="post-print-panel">
-            <div className="post-print-status" ref={completionRef} tabIndex={-1}>
-              <span>TRANSACTION RECORDED</span>
-              <strong>Evidence issued. No further explanation required.</strong>
+          <>
+            <div className="pos-appliance">
+              <RegisterTerminal items={issuedItems} theme={theme} phase={state.phase} />
+              <PrinterShell phase={state.phase} theme={theme} />
+              {receipt}
             </div>
 
-            <ArtifactActions
-              shareText={shareCopy}
-              createExport={createExport}
-              onReset={makeAnother}
-              onReprint={printAgain}
-            />
-          </div>
+            {state.phase === 'error' && (
+              <div className="printer-error" role="alert">
+                <strong>REGISTER JAMMED</strong>
+                <span>{state.errorMessage}</span>
+                <small>The emotional transaction remains valid.</small>
+              </div>
+            )}
+
+            <div className="receipt-actions">
+              <RingItUpButton
+                label={getRingButtonLabel(state.phase, theme.id)}
+                disabled={items.length === 0 || isBusy}
+                onClick={printAgain}
+              />
+              <button
+                className="text-button"
+                type="button"
+                onClick={clear}
+                disabled={isBusy}
+              >
+                clear transaction
+              </button>
+            </div>
+
+            <button
+              className="sound-toggle"
+              type="button"
+              aria-pressed={soundEnabled}
+              onClick={toggleSound}
+            >
+              SOUND: {soundEnabled ? 'LOW' : 'OFF'}
+            </button>
+
+            <p className="privacy-note">
+              Nothing leaves your browser. Your bad day remains locally sourced.
+            </p>
+          </>
         )}
-
-        <button
-          className="sound-toggle"
-          type="button"
-          aria-pressed={soundEnabled}
-          onClick={toggleSound}
-        >
-          SOUND: {soundEnabled ? 'LOW' : 'OFF'}
-        </button>
-
-        <p className="privacy-note">
-          Nothing leaves your browser. Your bad day remains locally sourced.
-        </p>
 
         <p className="sr-only" aria-live="polite">
           {getConciseMachineAnnouncement(state.phase)}
