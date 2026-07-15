@@ -7,6 +7,7 @@ import {
   mechanicalEase,
   printerReducer,
 } from '../printer/printerMachine'
+import { REDUCED_MOTION } from '../printer/productionMotion'
 import { tinyHaptic } from '../printer/printerSounds'
 import { PRINTER_TIMING } from '../printer/printerTiming'
 import type {
@@ -84,26 +85,32 @@ export function useReceiptPrinter({
   reducedMotion,
   hapticsEnabled = true,
   onReceiptNumberChange,
+  onSensoryEvent,
   sounds,
 }: UseReceiptPrinterOptions): UseReceiptPrinterResult {
   const [state, dispatch] = useReducer(printerReducer, initialPrinterState)
   const activeController = useRef<AbortController | null>(null)
 
+  const stopFeed = useCallback(() => {
+    sounds?.stopFeed()
+    onSensoryEvent?.('thermal-feed-stop')
+  }, [onSensoryEvent, sounds])
+
   const resetPrinter = useCallback(() => {
     activeController.current?.abort()
     activeController.current = null
-    sounds?.stopFeed()
+    stopFeed()
     dispatch({ type: 'RESET' })
-  }, [sounds])
+  }, [stopFeed])
 
   useEffect(() => () => {
     activeController.current?.abort()
-    sounds?.stopFeed()
-  }, [sounds])
+    stopFeed()
+  }, [stopFeed])
 
   const startPrinting = useCallback(async () => {
     activeController.current?.abort()
-    sounds?.stopFeed()
+    stopFeed()
 
     const controller = new AbortController()
     activeController.current = controller
@@ -114,6 +121,7 @@ export function useReceiptPrinter({
 
     onReceiptNumberChange(nextReceiptNumber)
     dispatch({ type: 'START', receiptNumber: nextReceiptNumber })
+    onSensoryEvent?.('register-clack')
     sounds?.playPress()
     if (hapticsEnabled) tinyHaptic(8)
 
@@ -121,108 +129,139 @@ export function useReceiptPrinter({
       await hold()
 
       if (reducedMotion) {
-        if (itemCount > 0) {
-          dispatch({ type: 'REVEAL_LINE', lineIndex: itemCount - 1 })
-        }
+        await wait(REDUCED_MOTION.accepted, signal)
+        dispatch({ type: 'BEGIN_SCAN' })
+        onSensoryEvent?.('barcode-scan')
+        sounds?.playScan()
+        await wait(REDUCED_MOTION.scanned, signal)
+        if (itemCount > 0) dispatch({ type: 'REVEAL_LINE', lineIndex: itemCount - 1 })
+        dispatch({ type: 'BEGIN_TOTALS' })
         dispatch({ type: 'REVEAL_TOTAL', rowIndex: 3 })
+        await wait(REDUCED_MOTION.blankPaper, signal)
+        dispatch({ type: 'BEGIN_FEED' })
         dispatch({ type: 'SET_PAPER_PROGRESS', progress: 1 })
+        await wait(REDUCED_MOTION.printedEvidence, signal)
+
         if (themeId === 'cvs' && couponCount > 0) {
+          dispatch({ type: 'FALSE_COMPLETE' })
+          await wait(REDUCED_MOTION.apparentCompletion, signal)
+          dispatch({ type: 'BEGIN_COUPONS' })
+          onSensoryEvent?.('cvs-printer-restart')
           dispatch({ type: 'SET_COUPON_PROGRESS', progress: 1 })
+          await wait(REDUCED_MOTION.couponReveal, signal)
         }
+
         dispatch({ type: 'STAMP' })
-        await wait(120, signal)
+        onSensoryEvent?.('verdict-impact')
+        await wait(REDUCED_MOTION.complete, signal)
         dispatch({ type: 'COMPLETE' })
         return
       }
 
-      await wait(PRINTER_TIMING.arming + PRINTER_TIMING.scanStartDelay, signal)
+      await wait(
+        PRINTER_TIMING.buttonDepression +
+        PRINTER_TIMING.dockCompression +
+        PRINTER_TIMING.chamberSettle +
+        PRINTER_TIMING.preScanBreath,
+        signal,
+      )
+
       dispatch({ type: 'BEGIN_SCAN' })
+      onSensoryEvent?.('barcode-scan')
+      sounds?.playScan()
       await hold()
 
       const revealCounts = getScanRevealCounts(itemCount)
-      for (let index = 0; index < revealCounts.length; index += 1) {
-        const count = revealCounts[index]
+      const scanStep = Math.max(1, PRINTER_TIMING.scannerSweep / Math.max(revealCounts.length, 1))
+      for (const count of revealCounts) {
         dispatch({ type: 'REVEAL_LINE', lineIndex: count - 1 })
-        sounds?.playScan()
-
-        const delay = index === 0
-          ? PRINTER_TIMING.firstLine
-          : index === revealCounts.length - 1
-            ? PRINTER_TIMING.lastLine
-            : PRINTER_TIMING.middleLine
-
-        await wait(delay, signal)
+        await wait(scanStep, signal)
       }
 
+      await wait(PRINTER_TIMING.postScanBreath, signal)
       dispatch({ type: 'BEGIN_TOTALS' })
       await hold()
-      await wait(PRINTER_TIMING.totalsGap, signal)
 
+      const totalStep = Math.max(1, PRINTER_TIMING.printerWake / 4)
       for (let index = 0; index < 4; index += 1) {
         dispatch({ type: 'REVEAL_TOTAL', rowIndex: index })
-        await wait(PRINTER_TIMING.totalRow, signal)
+        await wait(totalStep, signal)
       }
+
+      await wait(
+        PRINTER_TIMING.blankPaperHold + PRINTER_TIMING.blankLeaderReveal,
+        signal,
+      )
 
       dispatch({ type: 'BEGIN_FEED' })
       await hold()
+      onSensoryEvent?.('thermal-feed-start')
       sounds?.playFeed()
       await animatePaperProgress({
-        duration: PRINTER_TIMING.feedDuration,
+        duration: themeId === 'cvs'
+          ? PRINTER_TIMING.cvsPrimaryFeedDuration
+          : PRINTER_TIMING.feedDuration,
         signal,
-        onProgress: (progress) => {
-          dispatch({ type: 'SET_PAPER_PROGRESS', progress })
-        },
+        onProgress: (progress) => dispatch({ type: 'SET_PAPER_PROGRESS', progress }),
       })
-      sounds?.stopFeed()
-
-      dispatch({ type: 'STAMP' })
-      await hold()
-      sounds?.playStamp()
-      if (hapticsEnabled) tinyHaptic(12)
-      await wait(PRINTER_TIMING.stampDuration, signal)
+      stopFeed()
 
       if (themeId === 'cvs' && couponCount > 0) {
+        await wait(PRINTER_TIMING.cvsCompletionSettle, signal)
         dispatch({ type: 'FALSE_COMPLETE' })
         await hold()
-        await wait(PRINTER_TIMING.falseCompletePause, signal)
+        await wait(
+          PRINTER_TIMING.cvsApparentCompletion + PRINTER_TIMING.falseCompletePause,
+          signal,
+        )
+        await wait(
+          PRINTER_TIMING.cvsAdditionalRewardsReveal +
+          PRINTER_TIMING.cvsMessageReadingHold,
+          signal,
+        )
 
         dispatch({ type: 'BEGIN_COUPONS' })
         await hold()
+        onSensoryEvent?.('cvs-printer-restart')
         sounds?.playCouponResume()
         if (hapticsEnabled) tinyHaptic(6)
+        await wait(PRINTER_TIMING.cvsPrinterRestart, signal)
+        onSensoryEvent?.('thermal-feed-start')
         sounds?.playFeed()
-
         await animatePaperProgress({
           duration: PRINTER_TIMING.couponFeedDuration,
           signal,
-          onProgress: (progress) => {
-            dispatch({ type: 'SET_COUPON_PROGRESS', progress })
-          },
+          onProgress: (progress) => dispatch({ type: 'SET_COUPON_PROGRESS', progress }),
         })
-        sounds?.stopFeed()
+        stopFeed()
+        await wait(PRINTER_TIMING.cvsTrueCompleteHold, signal)
       }
 
+      await wait(PRINTER_TIMING.verdictSilence, signal)
+      dispatch({ type: 'STAMP' })
+      await hold()
+      onSensoryEvent?.('verdict-impact')
+      sounds?.playStamp()
+      if (hapticsEnabled) tinyHaptic(12)
+      await wait(PRINTER_TIMING.stampDuration, signal)
+      await wait(PRINTER_TIMING.evidenceSettlement, signal)
       dispatch({ type: 'COMPLETE' })
     } catch (error) {
-      sounds?.stopFeed()
+      stopFeed()
       if (error instanceof DOMException && error.name === 'AbortError') return
-
-      dispatch({
-        type: 'FAIL',
-        message: 'The emotional transaction remains valid.',
-      })
+      dispatch({ type: 'FAIL', message: 'The emotional transaction remains valid.' })
     } finally {
-      if (activeController.current === controller) {
-        activeController.current = null
-      }
+      if (activeController.current === controller) activeController.current = null
     }
   }, [
     couponCount,
     hapticsEnabled,
     itemCount,
     onReceiptNumberChange,
+    onSensoryEvent,
     reducedMotion,
     sounds,
+    stopFeed,
     themeId,
   ])
 
