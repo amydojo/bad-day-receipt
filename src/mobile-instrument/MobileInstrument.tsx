@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { milestoneForPhase } from '../printer/productionMotion'
 import {
   deriveMobileScene,
   getMobileSceneAnnouncement,
@@ -63,6 +64,7 @@ export function getMobileInstrumentAttributes({
   return {
     'data-mobile-scene': scene,
     'data-phase': phase,
+    'data-motion-milestone': milestoneForPhase(phase),
     'data-theme': theme,
     'data-mobile': isMobile,
     'data-standalone': standalone,

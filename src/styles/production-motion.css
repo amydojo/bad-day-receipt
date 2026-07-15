@@ -1,0 +1,140 @@
+.mobile-instrument {
+  --motion-mechanical: cubic-bezier(.32, .72, .18, 1);
+  --motion-settle: cubic-bezier(.22, .61, .36, 1);
+  --motion-ink: steps(4, end);
+}
+
+.receipt-machine .status-stamp[data-visible='true'] {
+  animation-timing-function: cubic-bezier(.2, .8, .25, 1);
+}
+
+@media (max-width: 767px) {
+  .mobile-instrument[data-mobile-scene='compose'] .v2-masthead {
+    padding-block: 10px 6px;
+  }
+
+  .mobile-instrument[data-mobile-scene='compose'] .brand-lockup,
+  .mobile-instrument[data-mobile-scene='compose'] .hero-copy {
+    display: none;
+  }
+
+  .mobile-instrument[data-mobile-scene='compose'] .system-row,
+  .mobile-instrument[data-mobile-scene='compose'] .hero-transaction {
+    margin-inline: 12px;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'] {
+    background: #454744;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'] .receipt-stage {
+    display: grid;
+    align-content: center;
+    padding: max(8px, env(safe-area-inset-top)) 0 max(8px, env(safe-area-inset-bottom));
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.035), transparent 26%),
+      #454744;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'] .receipt-machine {
+    width: 100%;
+    max-width: none;
+    transform-origin: 50% 82%;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'][data-phase='arming'] .receipt-machine {
+    animation: chamberEnter 740ms var(--motion-mechanical) both;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'][data-phase='scanning'] .pos-appliance {
+    animation: scanBreath 700ms var(--motion-settle) both;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'][data-phase='calculating'] .printer-shell {
+    animation: printerWake 360ms var(--motion-mechanical) both;
+  }
+
+  .mobile-instrument[data-mobile-scene='printing'][data-phase='feeding'] .receipt-track,
+  .mobile-instrument[data-mobile-scene='printing'][data-phase='printingCoupons'] .receipt-track {
+    will-change: transform;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .mobile-instrument__machine {
+    overflow: hidden;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-stage {
+    height: 100%;
+    min-height: 0;
+    padding: max(8px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    animation: evidenceSettle 360ms var(--motion-settle) both;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .pos-appliance {
+    min-height: 0;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-viewport {
+    max-height: calc(100dvh - 250px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact'] .post-print-panel {
+    position: sticky;
+    z-index: 20;
+    bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: linear-gradient(180deg, transparent, var(--page, #d7c9ab) 22%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-instrument[data-mobile-scene='printing'] .receipt-machine,
+  .mobile-instrument[data-mobile-scene='printing'] .pos-appliance,
+  .mobile-instrument[data-mobile-scene='printing'] .printer-shell,
+  .mobile-instrument[data-mobile-scene='artifact'] .receipt-machine {
+    animation: none !important;
+  }
+
+  .receipt-machine .status-stamp[data-visible='true'],
+  .receipt-machine .receipt-line[data-printed='true'],
+  .receipt-machine .totals > [data-printed='true'],
+  .receipt-machine .receipt-note[data-printed='true'],
+  .receipt-machine .coupon[data-visible='true'] {
+    animation-duration: 80ms !important;
+    animation-timing-function: ease-out !important;
+  }
+}
+
+@keyframes chamberEnter {
+  0% { opacity: .92; transform: translateY(18px) scale(.985); }
+  42% { opacity: 1; transform: translateY(4px) scale(.995); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes scanBreath {
+  0%, 100% { filter: brightness(1); }
+  45% { filter: brightness(.94); }
+  62% { filter: brightness(1.035); }
+}
+
+@keyframes printerWake {
+  0% { transform: translateY(3px); filter: brightness(.92); }
+  100% { transform: translateY(0); filter: brightness(1); }
+}
+
+@keyframes evidenceSettle {
+  0% { opacity: .96; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
