@@ -11,7 +11,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "analyze": "npm run build && node scripts/analyze-build.mjs",
     "test:e2e": "playwright test tests/e2e",
-    "test:visual": "playwright test tests/visual"
+    "test:accessibility": "playwright test tests/e2e/accessibility-gate.spec.ts",
+    "test:viewports": "playwright test tests/e2e/viewport-matrix.spec.ts --project=chromium-mobile --project=webkit-mobile",
+    "test:visual": "playwright test tests/visual",
+    "test:visual:release": "playwright test tests/visual/mobile-instrument-release.spec.ts --project=chromium-mobile --project=chromium-desktop"
   },
   "dependencies": {
     "react": "19.2.7",
@@ -21,7 +24,7 @@
     "@axe-core/playwright": "4.10.2",
     "@playwright/test": "1.55.0",
     "@types/react": "19.2.17",
-    "@types/react-dom": "19.2.3",
+    "@types/react-dom": "19.2.17",
     "@vitejs/plugin-react": "6.0.3",
     "typescript": "7.0.2",
     "vite": "8.1.4",
