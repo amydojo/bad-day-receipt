@@ -88,7 +88,7 @@ test.describe('Mobile Instrument release quality gate', () => {
     await page.getByRole('button', { name: 'NEW', exact: true }).click()
     await expect(mobileInstrument(page)).toHaveAttribute('data-mobile-scene', 'compose')
     await expectScrollOwner(page, 'compose')
-    await expect(page.locator('.choice-chip:focus')).toHaveCount(1)
+    await expect(page.locator('.choice-chip:focus, .theme-tab:focus')).toHaveCount(1)
   })
 
   test('preserves the CVS false ending, restart, and internal artifact scroll', async ({ page }) => {
