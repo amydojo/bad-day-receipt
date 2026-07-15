@@ -21,6 +21,7 @@ import './soft-machine/performance.css'
 import './styles/quality-fixes.css'
 import './styles/production-motion.css'
 import './mobile-instrument/artifact/evidenceViewer.css'
+import './styles/mobile-quality-hotfix.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
