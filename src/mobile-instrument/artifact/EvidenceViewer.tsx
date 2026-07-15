@@ -1,4 +1,20 @@
-import { type ReactNode, type Ref } from 'react'
+import {
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react'
+import type { ArtifactExport } from '../../export/exportTypes'
+import { ArtifactActions } from '../../soft-machine/ArtifactActions'
+import {
+  copyArtifactText,
+  createBrowserArtifactPlatform,
+  saveArtifact,
+} from '../../soft-machine/artifactActions'
+import { MachineBottomSheet } from '../../soft-machine/MachineBottomSheet'
+import type { ExportFormat } from '../../v2'
+import { EvidenceMoreSheet } from './EvidenceMoreSheet'
 import { PinnedPrinterHead } from './PinnedPrinterHead'
 import { ReceiptScrollViewport } from './ReceiptScrollViewport'
 
@@ -8,32 +24,102 @@ export function EvidenceViewer({
   headingRef,
   printerHead,
   receipt,
-  actions,
+  shareText,
+  createExport,
+  onNew,
+  onReprint,
 }: {
   paperName: string
   receiptNumber: string
   headingRef: Ref<HTMLElement>
   printerHead: ReactNode
   receipt: ReactNode
-  actions: ReactNode
+  shareText: string
+  createExport: (format: ExportFormat) => Promise<ArtifactExport>
+  onNew: () => void
+  onReprint: () => void
 }) {
+  const surfaceRef = useRef<HTMLDivElement | null>(null)
+  const platform = useMemo(createBrowserArtifactPlatform, [])
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const saveFormat = async (format: ExportFormat) => {
+    if (busy) return
+    setBusy(true)
+    setMessage('PREPARING EVIDENCE…')
+    try {
+      const artifact = await createExport(format)
+      const result = saveArtifact(artifact, platform)
+      setMessage(result.status === 'saved'
+        ? 'EVIDENCE SAVED'
+        : 'EXPORT JAMMED · THE RECEIPT IS SAFE')
+    } catch {
+      setMessage('EXPORT JAMMED · THE RECEIPT IS SAFE')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const copyText = async () => {
+    if (busy) return
+    setBusy(true)
+    const result = await copyArtifactText(shareText, platform)
+    setMessage(result.status === 'copied'
+      ? 'COPIED TO CLIPBOARD'
+      : 'COPY FAILED · SELECT THE TEXT MANUALLY')
+    setBusy(false)
+  }
+
+  const reprint = () => {
+    setMoreOpen(false)
+    onReprint()
+  }
+
   return (
     <section
       className="evidence-viewer"
       aria-labelledby="evidence-viewer-heading"
       data-evidence-viewer="true"
     >
-      <PinnedPrinterHead ref={headingRef} paperName={paperName}>
-        {printerHead}
-      </PinnedPrinterHead>
+      <div ref={surfaceRef} className="evidence-viewer__surface">
+        <PinnedPrinterHead ref={headingRef} paperName={paperName}>
+          {printerHead}
+        </PinnedPrinterHead>
 
-      <ReceiptScrollViewport resetKey={receiptNumber}>
-        {receipt}
-      </ReceiptScrollViewport>
+        <ReceiptScrollViewport resetKey={receiptNumber}>
+          {receipt}
+        </ReceiptScrollViewport>
 
-      <footer className="evidence-viewer__dock">
-        {actions}
-      </footer>
+        <footer className="evidence-viewer__dock">
+          <ArtifactActions
+            shareText={shareText}
+            createExport={createExport}
+            onReset={onNew}
+            onReprint={onReprint}
+            onMore={() => setMoreOpen(true)}
+          />
+        </footer>
+      </div>
+
+      <MachineBottomSheet
+        open={moreOpen}
+        title="More evidence actions"
+        description="Copy, reprint, or save an alternate artifact format."
+        onClose={() => setMoreOpen(false)}
+        isolateRef={surfaceRef}
+      >
+        <EvidenceMoreSheet
+          receiptNumber={receiptNumber}
+          paperName={paperName}
+          busy={busy}
+          onSave={(format) => { void saveFormat(format) }}
+          onCopy={() => { void copyText() }}
+          onReprint={reprint}
+        />
+        <p className="machine-sheet-status" aria-live="polite">{message}</p>
+      </MachineBottomSheet>
     </section>
   )
 }
