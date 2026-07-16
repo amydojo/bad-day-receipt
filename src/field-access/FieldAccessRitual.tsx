@@ -133,7 +133,7 @@ export function FieldAccessRitual({
     >
       <div className="field-access-terminal__shell">
         <header className="field-access-terminal__header">
-          <span>LD–FIELD TERMINAL / 01</span>
+          <span>LD–FIELD TERMINAL / {config.edition}</span>
           <AccessSignal active={signal} />
         </header>
 
