@@ -31,6 +31,7 @@ import './field-access/scanner-breathing-pass.css'
 import './field-access/top-load-qr-reader.css'
 import './field-access/top-load-reader-motion.css'
 import './field-access/field-access-accessibility.css'
+import './field-access/opening-sequence-hardening.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
