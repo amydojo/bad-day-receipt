@@ -1,0 +1,381 @@
+/* FIELD–001 top-loading validator pass.
+   Loaded after scanner-breathing-pass.css so the physical model and viewport
+   behavior below are the final source of truth. */
+
+.field-access-terminal {
+  overflow: hidden;
+}
+
+.field-access-terminal__shell {
+  height: 100dvh;
+  min-height: 0;
+  max-height: 100dvh;
+}
+
+.field-access-terminal__content {
+  overflow: hidden;
+}
+
+/* Keep the card close to a believable top-feed mouth. */
+.field-access-one-shot__stage {
+  height: 452px;
+}
+
+.field-machine-slot {
+  position: absolute;
+  z-index: 5;
+  top: 162px;
+  right: auto;
+  left: 50%;
+  width: 286px;
+  height: 82px;
+  transform: translate3d(-50%, 132px, 0);
+  transform-origin: 50% 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    height 660ms var(--field-premium-curve),
+    transform 560ms var(--field-premium-curve),
+    opacity 260ms ease;
+}
+
+.field-access-one-shot[data-phase="presented"] .field-machine-slot,
+.field-access-one-shot[data-phase="captured"] .field-machine-slot,
+.field-access-one-shot[data-phase="reading"] .field-machine-slot,
+.field-access-one-shot[data-phase="accepted"] .field-machine-slot {
+  transform: translate3d(-50%, 0, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* The card still uses the continuous compositor layer, but the parent offsets
+   the old deep-capture distance so the object only enters the top jaw. */
+.field-access-card-trajectory {
+  transition:
+    transform 480ms cubic-bezier(.18, .82, .22, 1),
+    opacity 360ms ease,
+    filter 360ms ease;
+}
+
+.field-access-one-shot[data-phase="captured"] .field-access-card-trajectory,
+.field-access-one-shot[data-phase="reading"] .field-access-card-trajectory,
+.field-access-one-shot[data-phase="accepted"] .field-access-card-trajectory {
+  transform: translate(-50%, -110px);
+}
+
+/* Manufactured reader: narrow deck, top mouth, side shoulders, and a compact
+   lower instrument body rather than a generic black panel. */
+.field-machine-slot__material {
+  position: absolute;
+  z-index: 3;
+  inset: 18px 0 0;
+  overflow: visible;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .045), transparent 13%),
+    linear-gradient(180deg, #1b1b1a 0%, #111110 100%);
+  border: 1px solid #050505;
+  border-radius: 0 0 5px 5px;
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, .18),
+    inset 0 1px 0 rgba(255, 255, 255, .055);
+}
+
+.field-machine-slot__material::before,
+.field-machine-slot__material::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  top: -18px;
+  width: 18px;
+  height: 22px;
+  background:
+    linear-gradient(180deg, #2a2927 0%, #171716 68%, #0b0b0a 100%);
+  border: 1px solid #050505;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055);
+}
+
+.field-machine-slot__material::before {
+  left: -1px;
+  clip-path: polygon(0 0, 100% 23%, 100% 100%, 0 100%);
+}
+
+.field-machine-slot__material::after {
+  right: -1px;
+  clip-path: polygon(0 23%, 100% 0, 100% 100%, 0 100%);
+}
+
+.field-machine-slot__throat {
+  position: absolute;
+  z-index: 7;
+  top: 5px;
+  right: 17px;
+  left: 17px;
+  height: calc(12px + var(--field-reader-proximity) * 2px);
+  overflow: hidden;
+  background: linear-gradient(180deg, #010101 0%, #090908 70%, #141311 100%);
+  border: 1px solid color-mix(in srgb, #827d73 calc(50% + var(--field-reader-proximity) * 24%), transparent);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 5px 8px rgba(0, 0, 0, .95),
+    0 0 calc(var(--field-reader-proximity) * 7px) rgba(217, 75, 61, .1);
+}
+
+.field-machine-slot__reflection {
+  position: absolute;
+  inset: 1px 2px auto;
+  height: 1px;
+  background: rgba(255, 255, 255, .12);
+  opacity: calc(.32 + var(--field-reader-proximity) * .35);
+}
+
+/* Optical work now happens on the real QR, not inside the reader mouth. */
+.field-machine-slot__scan-beam {
+  display: none;
+}
+
+.field-machine-slot__lip {
+  position: absolute;
+  z-index: 8;
+  top: 15px;
+  right: 13px;
+  left: 13px;
+  height: 5px;
+  background: linear-gradient(180deg, #5a564f 0%, #23211e 60%, #090909 100%);
+  box-shadow:
+    0 -1px 0 rgba(255, 255, 255, .09),
+    0 4px 8px rgba(0, 0, 0, .42);
+}
+
+.field-machine-slot__status,
+.field-machine-slot__detail {
+  position: absolute;
+  z-index: 9;
+  font-family: Geist, ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 650;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.field-machine-slot__status {
+  top: 43px;
+  left: 17px;
+  font-size: 7px;
+  letter-spacing: .1em;
+}
+
+.field-machine-slot__detail {
+  top: 59px;
+  left: 17px;
+  color: color-mix(in srgb, var(--field-paper) 48%, transparent);
+  font-size: 5.5px;
+  letter-spacing: .09em;
+  transition: color 220ms ease, opacity 220ms ease;
+}
+
+.field-machine-slot__sensor {
+  top: 42px;
+  right: 17px;
+  z-index: 9;
+}
+
+.field-machine-slot[data-phase="aligned"] .field-machine-slot__material::before,
+.field-machine-slot[data-phase="aligned"] .field-machine-slot__material::after,
+.field-machine-slot[data-phase="captured"] .field-machine-slot__material::before,
+.field-machine-slot[data-phase="captured"] .field-machine-slot__material::after,
+.field-machine-slot[data-phase="reading"] .field-machine-slot__material::before,
+.field-machine-slot[data-phase="reading"] .field-machine-slot__material::after {
+  filter: brightness(1.08);
+}
+
+.field-machine-slot[data-phase="reading"] .field-machine-slot__detail,
+.field-machine-slot[data-phase="accepted"] .field-machine-slot__detail {
+  color: var(--field-signal);
+}
+
+/* QR targeting is attached to the QR itself, so every edition validates the
+   exact printed code regardless of its position on the card. */
+.field-access-one-shot .field-card__qr {
+  overflow: visible;
+}
+
+.field-access-one-shot .field-card__qr img {
+  position: relative;
+  z-index: 1;
+  transition: filter 180ms ease, opacity 180ms ease;
+}
+
+.field-access-one-shot .field-card__qr::before,
+.field-access-one-shot .field-card__qr::after {
+  content: "";
+  position: absolute;
+  z-index: 8;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.field-access-one-shot .field-card__qr::before {
+  inset: -5px;
+  background:
+    linear-gradient(var(--field-signal), var(--field-signal)) left top / 12px 1px no-repeat,
+    linear-gradient(var(--field-signal), var(--field-signal)) left top / 1px 12px no-repeat,
+    linear-gradient(var(--field-signal), var(--field-signal)) right top / 12px 1px no-repeat,
+    linear-gradient(var(--field-signal), var(--field-signal)) right top / 1px 12px no-repeat,
+    linear-gradient(var(--field-signal), var(--field-signal)) left bottom / 12px 1px no-repeat,
+    linear-gradient(var(--field-signal), var(--field-signal)) left bottom / 1px 12px no-repeat,
+    linear-gradient(var(--field-signal), var(--field-signal)) right bottom / 12px 1px no-repeat,
+    linear-gradient(var(--field-signal), var(--field-signal)) right bottom / 1px 12px no-repeat;
+  transform: scale(1.04);
+  transition: opacity 220ms ease, transform 360ms var(--field-premium-curve);
+}
+
+.field-access-one-shot .field-card__qr::after {
+  top: -2px;
+  right: -4px;
+  left: -4px;
+  height: 1px;
+  background: rgba(217, 75, 61, .96);
+  box-shadow:
+    0 0 5px rgba(217, 75, 61, .48),
+    0 0 12px rgba(217, 75, 61, .13);
+  transform: translateY(0);
+}
+
+.field-access-one-shot[data-phase="captured"] .field-card__qr::before,
+.field-access-one-shot[data-phase="reading"] .field-card__qr::before,
+.field-access-one-shot[data-phase="accepted"] .field-card__qr::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.field-access-one-shot[data-phase="reading"] .field-card__qr::after {
+  opacity: 1;
+  animation: field-qr-optical-validate 640ms cubic-bezier(.4, 0, .2, 1) both;
+}
+
+.field-access-one-shot[data-phase="reading"] .field-card__qr img {
+  filter: contrast(1.08) brightness(1.02);
+}
+
+.field-access-one-shot[data-phase="accepted"] .field-card__qr::before {
+  filter: drop-shadow(0 0 3px rgba(217, 75, 61, .28));
+}
+
+@keyframes field-qr-optical-validate {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: .96; }
+  88% { opacity: .96; }
+  100% { transform: translateY(96px); opacity: 0; }
+}
+
+/* Fit the unlocked machine to the actual content viewport. The previous
+   absolute top offset placed the CTA below the clipped content region on iOS. */
+.field-access-one-shot[data-phase="unlocked"] .field-access-one-shot__stage {
+  top: 0;
+  bottom: 0;
+  height: auto;
+}
+
+.field-access-one-shot[data-phase="unlocked"] .field-machine-slot {
+  top: 50%;
+  left: 50%;
+  width: min(310px, calc(100vw - 56px));
+  height: min(420px, calc(100% - 36px));
+  transform: translate3d(-50%, -50%, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.field-machine-slot[data-phase="unlocked"] .field-machine-slot__material {
+  inset: 0;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.field-machine-slot[data-phase="unlocked"] .field-machine-slot__material::before,
+.field-machine-slot[data-phase="unlocked"] .field-machine-slot__material::after,
+.field-machine-slot[data-phase="unlocked"] .field-machine-slot__throat,
+.field-machine-slot[data-phase="unlocked"] .field-machine-slot__lip,
+.field-machine-slot[data-phase="unlocked"] .field-machine-slot__detail {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.field-machine-slot[data-phase="unlocked"] .field-machine-slot__status {
+  top: 22px;
+  left: 20px;
+}
+
+.field-machine-slot[data-phase="unlocked"] .field-machine-slot__sensor {
+  top: 21px;
+  right: 20px;
+}
+
+.field-machine-slot[data-phase="unlocked"] .field-machine-slot__machine-content {
+  inset: 54px 20px 18px;
+  min-height: 0;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.field-access-machine-reveal {
+  min-height: 0;
+}
+
+.field-access-machine-reveal > strong {
+  margin-top: clamp(14px, 4vh, 24px);
+  font-size: clamp(27px, 8vw, 34px);
+}
+
+.field-access-machine-reveal > p {
+  margin-top: clamp(12px, 2.8vh, 20px);
+}
+
+.field-access-machine-reveal > small {
+  margin-top: auto;
+}
+
+.field-access-machine-reveal .field-access-button--primary {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: 0 0 48px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  padding: 0 14px;
+  touch-action: manipulation;
+}
+
+@media (max-height: 720px) {
+  .field-access-one-shot[data-phase="presented"] .field-access-one-shot__stage,
+  .field-access-one-shot[data-phase="captured"] .field-access-one-shot__stage,
+  .field-access-one-shot[data-phase="reading"] .field-access-one-shot__stage,
+  .field-access-one-shot[data-phase="accepted"] .field-access-one-shot__stage {
+    top: 138px;
+  }
+
+  .field-machine-slot {
+    top: 154px;
+  }
+
+  .field-access-one-shot[data-phase="unlocked"] .field-machine-slot {
+    height: min(360px, calc(100% - 28px));
+  }
+
+  .field-machine-slot[data-phase="unlocked"] .field-machine-slot__machine-content {
+    inset: 50px 18px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-access-one-shot[data-phase="reading"] .field-card__qr::after {
+    animation: none !important;
+    opacity: .8;
+    transform: translateY(48px);
+  }
+
+  .field-access-card-trajectory {
+    transition-duration: .01ms !important;
+  }
+}
