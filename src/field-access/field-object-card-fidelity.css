@@ -1,0 +1,15 @@
+.field-card__text {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+
+.field-card__title,
+.field-card__title-compact,
+.field-card__display,
+.field-card__section,
+.field-card__subject-title {
+  font-variation-settings: "wdth" 100;
+  font-synthesis: none;
+}

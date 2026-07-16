@@ -187,7 +187,7 @@ function EditionArtwork({ edition, token }: { edition: string; token: string }) 
           <span className="field-card__vertical-rule field-card__e09-rule" />
           <Text className="field-card__output field-card__e09-metadata">SITE&nbsp;&nbsp;&nbsp;PUBLIC<br />TIME&nbsp;&nbsp;&nbsp;UNKNOWN<br />STATE&nbsp;&nbsp;OPEN<br />CLASS&nbsp;&nbsp;SOFT</Text>
           <Text className="field-card__section field-card__e09-title">OBSERVATION</Text>
-          <Text className="field-card__body field-card__e09-body">The observation continues<br />inside.<br />Your attention completes it.</Text>
+          <Text className="field-card__body field-card__e09-body">The observation continues inside.<br />Your attention completes it.</Text>
           <Text className="field-card__output field-card__e09-action">COMPLETE NOTE 09</Text>
           <Text className="field-card__token field-card__e09-token">FIELD OBJECT / {token}</Text>
           <Text className="field-card__technical-small field-card__e09-footer">09 / 10 / WITNESS REQUIRED</Text>
