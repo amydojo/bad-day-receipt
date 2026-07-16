@@ -8,6 +8,7 @@ export function MachineSlot({ engaged = false, progress = 0 }: MachineSlotProps)
   return (
     <div
       className={engaged ? 'field-machine-slot is-engaged' : 'field-machine-slot'}
+      role="img"
       aria-label={engaged ? 'Field object entering machine' : 'Field object insertion slot'}
     >
       <div className="field-machine-slot__face">
