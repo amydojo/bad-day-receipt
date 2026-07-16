@@ -24,6 +24,7 @@ import './styles/production-motion.css'
 import './mobile-instrument/artifact/evidenceViewer.css'
 import './styles/mobile-quality-hotfix.css'
 import './field-access/field-access.css'
+// The exact FIELD–001 twins intentionally override the legacy generic card shell.
 import './field-access/field-object-card.css'
 import './field-access/field-access-accessibility.css'
 
