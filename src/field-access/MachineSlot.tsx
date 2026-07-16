@@ -19,16 +19,26 @@ interface MachineSlotProps {
 
 const phaseCopy: Record<MachineSlotPhase, string> = {
   idle: 'FIELD READER',
-  aligned: 'FIELD READER',
-  captured: 'READING FIELD OBJECT',
-  reading: 'READING FIELD OBJECT',
-  accepted: 'OBJECT ACCEPTED',
+  aligned: 'CARD ALIGNED',
+  captured: 'CARD CAPTURED',
+  reading: 'VALIDATING QR',
+  accepted: 'QR VERIFIED',
   unlocked: 'SM–001 / READY',
+}
+
+const phaseDetail: Record<MachineSlotPhase, string> = {
+  idle: 'TOP LOAD / READY',
+  aligned: 'GUIDES / LOCKED',
+  captured: 'HOLD POSITION',
+  reading: 'OPTICAL MATCH',
+  accepted: 'ACCESS KEY / VALID',
+  unlocked: 'SOFT MACHINE',
 }
 
 export const MachineSlot = forwardRef<HTMLDivElement, MachineSlotProps>(
   function MachineSlot({ phase = 'idle', children }, ref) {
     const label = phaseCopy[phase]
+    const detail = phaseDetail[phase]
 
     return (
       <div
@@ -37,7 +47,7 @@ export const MachineSlot = forwardRef<HTMLDivElement, MachineSlotProps>(
         data-phase={phase}
         role="status"
         aria-live="polite"
-        aria-label={label}
+        aria-label={`${label}. ${detail}.`}
         style={{ '--field-reader-proximity': 0 } as CSSProperties}
       >
         <div className="field-machine-slot__material" aria-hidden="true" />
@@ -47,6 +57,7 @@ export const MachineSlot = forwardRef<HTMLDivElement, MachineSlotProps>(
         </div>
         <div className="field-machine-slot__lip" aria-hidden="true" />
         <span className="field-machine-slot__status" aria-hidden="true">{label}</span>
+        <span className="field-machine-slot__detail" aria-hidden="true">{detail}</span>
         <i className="field-machine-slot__sensor" aria-hidden="true" />
         <div className="field-machine-slot__machine-content">
           {children}

@@ -42,11 +42,11 @@ interface DragSnapshot {
   lastAt: number
 }
 
-const COMMIT_DISTANCE = 104
-const FLICK_DISTANCE = 56
-const MAX_DRAG_DISTANCE = 138
-const ALIGNMENT_THRESHOLD = 0.64
-const CAPTURE_TRANSLATE_Y = 156
+const COMMIT_DISTANCE = 60
+const FLICK_DISTANCE = 34
+const MAX_DRAG_DISTANCE = 88
+const ALIGNMENT_THRESHOLD = 0.62
+const CAPTURE_TRANSLATE_Y = 72
 const CAPTURE_DURATION = 480
 
 export function FieldAccessRitual({
@@ -95,7 +95,7 @@ export function FieldAccessRitual({
     if (phase !== 'captured') return
     const timeout = window.setTimeout(
       () => setPhase('reading'),
-      reducedMotion ? 80 : 390,
+      reducedMotion ? 80 : 300,
     )
     return () => window.clearTimeout(timeout)
   }, [phase, reducedMotion])
@@ -104,7 +104,7 @@ export function FieldAccessRitual({
     if (phase !== 'reading') return
     const timeout = window.setTimeout(
       () => setPhase('accepted'),
-      reducedMotion ? 100 : 640,
+      reducedMotion ? 100 : 760,
     )
     return () => window.clearTimeout(timeout)
   }, [phase, reducedMotion])
@@ -437,15 +437,15 @@ function statusForPhase(phase: RitualPhase, returning: boolean, aligned: boolean
     case 'recognized': return returning ? 'Known field object recognized. Present it when ready.' : 'Field object authenticity verified. Present it when ready.'
     case 'presented': return aligned ? 'Field object aligned with the reader.' : 'Guide the field object into the reader.'
     case 'captured': return 'The reader has taken control of the field object.'
-    case 'reading': return 'Reading field object.'
-    case 'accepted': return 'Field object accepted.'
+    case 'reading': return 'Validating the QR code printed on the field object.'
+    case 'accepted': return 'Field object QR verified.'
     case 'unlocked': return 'Bad Day Receipt unlocked. Begin operation when ready.'
   }
 }
 
 function directDistance(rawDistance: number): number {
-  if (rawDistance <= 84) return rawDistance
-  return 84 + (rawDistance - 84) * 0.58
+  if (rawDistance <= COMMIT_DISTANCE) return rawDistance
+  return COMMIT_DISTANCE + (rawDistance - COMMIT_DISTANCE) * 0.35
 }
 
 function emptyDragSnapshot(): DragSnapshot {
@@ -502,7 +502,7 @@ function returnCardToRest(node: HTMLDivElement | null, reducedMotion: boolean): 
 
 function sinkAcceptedCard(node: HTMLDivElement | null, reducedMotion: boolean): void {
   if (!node) return
-  const finalTransform = `translate3d(0px, ${CAPTURE_TRANSLATE_Y + 64}px, 0px) scale(.982)`
+  const finalTransform = `translate3d(0px, ${CAPTURE_TRANSLATE_Y + 62}px, 0px) scale(.982)`
   if (reducedMotion) {
     node.style.transform = finalTransform
     node.style.opacity = '0'

@@ -53,6 +53,38 @@ test.describe('Lab Dojo field access ritual', () => {
     await expect(page.locator('.field-card__e06-title')).toHaveText('CURIOSITYSUFFICIENT')
   })
 
+  test('validates the QR on the card surface instead of scanning behind it', async ({ page }) => {
+    await page.goto('/access/06/44ZSSL')
+    await presentObject(page)
+    await page.getByRole('button', { name: 'INSERT ARTIFACT' }).click()
+
+    await expect(page.getByText('VALIDATING QR', { exact: true })).toBeVisible({ timeout: 2500 })
+    const qr = page.locator('.field-card__qr')
+    await expect(qr).toBeVisible()
+    await expect.poll(async () => qr.evaluate((node) => (
+      getComputedStyle(node, '::before').opacity
+    ))).not.toBe('0')
+    await expect(page.getByText('QR VERIFIED', { exact: true })).toBeVisible({ timeout: 2500 })
+  })
+
+  test('keeps the unlocked launch control inside the mobile viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 720 })
+    await page.goto('/access/06/44ZSSL')
+    await presentObject(page)
+    await page.getByRole('button', { name: 'INSERT ARTIFACT' }).click()
+
+    const begin = page.getByRole('button', { name: 'BEGIN OPERATION' })
+    await expect(begin).toBeVisible({ timeout: 6000 })
+    const fits = await begin.evaluate((node) => {
+      const rect = node.getBoundingClientRect()
+      return rect.top >= 0 && rect.bottom <= window.innerHeight
+    })
+    expect(fits).toBe(true)
+
+    await begin.click()
+    await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
+  })
+
   test('does not expose the old multi-screen verification sequence', async ({ page }) => {
     await page.goto(accessPath)
     await presentObject(page)

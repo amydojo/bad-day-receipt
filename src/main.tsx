@@ -28,6 +28,8 @@ import './field-access/field-access.css'
 import './field-access/field-object-card.css'
 import './field-access/field-object-card-fidelity.css'
 import './field-access/scanner-breathing-pass.css'
+import './field-access/top-load-qr-reader.css'
+import './field-access/top-load-reader-motion.css'
 import './field-access/field-access-accessibility.css'
 
 createRoot(document.getElementById('root')!).render(
