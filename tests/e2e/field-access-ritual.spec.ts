@@ -38,6 +38,29 @@ test.describe('Lab Dojo field access ritual', () => {
     await expect(page.getByRole('button', { name: 'INSERT ARTIFACT' })).toBeVisible()
   })
 
+  test('preserves the authored FIELD-001 print lines', async ({ page }) => {
+    await page.goto('/access/01/CTNZL8')
+    await expect(page.getByRole('button', { name: 'INSERT ARTIFACT' })).toBeVisible()
+
+    const entranceTitle = page.locator('.field-card__e01-title')
+    await expect(entranceTitle).toHaveCSS('white-space', 'nowrap')
+    await expect(entranceTitle).toHaveText('YOU FOUND ALAB ENTRANCE')
+    await expect(page.locator('.field-access-terminal__header')).toContainText('LD–FIELD TERMINAL / 01')
+
+    await page.goto('/access/09/STS68S')
+    await expect(page.getByRole('button', { name: 'INSERT ARTIFACT' })).toBeVisible()
+
+    const noteTitle = page.locator('.field-card__e09-title')
+    const metadata = page.locator('.field-card__e09-metadata')
+    const body = page.locator('.field-card__e09-body')
+
+    await expect(noteTitle).toHaveCSS('white-space', 'nowrap')
+    await expect(noteTitle).toHaveText('OBSERVATION')
+    await expect(metadata).toHaveText('SITE   PUBLICTIME   UNKNOWNSTATE  OPENCLASS  SOFT')
+    await expect(body).toHaveText('The observation continues inside.Your attention completes it.')
+    await expect(page.locator('.field-access-terminal__header')).toContainText('LD–FIELD TERMINAL / 09')
+  })
+
   test('preserves the ritual without simulated motion when reduced motion is requested', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto(accessPath)
