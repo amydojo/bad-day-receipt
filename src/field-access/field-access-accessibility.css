@@ -18,6 +18,27 @@
   color: #ff8d7f;
 }
 
+@supports (padding: max(0px)) {
+  .field-access-terminal__shell {
+    grid-template-rows:
+      calc(68px + env(safe-area-inset-top))
+      minmax(0, 1fr)
+      calc(34px + env(safe-area-inset-bottom));
+  }
+
+  .field-access-terminal__header {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .field-access-terminal__footer {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .field-access-terminal--unknown .field-access-terminal__shell {
+    grid-template-rows: calc(68px + env(safe-area-inset-top)) 1fr;
+  }
+}
+
 @media (forced-colors: active) {
   .field-access-signal__dots i.is-active,
   .field-object-card footer i,
