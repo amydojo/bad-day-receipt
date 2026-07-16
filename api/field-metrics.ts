@@ -66,7 +66,7 @@ export default {
       const [visitRows, visitTotals, eventRows] = await Promise.all([
         queryVisits(vercelToken, since, until),
         queryVisitTotals(vercelToken, since, until),
-        queryEvents(vercelToken, since, until),
+        queryEvents(vercelToken, since, until).catch(() => []),
       ])
 
       const cards = fieldObjects.map<MetricCard>((object) => ({
