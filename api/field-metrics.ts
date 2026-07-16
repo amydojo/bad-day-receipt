@@ -84,12 +84,21 @@ export default {
 
       for (const row of visitRows) {
         const path = stringValue(row.requestPath ?? row.path ?? row.route)
-        const object = fieldObjects.find((candidate) => path === `/access/${candidate.edition}/${candidate.token}`)
-        if (!object) continue
-        const card = byToken.get(object.token)
-        if (!card) continue
-        card.pageviews += numberValue(row.pageviews)
-        card.visitors += numberValue(row.visitors)
+        const accessObject = fieldObjects.find((candidate) => path === accessPath(candidate))
+        if (accessObject) {
+          const card = byToken.get(accessObject.token)
+          if (card) {
+            card.pageviews += numberValue(row.pageviews)
+            card.visitors += numberValue(row.visitors)
+          }
+          continue
+        }
+
+        const instagramObject = fieldObjects.find((candidate) => path === instagramPath(candidate))
+        if (instagramObject) {
+          const card = byToken.get(instagramObject.token)
+          if (card) card.instagram_clicked = Math.max(card.instagram_clicked, numberValue(row.pageviews))
+        }
       }
 
       for (const row of eventRows) {
@@ -97,7 +106,12 @@ export default {
         const eventName = stringValue(row.eventName ?? row.event_name)
         const card = token ? byToken.get(token) : null
         if (!card || !isEventName(eventName)) continue
-        card[eventName] += eventCount(row)
+        const count = eventCount(row)
+        if (eventName === 'instagram_clicked') {
+          card.instagram_clicked = Math.max(card.instagram_clicked, count)
+        } else {
+          card[eventName] += count
+        }
       }
 
       const totals = cards.reduce((sum, card) => {
@@ -132,7 +146,7 @@ async function queryVisits(token: string, since: Date, until: Date): Promise<Rec
   const url = analyticsUrl('/visits/aggregate', since, until)
   url.searchParams.append('by', 'requestPath')
   url.searchParams.set('limit', '100')
-  url.searchParams.set('filter', accessPathFilter())
+  url.searchParams.set('filter', trackedPathFilter())
   return queryRows(url, token)
 }
 
@@ -170,8 +184,26 @@ async function queryEvents(token: string, since: Date, until: Date): Promise<Rec
 }
 
 function accessPathFilter(): string {
-  const paths = fieldObjects.map((object) => `'${`/access/${object.edition}/${object.token}`}'`).join(',')
-  return `requestPath in (${paths})`
+  return pathFilter(fieldObjects.map(accessPath))
+}
+
+function trackedPathFilter(): string {
+  return pathFilter([
+    ...fieldObjects.map(accessPath),
+    ...fieldObjects.map(instagramPath),
+  ])
+}
+
+function pathFilter(paths: readonly string[]): string {
+  return `requestPath in (${paths.map((path) => `'${path}'`).join(',')})`
+}
+
+function accessPath(object: { edition: string; token: string }): string {
+  return `/access/${object.edition}/${object.token}`
+}
+
+function instagramPath(object: { edition: string; token: string }): string {
+  return `/go/instagram/${object.edition}/${object.token}`
 }
 
 function analyticsUrl(path: string, since: Date, until: Date): URL {
