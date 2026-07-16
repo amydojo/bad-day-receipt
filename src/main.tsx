@@ -31,6 +31,8 @@ import './field-access/scanner-breathing-pass.css'
 import './field-access/top-load-qr-reader.css'
 import './field-access/top-load-reader-motion.css'
 import './field-access/field-access-accessibility.css'
+// Keep the viewport contract last; it is the release-level source of truth.
+import './field-access/opening-sequence-hardening.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

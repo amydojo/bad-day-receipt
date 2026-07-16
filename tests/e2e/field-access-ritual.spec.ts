@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 import { mockPlatformApis } from '../fixtures/platformApis'
 
-const accessPath = '/access/07/K7PM4A'
+const accessPath = '/access/07/J49AQW'
 
 async function presentObject(page: import('@playwright/test').Page) {
   await expect(page.getByRole('button', { name: 'PRESENT OBJECT' })).toBeVisible()
@@ -39,10 +39,10 @@ test.describe('Lab Dojo field access ritual', () => {
     await page.getByRole('button', { name: 'BEGIN OPERATION' }).click()
 
     await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
-    await expect(page.locator('.field-access-provenance')).toContainText('LD–07 / K7PM4A')
+    await expect(page.locator('.field-access-provenance')).toContainText('LD–07 / J49AQW')
 
     const stored = await page.evaluate(() => localStorage.getItem('labdojo-field-access-v1'))
-    expect(stored).toContain('K7PM4A')
+    expect(stored).toContain('J49AQW')
   })
 
   test('holds on the recognized digital twin until the operator continues', async ({ page }) => {
@@ -157,7 +157,6 @@ test.describe('Lab Dojo field access ritual', () => {
     const blocking = results.violations.filter((violation) => (
       violation.impact === 'critical' || violation.impact === 'serious'
     ))
-
     expect(blocking, blocking.map((violation) => violation.id).join(', ')).toEqual([])
   })
 })
