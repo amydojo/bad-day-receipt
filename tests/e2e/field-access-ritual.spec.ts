@@ -15,16 +15,27 @@ test.describe('Lab Dojo field access ritual', () => {
     await mockPlatformApis(page)
   })
 
-  test('uses a found object to unlock the existing receipt machine', async ({ page }) => {
+  test('uses one continuous found object to unlock the existing receipt machine', async ({ page }) => {
     await page.goto(accessPath)
 
     await expect(page.locator('.field-access-terminal')).toBeVisible()
     await expect(page.getByText('LD–RECOVERED')).toBeVisible()
+
+    const continuousObject = page.locator('[data-continuous-object="true"]')
+    await expect(continuousObject).toHaveCount(1)
+    await continuousObject.evaluate((node) => {
+      ;(node as HTMLElement & { fieldObjectIdentity?: string }).fieldObjectIdentity = 'same-object'
+    })
+
     await presentObject(page)
+    await expect(continuousObject).toHaveCount(1)
+    expect(await continuousObject.evaluate((node) => (
+      (node as HTMLElement & { fieldObjectIdentity?: string }).fieldObjectIdentity
+    ))).toBe('same-object')
 
     await page.getByRole('button', { name: 'INSERT ARTIFACT' }).click()
-    await expect(page.locator('.field-machine-slot')).toHaveAttribute('data-phase', /captured|reading|accepted/)
-    await expect(page.getByRole('heading', { name: /BAD DAY RECEIPT/ })).toBeVisible({ timeout: 8000 })
+    await expect(page.locator('.field-machine-slot')).toHaveAttribute('data-phase', /captured|reading|accepted|unlocked/)
+    await expect(page.getByRole('heading', { name: /BAD DAY RECEIPT/ })).toBeVisible({ timeout: 6000 })
     await page.getByRole('button', { name: 'BEGIN OPERATION' }).click()
 
     await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
@@ -42,10 +53,21 @@ test.describe('Lab Dojo field access ritual', () => {
     await expect(page.locator('.field-card__e06-title')).toHaveText('CURIOSITYSUFFICIENT')
   })
 
+  test('does not expose the old multi-screen verification sequence', async ({ page }) => {
+    await page.goto(accessPath)
+    await presentObject(page)
+    await page.getByRole('button', { name: 'INSERT ARTIFACT' }).click()
+
+    await expect(page.getByText('VERIFYING ACCESS')).toHaveCount(0)
+    await expect(page.getByText('CALIBRATING MACHINE')).toHaveCount(0)
+    await expect(page.getByText('OBJECT ACCEPTED', { exact: true })).toBeVisible({ timeout: 4000 })
+  })
+
   test('recognizes a previously accepted object after refresh', async ({ page }) => {
     await page.goto(accessPath)
     await presentObject(page)
     await page.getByRole('button', { name: 'INSERT ARTIFACT' }).click()
+    await expect(page.getByRole('button', { name: 'BEGIN OPERATION' })).toBeVisible({ timeout: 6000 })
     await page.getByRole('button', { name: 'BEGIN OPERATION' }).click()
     await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
 
@@ -77,11 +99,12 @@ test.describe('Lab Dojo field access ritual', () => {
     await expect(page.locator('.field-access-terminal__header')).toContainText('LD–FIELD TERMINAL / 09')
   })
 
-  test('preserves the ritual without simulated motion when reduced motion is requested', async ({ page }) => {
+  test('preserves comprehension without simulated motion when reduced motion is requested', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto(accessPath)
     await presentObject(page)
     await page.getByRole('button', { name: 'INSERT ARTIFACT' }).click()
+    await expect(page.getByRole('button', { name: 'BEGIN OPERATION' })).toBeVisible({ timeout: 3000 })
     await page.getByRole('button', { name: 'BEGIN OPERATION' }).click()
     await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
   })
