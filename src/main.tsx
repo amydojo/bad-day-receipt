@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { MachineErrorBoundary } from './components/MachineErrorBoundary'
+import { FieldAccessGate } from './field-access/FieldAccessGate'
 import './styles.css'
 import './cvs-realism'
 import './styles/printer.css'
@@ -22,11 +23,14 @@ import './styles/quality-fixes.css'
 import './styles/production-motion.css'
 import './mobile-instrument/artifact/evidenceViewer.css'
 import './styles/mobile-quality-hotfix.css'
+import './field-access/field-access.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MachineErrorBoundary>
-      <App />
+      <FieldAccessGate>
+        <App />
+      </FieldAccessGate>
     </MachineErrorBoundary>
   </StrictMode>,
 )
