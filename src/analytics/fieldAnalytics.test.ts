@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { track } from '@vercel/analytics'
+import { sendFieldTelemetry } from './supabaseFieldClient'
 import {
   analyticsBeforeSend,
   trackFieldEvent,
 } from './fieldAnalytics'
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
+vi.mock('./supabaseFieldClient', () => ({ sendFieldTelemetry: vi.fn() }))
 
 describe('FIELD-001 analytics privacy contract', () => {
   beforeEach(() => {
@@ -19,23 +21,31 @@ describe('FIELD-001 analytics privacy contract', () => {
     vi.unstubAllGlobals()
   })
 
-  it('tracks only operational field dimensions', () => {
+  it('tracks operational dimensions under canonical LD-001 identity', () => {
     trackFieldEvent('field_opened', {
       edition: '06',
       token: '44ZSSL',
       objectType: 'field-access',
-      machineId: 'bad-day-receipt',
+      machineId: 'retired-value',
     })
 
     expect(track).toHaveBeenCalledWith('field_opened', {
       batch: 'FIELD-001',
       edition: '06',
-      token: '44ZSSL',
       object_type: 'field-access',
-      machine: 'bad-day-receipt',
+      machine: 'LD-001',
       returning: false,
       placement: 'library-shelf',
       source: 'field-object',
+    })
+
+    expect(sendFieldTelemetry).toHaveBeenCalledWith('field_opened', {
+      edition: '06',
+      token: '44ZSSL',
+      objectType: 'field-access',
+      machineId: 'LD-001',
+      placement: 'library-shelf',
+      source: null,
     })
   })
 
