@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react'
+
 interface MachineSlotProps {
   engaged?: boolean
   aligned?: boolean
@@ -34,7 +36,7 @@ export function MachineSlot({
           : aligned
             ? 'Field object aligned with insertion slot'
             : 'Field object insertion slot'}
-      style={{ '--field-slot-progress': normalized } as React.CSSProperties}
+      style={{ '--field-slot-progress': normalized } as CSSProperties}
     >
       <div className="field-machine-slot__depth" aria-hidden="true" />
       <div className="field-machine-slot__lower-chassis" aria-hidden="true">
