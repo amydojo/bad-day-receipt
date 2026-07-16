@@ -43,7 +43,10 @@ createRoot(document.getElementById('root')!).render(
       <FieldAccessGate>
         <App />
       </FieldAccessGate>
-      <Analytics beforeSend={analyticsBeforeSend} />
+      <Analytics
+        mode={import.meta.env.PROD ? 'production' : 'development'}
+        beforeSend={analyticsBeforeSend}
+      />
     </MachineErrorBoundary>
   </StrictMode>,
 )
