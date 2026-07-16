@@ -24,107 +24,103 @@ const eventNames = [
   'instagram_clicked',
 ]
 
-export default {
-  async fetch(request) {
-    if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405)
+export async function GET(request) {
+  const operatorKey = process.env.LAB_METRICS_KEY
+  const vercelToken = process.env.VERCEL_ANALYTICS_TOKEN ?? process.env.VERCEL_TOKEN
+  if (!operatorKey || !vercelToken) {
+    return json({
+      code: 'not_configured',
+      error: 'LAB_METRICS_KEY and VERCEL_ANALYTICS_TOKEN are required.',
+    }, 503)
+  }
 
-    const operatorKey = process.env.LAB_METRICS_KEY
-    const vercelToken = process.env.VERCEL_ANALYTICS_TOKEN ?? process.env.VERCEL_TOKEN
-    if (!operatorKey || !vercelToken) {
-      return json({
-        code: 'not_configured',
-        error: 'LAB_METRICS_KEY and VERCEL_ANALYTICS_TOKEN are required.',
-      }, 503)
-    }
+  const authorization = request.headers.get('authorization')
+  if (authorization !== `Bearer ${operatorKey}`) {
+    return json({ error: 'Operator authorization failed.' }, 401)
+  }
 
-    const authorization = request.headers.get('authorization')
-    if (authorization !== `Bearer ${operatorKey}`) {
-      return json({ error: 'Operator authorization failed.' }, 401)
-    }
+  const url = new URL(request.url)
+  const range = normalizeRange(url.searchParams.get('range'))
+  const until = new Date()
+  const since = new Date(until.getTime() - range.days * 24 * 60 * 60 * 1000)
 
-    const url = new URL(request.url)
-    const range = normalizeRange(url.searchParams.get('range'))
-    const until = new Date()
-    const since = new Date(until.getTime() - range.days * 24 * 60 * 60 * 1000)
+  try {
+    const [visitRows, visitTotals, eventRows] = await Promise.all([
+      queryVisits(vercelToken, since, until),
+      queryVisitTotals(vercelToken, since, until),
+      queryEvents(vercelToken, since, until).catch(() => []),
+    ])
 
-    try {
-      const [visitRows, visitTotals, eventRows] = await Promise.all([
-        queryVisits(vercelToken, since, until),
-        queryVisitTotals(vercelToken, since, until),
-        queryEvents(vercelToken, since, until).catch(() => []),
-      ])
+    const cards = fieldObjects.map((object) => ({
+      ...object,
+      pageviews: 0,
+      visitors: 0,
+      field_opened: 0,
+      object_presented: 0,
+      qr_verified: 0,
+      machine_started: 0,
+      receipt_generated: 0,
+      instagram_clicked: 0,
+    }))
+    const byToken = new Map(cards.map((card) => [card.token, card]))
 
-      const cards = fieldObjects.map((object) => ({
-        ...object,
-        pageviews: 0,
-        visitors: 0,
-        field_opened: 0,
-        object_presented: 0,
-        qr_verified: 0,
-        machine_started: 0,
-        receipt_generated: 0,
-        instagram_clicked: 0,
-      }))
-      const byToken = new Map(cards.map((card) => [card.token, card]))
-
-      for (const row of visitRows) {
-        const path = stringValue(row.requestPath ?? row.path ?? row.route)
-        const accessObject = fieldObjects.find((candidate) => path === accessPath(candidate))
-        if (accessObject) {
-          const card = byToken.get(accessObject.token)
-          if (card) {
-            card.pageviews += numberValue(row.pageviews)
-            card.visitors += numberValue(row.visitors)
-          }
-          continue
+    for (const row of visitRows) {
+      const path = stringValue(row.requestPath ?? row.path ?? row.route)
+      const accessObject = fieldObjects.find((candidate) => path === accessPath(candidate))
+      if (accessObject) {
+        const card = byToken.get(accessObject.token)
+        if (card) {
+          card.pageviews += numberValue(row.pageviews)
+          card.visitors += numberValue(row.visitors)
         }
-
-        const instagramObject = fieldObjects.find((candidate) => path === instagramPath(candidate))
-        if (instagramObject) {
-          const card = byToken.get(instagramObject.token)
-          if (card) card.instagram_clicked = Math.max(card.instagram_clicked, numberValue(row.pageviews))
-        }
+        continue
       }
 
-      for (const row of eventRows) {
-        const token = dimension(row, 'token')
-        const eventName = stringValue(row.eventName ?? row.event_name)
-        const card = token ? byToken.get(token) : null
-        if (!card || !eventNames.includes(eventName)) continue
-        const count = eventCount(row)
-        if (eventName === 'instagram_clicked') {
-          card.instagram_clicked = Math.max(card.instagram_clicked, count)
-        } else {
-          card[eventName] += count
-        }
+      const instagramObject = fieldObjects.find((candidate) => path === instagramPath(candidate))
+      if (instagramObject) {
+        const card = byToken.get(instagramObject.token)
+        if (card) card.instagram_clicked = Math.max(card.instagram_clicked, numberValue(row.pageviews))
       }
-
-      const totals = cards.reduce((sum, card) => {
-        for (const eventName of eventNames) sum[eventName] += card[eventName]
-        return sum
-      }, {
-        pageviews: visitTotals.pageviews,
-        visitors: visitTotals.visitors,
-        field_opened: 0,
-        object_presented: 0,
-        qr_verified: 0,
-        machine_started: 0,
-        receipt_generated: 0,
-        instagram_clicked: 0,
-      })
-
-      return json({
-        range: range.label,
-        generatedAt: new Date().toISOString(),
-        totals,
-        cards,
-      })
-    } catch (error) {
-      return json({
-        error: error instanceof Error ? error.message : 'Analytics query failed.',
-      }, 502)
     }
-  },
+
+    for (const row of eventRows) {
+      const token = dimension(row, 'token')
+      const eventName = stringValue(row.eventName ?? row.event_name)
+      const card = token ? byToken.get(token) : null
+      if (!card || !eventNames.includes(eventName)) continue
+      const count = eventCount(row)
+      if (eventName === 'instagram_clicked') {
+        card.instagram_clicked = Math.max(card.instagram_clicked, count)
+      } else {
+        card[eventName] += count
+      }
+    }
+
+    const totals = cards.reduce((sum, card) => {
+      for (const eventName of eventNames) sum[eventName] += card[eventName]
+      return sum
+    }, {
+      pageviews: visitTotals.pageviews,
+      visitors: visitTotals.visitors,
+      field_opened: 0,
+      object_presented: 0,
+      qr_verified: 0,
+      machine_started: 0,
+      receipt_generated: 0,
+      instagram_clicked: 0,
+    })
+
+    return json({
+      range: range.label,
+      generatedAt: new Date().toISOString(),
+      totals,
+      cards,
+    })
+  } catch (error) {
+    return json({
+      error: error instanceof Error ? error.message : 'Analytics query failed.',
+    }, 502)
+  }
 }
 
 async function queryVisits(token, since, until) {
