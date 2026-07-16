@@ -1,4 +1,6 @@
 import {
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useMemo,
@@ -6,7 +8,6 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { FieldAccessRitual } from './FieldAccessRitual'
 import { getFieldAccessConfig, publicArchiveUrl } from './fieldAccessConfig'
 import { parseFieldAccessRoute } from './fieldAccessRoute'
 import {
@@ -18,6 +19,11 @@ import type {
   FieldAccessContext,
   FieldAccessRoute,
 } from './fieldAccessTypes'
+
+const FieldAccessRitual = lazy(async () => {
+  const module = await import('./FieldAccessRitual')
+  return { default: module.FieldAccessRitual }
+})
 
 interface FieldAccessGateProps {
   children: ReactNode
@@ -66,13 +72,15 @@ function ResolvedFieldAccessGate({
 
   if (!machineOpen || !context) {
     return (
-      <FieldAccessRitual
-        config={config}
-        token={route.token}
-        returning={returning}
-        onAccepted={acceptObject}
-        onBegin={beginMachine}
-      />
+      <Suspense fallback={<FieldAccessLoading />}>
+        <FieldAccessRitual
+          config={config}
+          token={route.token}
+          returning={returning}
+          onAccepted={acceptObject}
+          onBegin={beginMachine}
+        />
+      </Suspense>
     )
   }
 
@@ -80,6 +88,24 @@ function ResolvedFieldAccessGate({
     <FieldAccessContinuation context={context}>
       {children}
     </FieldAccessContinuation>
+  )
+}
+
+function FieldAccessLoading() {
+  return (
+    <main className="field-access-terminal" aria-label="Loading field access terminal">
+      <div className="field-access-terminal__shell">
+        <header className="field-access-terminal__header">
+          <span>LD–FIELD TERMINAL / 01</span>
+        </header>
+        <section className="field-access-screen field-access-screen--detected">
+          <p className="field-access-kicker">EXTERNAL INPUT</p>
+          <h1>OBJECT<br />DETECTED</h1>
+          <p>Opening the field terminal.</p>
+          <div className="field-access-scan" aria-hidden="true"><i /><i /><i /><i /></div>
+        </section>
+      </div>
+    </main>
   )
 }
 
