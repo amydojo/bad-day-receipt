@@ -41,11 +41,14 @@ export async function createReceiptArtifactExport({
   date?: Date
 }): Promise<ArtifactExport> {
   const baseCanvas = renderExportCanvas(items, receiptNumber, theme, format)
+  const fieldAccess = window.location.pathname.startsWith('/access/')
+    ? getCurrentFieldAccess()
+    : null
   const canvas = applyFieldAccessProvenance(
     baseCanvas,
     format,
     theme,
-    getCurrentFieldAccess(),
+    fieldAccess,
   )
   const blob = await canvasToBlob(canvas)
   const filename = createArtifactFilename(format, date)
