@@ -12,14 +12,16 @@ export const fieldObjectTypes = [
 ] as const
 
 export type FieldObjectType = typeof fieldObjectTypes[number]
+export type CanonicalMachineId = 'LD-001'
+export type CanonicalMachineLabel = 'LD–001'
 
 export interface FieldAccessConfig {
   edition: string
   objectType: FieldObjectType
   objectName: string
   objectClass: string
-  machineId: 'bad-day-receipt'
-  machineLabel: 'SM–001'
+  machineId: CanonicalMachineId
+  machineLabel: CanonicalMachineLabel
   openingCopy: string
   accent: 'paper' | 'peach'
 }
@@ -28,7 +30,7 @@ export interface FieldAccessContext {
   edition: string
   token: string
   objectType: FieldObjectType
-  machineId: 'bad-day-receipt'
+  machineId: CanonicalMachineId
   firstAccessedAt: string
   lastAccessedAt: string
 }
