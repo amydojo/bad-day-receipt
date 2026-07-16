@@ -34,6 +34,11 @@ type MetricCard = {
   visitors: number
 } & Record<EventName, number>
 
+type VisitTotals = {
+  pageviews: number
+  visitors: number
+}
+
 export default {
   async fetch(request: Request): Promise<Response> {
     if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405)
@@ -58,8 +63,9 @@ export default {
     const since = new Date(until.getTime() - range.days * 24 * 60 * 60 * 1000)
 
     try {
-      const [visitRows, eventRows] = await Promise.all([
+      const [visitRows, visitTotals, eventRows] = await Promise.all([
         queryVisits(vercelToken, since, until),
+        queryVisitTotals(vercelToken, since, until),
         queryEvents(vercelToken, since, until),
       ])
 
@@ -95,13 +101,11 @@ export default {
       }
 
       const totals = cards.reduce((sum, card) => {
-        sum.pageviews += card.pageviews
-        sum.visitors += card.visitors
         for (const eventName of eventNames) sum[eventName] += card[eventName]
         return sum
       }, {
-        pageviews: 0,
-        visitors: 0,
+        pageviews: visitTotals.pageviews,
+        visitors: visitTotals.visitors,
         field_opened: 0,
         object_presented: 0,
         qr_verified: 0,
@@ -125,12 +129,34 @@ export default {
 }
 
 async function queryVisits(token: string, since: Date, until: Date): Promise<Record<string, unknown>[]> {
-  const paths = fieldObjects.map((object) => `'${`/access/${object.edition}/${object.token}`}'`).join(',')
   const url = analyticsUrl('/visits/aggregate', since, until)
   url.searchParams.append('by', 'requestPath')
   url.searchParams.set('limit', '100')
-  url.searchParams.set('filter', `requestPath in (${paths})`)
+  url.searchParams.set('filter', accessPathFilter())
   return queryRows(url, token)
+}
+
+async function queryVisitTotals(token: string, since: Date, until: Date): Promise<VisitTotals> {
+  const url = analyticsUrl('/visits/count', since, until)
+  url.searchParams.set('filter', accessPathFilter())
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+    },
+  })
+  const payload = await response.json() as {
+    data?: { pageviews?: unknown; visitors?: unknown }
+    error?: { message?: string } | string
+  }
+  if (!response.ok) {
+    const message = typeof payload.error === 'string' ? payload.error : payload.error?.message
+    throw new Error(message ?? `Vercel Analytics returned ${response.status}.`)
+  }
+  return {
+    pageviews: numberValue(payload.data?.pageviews),
+    visitors: numberValue(payload.data?.visitors),
+  }
 }
 
 async function queryEvents(token: string, since: Date, until: Date): Promise<Record<string, unknown>[]> {
@@ -141,6 +167,11 @@ async function queryEvents(token: string, since: Date, until: Date): Promise<Rec
   url.searchParams.set('limit', '1000')
   url.searchParams.set('filter', "eventData/batch eq 'FIELD-001'")
   return queryRows(url, token)
+}
+
+function accessPathFilter(): string {
+  const paths = fieldObjects.map((object) => `'${`/access/${object.edition}/${object.token}`}'`).join(',')
+  return `requestPath in (${paths})`
 }
 
 function analyticsUrl(path: string, since: Date, until: Date): URL {
