@@ -1,68 +1,35 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { getFieldAccessConfig, publicArchiveUrl } from '../field-access/fieldAccessConfig'
 import { trackFieldEvent } from './fieldAnalytics'
-
-interface FunnelTotals {
-  pageviews: number
-  visitors: number
-  field_opened: number
-  object_presented: number
-  qr_verified: number
-  machine_started: number
-  receipt_generated: number
-  instagram_clicked: number
-}
-
-interface CardMetric {
-  edition: string
-  token: string
-  name: string
-  pageviews: number
-  visitors: number
-  field_opened: number
-  qr_verified: number
-  machine_started: number
-  receipt_generated: number
-  instagram_clicked: number
-}
-
-interface MetricsPayload {
-  range: string
-  generatedAt: string
-  totals: FunnelTotals
-  cards: CardMetric[]
-}
+import { fetchFieldMetrics, type SupabaseFieldMetrics } from './supabaseFieldClient'
 
 export function InstagramRedirect() {
-  const params = useMemo(() => new URLSearchParams(window.location.search), [])
-  const edition = normalizeEdition(params.get('edition'))
-  const token = normalizeToken(params.get('token'))
-  const source = params.get('source') ?? 'artifact-bridge'
-  const config = edition ? getFieldAccessConfig(edition) : null
+  const identity = useMemo(readRedirectIdentity, [])
+  const config = identity.edition ? getFieldAccessConfig(identity.edition) : null
 
   useEffect(() => {
-    if (config && token) {
+    if (config && identity.token) {
       trackFieldEvent('instagram_clicked', {
         edition: config.edition,
-        token,
+        token: identity.token,
         objectType: config.objectType,
-        machineId: config.machineId,
-        source,
+        machineId: 'LD-001',
+        source: identity.source,
       }, { oncePerLoad: true })
     }
 
     const timeout = window.setTimeout(() => {
       window.location.replace(publicArchiveUrl)
-    }, 520)
+    }, 650)
     return () => window.clearTimeout(timeout)
-  }, [config, source, token])
+  }, [config, identity])
 
   return (
     <main className="analytics-redirect" aria-labelledby="archive-redirect-title">
       <div className="analytics-redirect__signal" aria-hidden="true"><i /><i /><i /></div>
       <p>LD–PUBLIC ARCHIVE</p>
       <h1 id="archive-redirect-title">OPENING<br />ARCHIVE</h1>
-      <span>{config && token ? `FIELD OBJECT / ${config.edition} / ${token}` : 'EXTERNAL HANDOFF'}</span>
+      <span>{config && identity.token ? `FIELD OBJECT / ${config.edition} / ${identity.token}` : 'EXTERNAL HANDOFF'}</span>
       <a href={publicArchiveUrl}>CONTINUE TO @LABDOJO ↗</a>
     </main>
   )
@@ -71,33 +38,22 @@ export function InstagramRedirect() {
 export function MetricsDashboard() {
   const [accessKey, setAccessKey] = useState(() => sessionStorage.getItem('lab-metrics-key') ?? '')
   const [range, setRange] = useState('30d')
-  const [metrics, setMetrics] = useState<MetricsPayload | null>(null)
+  const [metrics, setMetrics] = useState<SupabaseFieldMetrics | null>(null)
   const [status, setStatus] = useState(accessKey ? 'READY TO LOAD' : 'OPERATOR AUTHORIZATION REQUIRED')
   const [loading, setLoading] = useState(false)
 
   const loadMetrics = async (key = accessKey, selectedRange = range) => {
     if (!key) return
     setLoading(true)
-    setStatus('READING ANONYMOUS FIELD SIGNALS…')
+    setStatus('READING PERSISTENT FIELD HISTORY…')
     try {
-      const response = await fetch(`/api/field-metrics?range=${encodeURIComponent(selectedRange)}`, {
-        headers: { Authorization: `Bearer ${key}` },
-        cache: 'no-store',
-      })
-      const payload = await response.json() as MetricsPayload & { error?: string; code?: string }
-      if (!response.ok) {
-        setMetrics(null)
-        setStatus(payload.code === 'not_configured'
-          ? 'SERVER METRICS CREDENTIALS NOT CONFIGURED'
-          : payload.error ?? 'ACCESS DENIED')
-        return
-      }
+      const payload = await fetchFieldMetrics(key, selectedRange)
       sessionStorage.setItem('lab-metrics-key', key)
       setMetrics(payload)
       setStatus(`FIELD–001 / ${selectedRange.toUpperCase()} / CURRENT`)
-    } catch {
+    } catch (error) {
       setMetrics(null)
-      setStatus('METRICS CHANNEL UNAVAILABLE')
+      setStatus(error instanceof Error ? error.message.toUpperCase() : 'ACCESS DENIED')
     } finally {
       setLoading(false)
     }
@@ -112,6 +68,9 @@ export function MetricsDashboard() {
     setRange(nextRange)
     if (accessKey) void loadMetrics(accessKey, nextRange)
   }
+
+  const machineCode = metrics?.machine.machine_code?.replace('-', '–') ?? 'LD–001'
+  const machineName = metrics?.machine.machine_name ?? 'Bad Day Receipt'
 
   return (
     <main className="metrics-console" aria-labelledby="metrics-title">
@@ -162,12 +121,12 @@ export function MetricsDashboard() {
             <div className="metrics-console__section-title">
               <span>01</span><h2 id="funnel-title">FIELD FUNNEL</h2>
             </div>
-            <FunnelStep label="OPENED" value={metrics.totals.field_opened || metrics.totals.pageviews} base={metrics.totals.field_opened || metrics.totals.pageviews} />
-            <FunnelStep label="PRESENTED" value={metrics.totals.object_presented} base={metrics.totals.field_opened || metrics.totals.pageviews} />
-            <FunnelStep label="QR VERIFIED" value={metrics.totals.qr_verified} base={metrics.totals.field_opened || metrics.totals.pageviews} />
-            <FunnelStep label="MACHINE STARTED" value={metrics.totals.machine_started} base={metrics.totals.field_opened || metrics.totals.pageviews} />
-            <FunnelStep label="RECEIPT GENERATED" value={metrics.totals.receipt_generated} base={metrics.totals.field_opened || metrics.totals.pageviews} />
-            <FunnelStep label="INSTAGRAM CLICKED" value={metrics.totals.instagram_clicked} base={metrics.totals.field_opened || metrics.totals.pageviews} />
+            <FunnelStep label="OPENED" value={metrics.totals.field_opened} base={metrics.totals.field_opened} />
+            <FunnelStep label="PRESENTED" value={metrics.totals.object_presented} base={metrics.totals.field_opened} />
+            <FunnelStep label="QR VERIFIED" value={metrics.totals.qr_verified} base={metrics.totals.field_opened} />
+            <FunnelStep label={`${machineCode} STARTED`} value={metrics.totals.machine_started} base={metrics.totals.field_opened} />
+            <FunnelStep label="RECEIPT GENERATED" value={metrics.totals.receipt_generated} base={metrics.totals.field_opened} />
+            <FunnelStep label="INSTAGRAM CLICKED" value={metrics.totals.instagram_clicked} base={metrics.totals.field_opened} />
           </section>
 
           <section className="metrics-console__cards" aria-labelledby="cards-title">
@@ -179,9 +138,13 @@ export function MetricsDashboard() {
                 <thead><tr><th>OBJECT</th><th>OPEN</th><th>PEOPLE</th><th>VERIFY</th><th>RECEIPT</th><th>IG</th></tr></thead>
                 <tbody>
                   {metrics.cards.map((card) => (
-                    <tr key={card.token}>
-                      <th><strong>LD–{card.edition}</strong><span>{card.name}</span><small>{card.token}</small></th>
-                      <td>{card.pageviews || card.field_opened}</td>
+                    <tr key={card.edition}>
+                      <th>
+                        <strong>LD–{card.edition}</strong>
+                        <span>{card.name}</span>
+                        <small>{card.placement_label ?? card.placement_code ?? 'PLACEMENT / UNASSIGNED'}</small>
+                      </th>
+                      <td>{card.pageviews}</td>
                       <td>{card.visitors}</td>
                       <td>{card.qr_verified}</td>
                       <td>{card.receipt_generated}</td>
@@ -190,6 +153,17 @@ export function MetricsDashboard() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </section>
+
+          <section className="metrics-console__cards" aria-labelledby="machine-title">
+            <div className="metrics-console__section-title">
+              <span>03</span><h2 id="machine-title">MACHINE HISTORY</h2>
+            </div>
+            <div className="metrics-console__totals">
+              <Metric label="CANONICAL MACHINE" valueText={`${machineCode} / ${machineName.toUpperCase()}`} />
+              <Metric label="OBJECTS UNLOCKED" value={metrics.machine.object_unlock_count ?? 0} />
+              <Metric label="TOTAL OPERATIONS" value={metrics.machine.total_operations ?? 0} />
             </div>
           </section>
 
@@ -203,8 +177,8 @@ export function MetricsDashboard() {
   )
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
-  return <div><span>{label}</span><strong>{value.toLocaleString()}</strong></div>
+function Metric({ label, value, valueText }: { label: string; value?: number; valueText?: string }) {
+  return <div><span>{label}</span><strong>{valueText ?? (value ?? 0).toLocaleString()}</strong></div>
 }
 
 function FunnelStep({ label, value, base }: { label: string; value: number; base: number }) {
@@ -216,6 +190,18 @@ function FunnelStep({ label, value, base }: { label: string; value: number; base
       <strong>{value.toLocaleString()}</strong><small>{rate}%</small>
     </div>
   )
+}
+
+function readRedirectIdentity(): { edition: string | null; token: string | null; source: string } {
+  const params = new URLSearchParams(window.location.search)
+  const segments = window.location.pathname.split('/').filter(Boolean)
+  const pathEdition = segments[2] ?? null
+  const pathToken = segments[3] ?? null
+  return {
+    edition: normalizeEdition(params.get('edition') ?? pathEdition),
+    token: normalizeToken(params.get('token') ?? pathToken),
+    source: params.get('source') ?? 'artifact-bridge',
+  }
 }
 
 function normalizeEdition(value: string | null): string | null {
