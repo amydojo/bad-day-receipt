@@ -14,10 +14,10 @@ export function triggerFieldAlignmentFeedback(): void {
   const preferences = readMachinePreferences()
 
   if (preferences.hapticsEnabled && typeof navigator.vibrate === 'function') {
-    navigator.vibrate(8)
+    navigator.vibrate(6)
   }
 
-  if (preferences.soundEnabled) playMechanicalTone('alignment')
+  if (preferences.soundEnabled) playInstrumentCue('alignment')
 }
 
 export function triggerFieldCaptureFeedback(): void {
@@ -25,10 +25,10 @@ export function triggerFieldCaptureFeedback(): void {
   const preferences = readMachinePreferences()
 
   if (preferences.hapticsEnabled && typeof navigator.vibrate === 'function') {
-    navigator.vibrate(24)
+    navigator.vibrate(16)
   }
 
-  if (preferences.soundEnabled) playMechanicalTone('capture')
+  if (preferences.soundEnabled) playInstrumentCue('capture')
 }
 
 export function triggerFieldScanCompleteFeedback(): void {
@@ -36,13 +36,12 @@ export function triggerFieldScanCompleteFeedback(): void {
   const preferences = readMachinePreferences()
 
   if (preferences.hapticsEnabled && typeof navigator.vibrate === 'function') {
-    navigator.vibrate([10, 42, 16])
+    navigator.vibrate([8, 34, 12])
   }
 
-  if (preferences.soundEnabled) playMechanicalTone('accepted')
+  if (preferences.soundEnabled) playInstrumentCue('accepted')
 }
 
-// Kept for compatibility with earlier callers.
 export const triggerFieldInsertionFeedback = triggerFieldCaptureFeedback
 
 function readMachinePreferences(): {
@@ -62,9 +61,9 @@ function readMachinePreferences(): {
   }
 }
 
-type MechanicalTone = 'alignment' | 'capture' | 'accepted'
+type InstrumentCue = 'alignment' | 'capture' | 'accepted'
 
-function playMechanicalTone(tone: MechanicalTone): void {
+function playInstrumentCue(cue: InstrumentCue): void {
   const audioWindow = window as unknown as {
     AudioContext?: typeof AudioContext
     webkitAudioContext?: typeof AudioContext
@@ -79,34 +78,33 @@ function playMechanicalTone(tone: MechanicalTone): void {
     master.gain.setValueAtTime(0.0001, now)
     master.connect(audio.destination)
 
-    if (tone === 'alignment') {
-      scheduleOscillator(audio, master, now, 510, 370, 0.028, 0.025, 'square')
-      master.gain.exponentialRampToValueAtTime(0.035, now + 0.003)
-      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.035)
+    if (cue === 'alignment') {
+      scheduleTone(audio, master, now, 740, 560, 0.036, 0.012, 'sine')
+      master.gain.exponentialRampToValueAtTime(0.018, now + 0.002)
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.045)
     }
 
-    if (tone === 'capture') {
-      scheduleOscillator(audio, master, now, 155, 68, 0.07, 0.075, 'square')
-      scheduleOscillator(audio, master, now + 0.085, 92, 54, 0.12, 0.03, 'sawtooth')
-      master.gain.exponentialRampToValueAtTime(0.07, now + 0.004)
-      master.gain.exponentialRampToValueAtTime(0.018, now + 0.085)
-      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.22)
+    if (cue === 'capture') {
+      scheduleTone(audio, master, now, 178, 118, 0.085, 0.024, 'triangle')
+      scheduleTone(audio, master, now + 0.062, 112, 82, 0.11, 0.012, 'sine')
+      master.gain.exponentialRampToValueAtTime(0.032, now + 0.004)
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.19)
     }
 
-    if (tone === 'accepted') {
-      scheduleOscillator(audio, master, now, 260, 340, 0.09, 0.028, 'sine')
-      scheduleOscillator(audio, master, now + 0.09, 390, 480, 0.12, 0.018, 'sine')
-      master.gain.exponentialRampToValueAtTime(0.035, now + 0.006)
-      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.24)
+    if (cue === 'accepted') {
+      scheduleTone(audio, master, now, 246, 294, 0.16, 0.012, 'sine')
+      scheduleTone(audio, master, now + 0.045, 369, 442, 0.2, 0.008, 'sine')
+      master.gain.exponentialRampToValueAtTime(0.022, now + 0.008)
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.27)
     }
 
-    window.setTimeout(() => void audio.close(), 420)
+    window.setTimeout(() => void audio.close(), 380)
   } catch {
-    // Sound is optional; failure must never block access.
+    // Feedback is optional and must never block the access ritual.
   }
 }
 
-function scheduleOscillator(
+function scheduleTone(
   audio: AudioContext,
   destination: AudioNode,
   start: number,
