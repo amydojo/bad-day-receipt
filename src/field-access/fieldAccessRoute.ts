@@ -12,8 +12,14 @@ export function parseFieldAccessRoute(pathname: string): FieldAccessRoute {
   if (parts[0] !== 'access') return { kind: 'root' }
   if (parts.length !== 3) return { kind: 'invalid', reason: 'shape' }
 
-  const edition = decodeURIComponent(parts[1] ?? '')
-  const token = decodeURIComponent(parts[2] ?? '').toUpperCase()
+  let edition: string
+  let token: string
+  try {
+    edition = decodeURIComponent(parts[1] ?? '')
+    token = decodeURIComponent(parts[2] ?? '').toUpperCase()
+  } catch {
+    return { kind: 'invalid', reason: 'shape' }
+  }
 
   if (!editionPattern.test(edition)) return { kind: 'invalid', reason: 'edition' }
   if (!tokenPattern.test(token)) return { kind: 'invalid', reason: 'token' }
