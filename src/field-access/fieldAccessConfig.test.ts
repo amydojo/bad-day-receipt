@@ -15,7 +15,7 @@ const expected = [
 ] as const
 
 describe('field access edition registry', () => {
-  it('registers all ten FIELD–001 editions to SM–001', () => {
+  it('registers all ten FIELD–001 editions to canonical LD–001', () => {
     expect(Object.keys(fieldAccessConfigs)).toEqual(expected.map(([edition]) => edition))
     for (const [edition, objectName, objectType, objectClass] of expected) {
       const config = getFieldAccessConfig(edition)
@@ -24,8 +24,8 @@ describe('field access edition registry', () => {
         objectName,
         objectType,
         objectClass,
-        machineId: 'bad-day-receipt',
-        machineLabel: 'SM–001',
+        machineId: 'LD-001',
+        machineLabel: 'LD–001',
       })
       expect(isKnownFieldEdition(edition)).toBe(true)
     }
