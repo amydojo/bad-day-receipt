@@ -17,6 +17,7 @@
     "test:visual:release": "playwright test tests/visual/mobile-instrument-release.spec.ts --project=chromium-mobile --project=chromium-desktop"
   },
   "dependencies": {
+    "@vercel/analytics": "2.0.1",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
