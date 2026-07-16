@@ -13,7 +13,7 @@ export function triggerFieldInsertionFeedback(): void {
   if (typeof window === 'undefined') return
   const preferences = readMachinePreferences()
 
-  if (preferences.hapticsEnabled && 'vibrate' in navigator) {
+  if (preferences.hapticsEnabled && typeof navigator.vibrate === 'function') {
     navigator.vibrate(18)
   }
 
@@ -38,8 +38,11 @@ function readMachinePreferences(): {
 }
 
 function playMechanicalClick(): void {
-  const AudioContextConstructor = window.AudioContext
-    ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  const audioWindow = window as unknown as {
+    AudioContext?: typeof AudioContext
+    webkitAudioContext?: typeof AudioContext
+  }
+  const AudioContextConstructor = audioWindow.AudioContext ?? audioWindow.webkitAudioContext
   if (!AudioContextConstructor) return
 
   try {
