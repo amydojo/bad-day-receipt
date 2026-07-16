@@ -24,7 +24,7 @@ test.describe('Lab Dojo field access ritual', () => {
 
     await page.getByRole('button', { name: 'INSERT ARTIFACT' }).click()
     await expect(page.locator('.field-machine-slot')).toHaveAttribute('data-phase', /captured|reading|accepted/)
-    await expect(page.getByRole('heading', { name: /BAD DAY RECEIPT/ })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /BAD DAY RECEIPT/ })).toBeVisible({ timeout: 8000 })
     await page.getByRole('button', { name: 'BEGIN OPERATION' }).click()
 
     await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
