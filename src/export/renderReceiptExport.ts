@@ -1,3 +1,5 @@
+import { applyFieldAccessProvenance } from '../field-access/fieldAccessExport'
+import { getCurrentFieldAccess } from '../field-access/fieldAccessStorage'
 import { renderExportCanvas } from '../socialExports'
 import type { ReceiptTheme } from '../themes'
 import type { ReceiptItem } from '../types'
@@ -38,7 +40,16 @@ export async function createReceiptArtifactExport({
   shareText: string
   date?: Date
 }): Promise<ArtifactExport> {
-  const canvas = renderExportCanvas(items, receiptNumber, theme, format)
+  const baseCanvas = renderExportCanvas(items, receiptNumber, theme, format)
+  const fieldAccess = window.location.pathname.startsWith('/access/')
+    ? getCurrentFieldAccess()
+    : null
+  const canvas = applyFieldAccessProvenance(
+    baseCanvas,
+    format,
+    theme,
+    fieldAccess,
+  )
   const blob = await canvasToBlob(canvas)
   const filename = createArtifactFilename(format, date)
   const file = new File([blob], filename, { type: 'image/png' })

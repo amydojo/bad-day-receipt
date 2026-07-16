@@ -1,0 +1,56 @@
+:root {
+  --field-signal-text: #9f3027;
+}
+
+.field-access-kicker,
+.field-access-swipe-label,
+.field-access-unknown > span {
+  color: var(--field-signal-text);
+}
+
+.field-access-terminal__footer,
+.field-access-caption,
+.field-access-muted-note {
+  color: #5d5a54;
+}
+
+.field-access-archive-bridge > span {
+  color: #ff8d7f;
+}
+
+@supports (padding: max(0px)) {
+  .field-access-terminal__shell {
+    grid-template-rows:
+      calc(68px + env(safe-area-inset-top))
+      minmax(0, 1fr)
+      calc(34px + env(safe-area-inset-bottom));
+  }
+
+  .field-access-terminal__header {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .field-access-terminal__footer {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .field-access-terminal--unknown .field-access-terminal__shell {
+    grid-template-rows: calc(68px + env(safe-area-inset-top)) 1fr;
+  }
+}
+
+@media (forced-colors: active) {
+  .field-access-signal__dots i.is-active,
+  .field-object-card footer i,
+  .field-access-machine-state i,
+  .field-machine-slot__face i {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+
+  .field-access-button,
+  .field-access-unknown > a,
+  .field-access-archive-bridge {
+    border: 1px solid CanvasText;
+  }
+}
