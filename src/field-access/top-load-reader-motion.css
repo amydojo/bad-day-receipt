@@ -1,0 +1,17 @@
+/* Motion geometry paired with FieldAccessRitual's shallow capture constants. */
+
+.field-machine-slot {
+  top: 180px;
+}
+
+.field-access-one-shot[data-phase="captured"] .field-access-card-trajectory,
+.field-access-one-shot[data-phase="reading"] .field-access-card-trajectory,
+.field-access-one-shot[data-phase="accepted"] .field-access-card-trajectory {
+  transform: translateX(-50%);
+}
+
+@media (max-height: 720px) {
+  .field-machine-slot {
+    top: 166px;
+  }
+}
