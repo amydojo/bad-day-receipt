@@ -189,7 +189,7 @@ function FieldAccessContinuation({
             ×
           </button>
           <span>ARTIFACT GENERATED</span>
-          <strong id="field-archive-title">FIELD OBJECT {context.edition}<br />HAS OPERATED SM–001</strong>
+          <strong id="field-archive-title">FIELD OBJECT {context.edition}<br />HAS OPERATED LD–001</strong>
           <p>Other field objects and future machines are documented inside the public archive.</p>
           <a href={archiveUrl} target="_blank" rel="noopener">
             OPEN THE PUBLIC ARCHIVE ↗
@@ -212,7 +212,7 @@ function UnknownFieldObject({ reason }: { reason: string }) {
           <h1>UNKNOWN<br />FIELD OBJECT</h1>
           <p>The terminal could not verify this artifact.<br />Keep the object. It may belong to another machine.</p>
           <span>ERROR CLASS / {reason.toUpperCase()}</span>
-          <a href="/">OPEN SM–001 WITHOUT FIELD ACCESS</a>
+          <a href="/">OPEN LD–001 WITHOUT FIELD ACCESS</a>
         </section>
       </div>
     </main>
