@@ -1,4 +1,17 @@
-export type FieldObjectType = 'recovered-artifact'
+export const fieldObjectTypes = [
+  'entrance-pass',
+  'public-test',
+  'awake-machine',
+  'human-subject-pass',
+  'specimen-access',
+  'field-access',
+  'recovered-artifact',
+  'operating-instructions',
+  'field-note',
+  'specimen-room',
+] as const
+
+export type FieldObjectType = typeof fieldObjectTypes[number]
 
 export interface FieldAccessConfig {
   edition: string
@@ -8,7 +21,7 @@ export interface FieldAccessConfig {
   machineId: 'bad-day-receipt'
   machineLabel: 'SM–001'
   openingCopy: string
-  accent: 'peach'
+  accent: 'paper' | 'peach'
 }
 
 export interface FieldAccessContext {
