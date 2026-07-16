@@ -36,6 +36,7 @@ test.describe('Lab Dojo field access ritual', () => {
     await page.getByRole('button', { name: 'INSERT ARTIFACT' }).click()
     await expect(page.locator('.field-machine-slot')).toHaveAttribute('data-phase', /captured|reading|accepted|unlocked/)
     await expect(page.getByRole('heading', { name: /BAD DAY RECEIPT/ })).toBeVisible({ timeout: 6000 })
+    await expect(page.locator('.field-access-machine-reveal > span')).toHaveText('LD–001 / LAB DOJO MACHINE')
     await page.getByRole('button', { name: 'BEGIN OPERATION' }).click()
 
     await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
@@ -43,6 +44,7 @@ test.describe('Lab Dojo field access ritual', () => {
 
     const stored = await page.evaluate(() => localStorage.getItem('labdojo-field-access-v1'))
     expect(stored).toContain('J49AQW')
+    expect(stored).toContain('LD-001')
   })
 
   test('holds on the recognized digital twin until the operator continues', async ({ page }) => {
@@ -144,7 +146,7 @@ test.describe('Lab Dojo field access ritual', () => {
   test('fails unknown objects gracefully', async ({ page }) => {
     await page.goto('/access/99/K7PM4A')
     await expect(page.getByRole('heading', { name: /UNKNOWN FIELD OBJECT/ })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'OPEN SM–001 WITHOUT FIELD ACCESS' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'OPEN LD–001 WITHOUT FIELD ACCESS' })).toBeVisible()
   })
 
   test('has no serious automated accessibility violations at the user-controlled insertion state', async ({ page }) => {
