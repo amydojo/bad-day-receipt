@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { getFieldAccessConfig, publicArchiveUrl } from '../field-access/fieldAccessConfig'
 import { trackFieldEvent } from './fieldAnalytics'
 
@@ -209,9 +209,10 @@ function Metric({ label, value }: { label: string; value: number }) {
 
 function FunnelStep({ label, value, base }: { label: string; value: number; base: number }) {
   const rate = base > 0 ? Math.round((value / base) * 100) : 0
+  const style = { '--funnel-rate': `${Math.min(100, rate)}%` } as CSSProperties
   return (
     <div className="metrics-console__funnel-step">
-      <span>{label}</span><i style={{ '--funnel-rate': `${Math.min(100, rate)}%` } as React.CSSProperties} />
+      <span>{label}</span><i style={style} />
       <strong>{value.toLocaleString()}</strong><small>{rate}%</small>
     </div>
   )
