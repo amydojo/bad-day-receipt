@@ -27,6 +27,7 @@ import './field-access/field-access.css'
 // The exact FIELD–001 twins intentionally override the legacy generic card shell.
 import './field-access/field-object-card.css'
 import './field-access/field-object-card-fidelity.css'
+import './field-access/scanner-breathing-pass.css'
 import './field-access/field-access-accessibility.css'
 
 createRoot(document.getElementById('root')!).render(
