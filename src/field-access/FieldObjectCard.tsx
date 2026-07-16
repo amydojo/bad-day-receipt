@@ -1,3 +1,5 @@
+import { getFieldAccessConfig } from './fieldAccessConfig'
+
 interface FieldObjectCardProps {
   edition: string
   token: string
@@ -11,6 +13,12 @@ export function FieldObjectCard({
   compact = false,
   entering = false,
 }: FieldObjectCardProps) {
+  const config = getFieldAccessConfig(edition)
+  const objectName = config?.objectName ?? 'Field Object'
+  const objectClass = config?.objectClass ?? `LD–${edition}`
+  const openingCopy = config?.openingCopy ?? 'This object belongs to another machine.'
+  const accent = config?.accent ?? 'paper'
+
   return (
     <article
       className={[
@@ -18,23 +26,24 @@ export function FieldObjectCard({
         compact ? 'field-object-card--compact' : '',
         entering ? 'field-object-card--entering' : '',
       ].filter(Boolean).join(' ')}
-      aria-label={`Lab Dojo recovered field object ${edition}, serial ${token}`}
+      data-accent={accent}
+      aria-label={`Lab Dojo ${objectName}, edition ${edition}, serial ${token}`}
     >
       <div className="field-object-card__left">
-        <span className="field-object-card__category">LD–RECOVERED</span>
+        <span className="field-object-card__category">{objectClass}</span>
         <strong className="field-object-card__edition">{edition}</strong>
-        <span className="field-object-card__condition">CONDITION / STABLE</span>
+        <span className="field-object-card__condition">CONDITION / ACTIVE</span>
       </div>
       <div className="field-object-card__body">
-        <strong>DO NOT<br />DISCARD</strong>
-        <p>Part {edition} of 10.<br />The others are in<br />the archive.</p>
+        <strong>{objectName.toUpperCase()}</strong>
+        <p>{openingCopy}</p>
         <span className="field-object-card__serial">FIELD OBJECT / {token}</span>
       </div>
       <div className="field-object-card__qr" aria-hidden="true">
         <span />
       </div>
       <footer>
-        <span>ARCHIVE {edition} / KEEP THIS CARD</span>
+        <span>LD–{edition} / KEEP THIS CARD</span>
         <i aria-hidden="true" />
       </footer>
     </article>
