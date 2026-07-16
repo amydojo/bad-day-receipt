@@ -24,6 +24,7 @@ import './styles/production-motion.css'
 import './mobile-instrument/artifact/evidenceViewer.css'
 import './styles/mobile-quality-hotfix.css'
 import './field-access/field-access.css'
+import './field-access/field-object-card.css'
 import './field-access/field-access-accessibility.css'
 
 createRoot(document.getElementById('root')!).render(
