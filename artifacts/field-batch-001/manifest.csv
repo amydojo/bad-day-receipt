@@ -1,0 +1,11 @@
+batch,edition,card_name,token,object_type,object_class,url,machine_id,created_at
+FIELD–001,01,Entrance Pass,CTNZL8,entrance-pass,LD–ENTRANCE,https://bad-day-receipt.vercel.app/access/01/CTNZL8,bad-day-receipt,2026-07-16T07:39:31Z
+FIELD–001,02,Public Test,W9JK4J,public-test,LD–TEST,https://bad-day-receipt.vercel.app/access/02/W9JK4J,bad-day-receipt,2026-07-16T07:39:31Z
+FIELD–001,03,Awake Machine,NRDND8,awake-machine,LD–AWAKE,https://bad-day-receipt.vercel.app/access/03/NRDND8,bad-day-receipt,2026-07-16T07:39:31Z
+FIELD–001,04,Human Subject,7PGQZM,human-subject-pass,LD–SUBJECT,https://bad-day-receipt.vercel.app/access/04/7PGQZM,bad-day-receipt,2026-07-16T07:39:31Z
+FIELD–001,05,Specimen Access,JEJCFM,specimen-access,LD–SPECIMEN,https://bad-day-receipt.vercel.app/access/05/JEJCFM,bad-day-receipt,2026-07-16T07:39:31Z
+FIELD–001,06,Field Access,44ZSSL,field-access,LD–FIELD,https://bad-day-receipt.vercel.app/access/06/44ZSSL,bad-day-receipt,2026-07-16T07:39:31Z
+FIELD–001,07,Recovered Artifact,J49AQW,recovered-artifact,LD–RECOVERED,https://bad-day-receipt.vercel.app/access/07/J49AQW,bad-day-receipt,2026-07-16T07:39:31Z
+FIELD–001,08,Operating Instructions,JWB639,operating-instructions,LD–OPERATE,https://bad-day-receipt.vercel.app/access/08/JWB639,bad-day-receipt,2026-07-16T07:39:31Z
+FIELD–001,09,Field Note,STS68S,field-note,LD–NOTE,https://bad-day-receipt.vercel.app/access/09/STS68S,bad-day-receipt,2026-07-16T07:39:31Z
+FIELD–001,10,Specimen Room,DJ39LF,specimen-room,LD–ROOM,https://bad-day-receipt.vercel.app/access/10/DJ39LF,bad-day-receipt,2026-07-16T07:39:31Z

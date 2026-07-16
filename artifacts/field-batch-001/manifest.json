@@ -1,0 +1,112 @@
+[
+  {
+    "batch": "FIELD–001",
+    "edition": "01",
+    "card_name": "Entrance Pass",
+    "token": "CTNZL8",
+    "object_type": "entrance-pass",
+    "object_class": "LD–ENTRANCE",
+    "url": "https://bad-day-receipt.vercel.app/access/01/CTNZL8",
+    "machine_id": "bad-day-receipt",
+    "created_at": "2026-07-16T07:39:31Z"
+  },
+  {
+    "batch": "FIELD–001",
+    "edition": "02",
+    "card_name": "Public Test",
+    "token": "W9JK4J",
+    "object_type": "public-test",
+    "object_class": "LD–TEST",
+    "url": "https://bad-day-receipt.vercel.app/access/02/W9JK4J",
+    "machine_id": "bad-day-receipt",
+    "created_at": "2026-07-16T07:39:31Z"
+  },
+  {
+    "batch": "FIELD–001",
+    "edition": "03",
+    "card_name": "Awake Machine",
+    "token": "NRDND8",
+    "object_type": "awake-machine",
+    "object_class": "LD–AWAKE",
+    "url": "https://bad-day-receipt.vercel.app/access/03/NRDND8",
+    "machine_id": "bad-day-receipt",
+    "created_at": "2026-07-16T07:39:31Z"
+  },
+  {
+    "batch": "FIELD–001",
+    "edition": "04",
+    "card_name": "Human Subject",
+    "token": "7PGQZM",
+    "object_type": "human-subject-pass",
+    "object_class": "LD–SUBJECT",
+    "url": "https://bad-day-receipt.vercel.app/access/04/7PGQZM",
+    "machine_id": "bad-day-receipt",
+    "created_at": "2026-07-16T07:39:31Z"
+  },
+  {
+    "batch": "FIELD–001",
+    "edition": "05",
+    "card_name": "Specimen Access",
+    "token": "JEJCFM",
+    "object_type": "specimen-access",
+    "object_class": "LD–SPECIMEN",
+    "url": "https://bad-day-receipt.vercel.app/access/05/JEJCFM",
+    "machine_id": "bad-day-receipt",
+    "created_at": "2026-07-16T07:39:31Z"
+  },
+  {
+    "batch": "FIELD–001",
+    "edition": "06",
+    "card_name": "Field Access",
+    "token": "44ZSSL",
+    "object_type": "field-access",
+    "object_class": "LD–FIELD",
+    "url": "https://bad-day-receipt.vercel.app/access/06/44ZSSL",
+    "machine_id": "bad-day-receipt",
+    "created_at": "2026-07-16T07:39:31Z"
+  },
+  {
+    "batch": "FIELD–001",
+    "edition": "07",
+    "card_name": "Recovered Artifact",
+    "token": "J49AQW",
+    "object_type": "recovered-artifact",
+    "object_class": "LD–RECOVERED",
+    "url": "https://bad-day-receipt.vercel.app/access/07/J49AQW",
+    "machine_id": "bad-day-receipt",
+    "created_at": "2026-07-16T07:39:31Z"
+  },
+  {
+    "batch": "FIELD–001",
+    "edition": "08",
+    "card_name": "Operating Instructions",
+    "token": "JWB639",
+    "object_type": "operating-instructions",
+    "object_class": "LD–OPERATE",
+    "url": "https://bad-day-receipt.vercel.app/access/08/JWB639",
+    "machine_id": "bad-day-receipt",
+    "created_at": "2026-07-16T07:39:31Z"
+  },
+  {
+    "batch": "FIELD–001",
+    "edition": "09",
+    "card_name": "Field Note",
+    "token": "STS68S",
+    "object_type": "field-note",
+    "object_class": "LD–NOTE",
+    "url": "https://bad-day-receipt.vercel.app/access/09/STS68S",
+    "machine_id": "bad-day-receipt",
+    "created_at": "2026-07-16T07:39:31Z"
+  },
+  {
+    "batch": "FIELD–001",
+    "edition": "10",
+    "card_name": "Specimen Room",
+    "token": "DJ39LF",
+    "object_type": "specimen-room",
+    "object_class": "LD–ROOM",
+    "url": "https://bad-day-receipt.vercel.app/access/10/DJ39LF",
+    "machine_id": "bad-day-receipt",
+    "created_at": "2026-07-16T07:39:31Z"
+  }
+]
