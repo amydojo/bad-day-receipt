@@ -13,16 +13,20 @@ import {
   claimFieldAccess,
   isRecognizedFieldAccess,
 } from './fieldAccessStorage'
-import type { FieldAccessContext } from './fieldAccessTypes'
+import type {
+  FieldAccessConfig,
+  FieldAccessContext,
+  FieldAccessRoute,
+} from './fieldAccessTypes'
 
 interface FieldAccessGateProps {
   children: ReactNode
 }
 
+type ResolvedAccessRoute = Extract<FieldAccessRoute, { kind: 'access' }>
+
 export function FieldAccessGate({ children }: FieldAccessGateProps) {
   const route = useMemo(() => parseFieldAccessRoute(window.location.pathname), [])
-  const [machineOpen, setMachineOpen] = useState(false)
-  const [context, setContext] = useState<FieldAccessContext | null>(null)
 
   if (route.kind === 'root') return children
   if (route.kind === 'invalid') return <UnknownFieldObject reason={route.reason} />
@@ -30,6 +34,24 @@ export function FieldAccessGate({ children }: FieldAccessGateProps) {
   const config = getFieldAccessConfig(route.edition)
   if (!config) return <UnknownFieldObject reason="edition" />
 
+  return (
+    <ResolvedFieldAccessGate route={route} config={config}>
+      {children}
+    </ResolvedFieldAccessGate>
+  )
+}
+
+function ResolvedFieldAccessGate({
+  children,
+  config,
+  route,
+}: {
+  children: ReactNode
+  config: FieldAccessConfig
+  route: ResolvedAccessRoute
+}) {
+  const [machineOpen, setMachineOpen] = useState(false)
+  const [context, setContext] = useState<FieldAccessContext | null>(null)
   const returning = isRecognizedFieldAccess(route.edition, route.token)
 
   const acceptObject = useCallback(() => {
@@ -42,7 +64,7 @@ export function FieldAccessGate({ children }: FieldAccessGateProps) {
     setMachineOpen(true)
   }, [config, context, route.token])
 
-  if (!machineOpen) {
+  if (!machineOpen || !context) {
     return (
       <FieldAccessRitual
         config={config}
@@ -55,7 +77,7 @@ export function FieldAccessGate({ children }: FieldAccessGateProps) {
   }
 
   return (
-    <FieldAccessContinuation context={context ?? claimFieldAccess(config, route.token)}>
+    <FieldAccessContinuation context={context}>
       {children}
     </FieldAccessContinuation>
   )
