@@ -36,11 +36,10 @@ type ResolvedAccessRoute = Extract<FieldAccessRoute, { kind: 'access' }>
 
 export function FieldAccessGate({ children }: FieldAccessGateProps) {
   const pathname = window.location.pathname
-  if (pathname === '/go/instagram') return <InstagramRedirect />
-  if (pathname === '/lab/metrics') return <MetricsDashboard />
-
   const route = useMemo(() => parseFieldAccessRoute(pathname), [pathname])
 
+  if (pathname === '/go/instagram') return <InstagramRedirect />
+  if (pathname === '/lab/metrics') return <MetricsDashboard />
   if (route.kind === 'root') return children
   if (route.kind === 'invalid') return <UnknownFieldObject reason={route.reason} />
 
