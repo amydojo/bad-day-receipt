@@ -35,7 +35,7 @@ test.describe('Lab Dojo field access ritual', () => {
 
     await page.reload()
     await expect(page.locator('.field-access-terminal')).toHaveAttribute('data-returning', 'true')
-    await expect(page.getByText('The terminal remembers this object.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'INSERT ARTIFACT' })).toBeVisible()
   })
 
   test('preserves the ritual without simulated motion when reduced motion is requested', async ({ page }) => {
