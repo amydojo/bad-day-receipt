@@ -1,7 +1,9 @@
-import type {
-  FieldAccessConfig,
-  FieldAccessContext,
-  FieldAccessEnvelope,
+import {
+  fieldObjectTypes,
+  type FieldAccessConfig,
+  type FieldAccessContext,
+  type FieldAccessEnvelope,
+  type FieldObjectType,
 } from './fieldAccessTypes'
 
 export const FIELD_ACCESS_STORAGE_KEY = 'labdojo-field-access-v1'
@@ -131,7 +133,7 @@ function parseContext(value: unknown): FieldAccessContext | null {
   if (!isRecord(value)) return null
   if (typeof value.edition !== 'string' || !/^\d{2}$/.test(value.edition)) return null
   if (typeof value.token !== 'string' || !/^[A-Z0-9]{4,24}$/.test(value.token)) return null
-  if (value.objectType !== 'recovered-artifact') return null
+  if (!isFieldObjectType(value.objectType)) return null
   if (value.machineId !== 'bad-day-receipt') return null
   if (typeof value.firstAccessedAt !== 'string') return null
   if (typeof value.lastAccessedAt !== 'string') return null
@@ -144,6 +146,11 @@ function parseContext(value: unknown): FieldAccessContext | null {
     firstAccessedAt: value.firstAccessedAt,
     lastAccessedAt: value.lastAccessedAt,
   }
+}
+
+function isFieldObjectType(value: unknown): value is FieldObjectType {
+  return typeof value === 'string'
+    && fieldObjectTypes.includes(value as FieldObjectType)
 }
 
 function browserStorage(): FieldAccessStorageAdapter | null {
