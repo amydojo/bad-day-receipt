@@ -38,7 +38,7 @@ export function FieldAccessGate({ children }: FieldAccessGateProps) {
   const pathname = window.location.pathname
   const route = useMemo(() => parseFieldAccessRoute(pathname), [pathname])
 
-  if (pathname === '/go/instagram') return <InstagramRedirect />
+  if (pathname === '/go/instagram' || pathname.startsWith('/go/instagram/')) return <InstagramRedirect />
   if (pathname === '/lab/metrics') return <MetricsDashboard />
   if (route.kind === 'root') return children
   if (route.kind === 'invalid') return <UnknownFieldObject reason={route.reason} />
@@ -164,7 +164,7 @@ function FieldAccessContinuation({
     return () => window.clearInterval(interval)
   }, [config, context.token])
 
-  const archiveUrl = `/go/instagram?edition=${encodeURIComponent(context.edition)}&token=${encodeURIComponent(context.token)}&source=artifact-bridge`
+  const archiveUrl = `/go/instagram/${encodeURIComponent(context.edition)}/${encodeURIComponent(context.token)}?edition=${encodeURIComponent(context.edition)}&token=${encodeURIComponent(context.token)}&source=artifact-bridge`
 
   return (
     <div
