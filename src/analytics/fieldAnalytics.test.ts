@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { track } from '@vercel/analytics'
 import {
   analyticsBeforeSend,
@@ -10,7 +10,13 @@ vi.mock('@vercel/analytics', () => ({ track: vi.fn() }))
 describe('FIELD-001 analytics privacy contract', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    window.history.replaceState({}, '', '/access/06/44ZSSL?placement=library-shelf')
+    vi.stubGlobal('window', {
+      location: { search: '?placement=library-shelf' },
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('tracks only operational field dimensions', () => {
