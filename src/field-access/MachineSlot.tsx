@@ -1,57 +1,57 @@
-import type { CSSProperties } from 'react'
+import {
+  forwardRef,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
+
+export type MachineSlotPhase =
+  | 'idle'
+  | 'aligned'
+  | 'captured'
+  | 'reading'
+  | 'accepted'
+  | 'unlocked'
 
 interface MachineSlotProps {
-  engaged?: boolean
-  aligned?: boolean
-  progress?: number
-  phase?: 'idle' | 'aligned' | 'captured' | 'reading' | 'accepted'
+  phase?: MachineSlotPhase
+  children?: ReactNode
 }
 
-const phaseCopy = {
-  idle: ['FIELD READER', 'READY'],
-  aligned: ['ALIGNMENT', 'LOCKED'],
-  captured: ['CONTACT', 'CONFIRMED'],
-  reading: ['READING', 'SERIAL'],
-  accepted: ['OBJECT', 'ACCEPTED'],
-} as const
-
-export function MachineSlot({
-  engaged = false,
-  aligned = false,
-  progress = 0,
-  phase = engaged ? 'captured' : aligned ? 'aligned' : 'idle',
-}: MachineSlotProps) {
-  const normalized = Math.max(0, Math.min(1, progress))
-  const copy = phaseCopy[phase]
-
-  return (
-    <div
-      className={`field-machine-slot${engaged ? ' is-engaged' : ''}`}
-      data-phase={phase}
-      role="img"
-      aria-label={phase === 'accepted'
-        ? 'Field object accepted by the machine'
-        : engaged
-          ? 'Field object being read by the machine'
-          : aligned
-            ? 'Field object aligned with insertion slot'
-            : 'Field object insertion slot'}
-      style={{ '--field-slot-progress': normalized } as CSSProperties}
-    >
-      <div className="field-machine-slot__depth" aria-hidden="true" />
-      <div className="field-machine-slot__lower-chassis" aria-hidden="true">
-        <span>{copy[0]}</span>
-        <strong>{copy[1]}</strong>
-        <i />
-      </div>
-      <div className="field-machine-slot__mouth" aria-hidden="true">
-        <i className="field-machine-slot__roller field-machine-slot__roller--left" />
-        <i className="field-machine-slot__roller field-machine-slot__roller--right" />
-        <span className="field-machine-slot__progress" />
-        <b className="field-machine-slot__scan-beam" />
-      </div>
-      <div className="field-machine-slot__upper-bezel" aria-hidden="true" />
-      <div className="field-machine-slot__capture-lip" aria-hidden="true" />
-    </div>
-  )
+const phaseCopy: Record<MachineSlotPhase, string> = {
+  idle: 'FIELD READER',
+  aligned: 'FIELD READER',
+  captured: 'READING FIELD OBJECT',
+  reading: 'READING FIELD OBJECT',
+  accepted: 'OBJECT ACCEPTED',
+  unlocked: 'SM–001 / READY',
 }
+
+export const MachineSlot = forwardRef<HTMLDivElement, MachineSlotProps>(
+  function MachineSlot({ phase = 'idle', children }, ref) {
+    const label = phaseCopy[phase]
+
+    return (
+      <div
+        ref={ref}
+        className="field-machine-slot"
+        data-phase={phase}
+        role="status"
+        aria-live="polite"
+        aria-label={label}
+        style={{ '--field-reader-proximity': 0 } as CSSProperties}
+      >
+        <div className="field-machine-slot__material" aria-hidden="true" />
+        <div className="field-machine-slot__throat" aria-hidden="true">
+          <span className="field-machine-slot__reflection" />
+          <b className="field-machine-slot__scan-beam" />
+        </div>
+        <div className="field-machine-slot__lip" aria-hidden="true" />
+        <span className="field-machine-slot__status" aria-hidden="true">{label}</span>
+        <i className="field-machine-slot__sensor" aria-hidden="true" />
+        <div className="field-machine-slot__machine-content">
+          {children}
+        </div>
+      </div>
+    )
+  },
+)

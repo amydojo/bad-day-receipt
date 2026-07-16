@@ -3,12 +3,11 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { AccessSignal } from './AccessSignal'
 import { FieldObjectCard } from './FieldObjectCard'
-import { MachineSlot } from './MachineSlot'
+import { MachineSlot, type MachineSlotPhase } from './MachineSlot'
 import {
   triggerFieldAlignmentFeedback,
   triggerFieldCaptureFeedback,
@@ -16,17 +15,14 @@ import {
 } from './fieldAccessFeedback'
 import type { FieldAccessConfig } from './fieldAccessTypes'
 
-type RitualState =
+type RitualPhase =
   | 'detected'
   | 'recognized'
-  | 'insert'
-  | 'entering'
-  | 'verifying'
-  | 'granted'
+  | 'presented'
+  | 'captured'
+  | 'reading'
+  | 'accepted'
   | 'unlocked'
-  | 'ready'
-
-type ScannerPhase = 'idle' | 'aligned' | 'captured' | 'reading' | 'accepted'
 
 interface FieldAccessRitualProps {
   config: FieldAccessConfig
@@ -36,10 +32,22 @@ interface FieldAccessRitualProps {
   onBegin: () => void
 }
 
-const RAW_COMMIT_DISTANCE = 112
-const RAW_DRAG_LIMIT = 168
-const VISUAL_DRAG_LIMIT = 124
-const ALIGNMENT_THRESHOLD = 0.58
+interface DragSnapshot {
+  rawX: number
+  rawY: number
+  visualX: number
+  visualY: number
+  velocityY: number
+  lastY: number
+  lastAt: number
+}
+
+const COMMIT_DISTANCE = 104
+const FLICK_DISTANCE = 56
+const MAX_DRAG_DISTANCE = 138
+const ALIGNMENT_THRESHOLD = 0.64
+const CAPTURE_TRANSLATE_Y = 156
+const CAPTURE_DURATION = 480
 
 export function FieldAccessRitual({
   config,
@@ -49,149 +57,207 @@ export function FieldAccessRitual({
   onBegin,
 }: FieldAccessRitualProps) {
   const reducedMotion = useReducedMotion()
-  const [state, setState] = useState<RitualState>(returning ? 'recognized' : 'detected')
-  const [dragY, setDragY] = useState(0)
-  const [dragX, setDragX] = useState(0)
+  const [phase, setPhase] = useState<RitualPhase>(returning ? 'recognized' : 'detected')
   const [aligned, setAligned] = useState(false)
-  const [scannerPhase, setScannerPhase] = useState<ScannerPhase>('idle')
-  const rawDragRef = useRef(0)
-  const pointerOrigin = useRef({ x: 0, y: 0 })
+
+  const pointerOriginRef = useRef({ x: 0, y: 0 })
+  const dragRef = useRef<DragSnapshot>(emptyDragSnapshot())
+  const directLayerRef = useRef<HTMLDivElement | null>(null)
+  const readerRef = useRef<HTMLDivElement | null>(null)
+  const rafRef = useRef<number | null>(null)
+  const pendingTransformRef = useRef({ x: 0, y: 0 })
   const alignedRef = useRef(false)
   const committedRef = useRef(false)
   const acceptedRef = useRef(false)
   const begunRef = useRef(false)
+  const captureAnimationRef = useRef<Animation | null>(null)
   const presentButtonRef = useRef<HTMLButtonElement | null>(null)
-  const insertButtonRef = useRef<HTMLButtonElement | null>(null)
   const beginButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  const signal = signalForState(state)
-  const statusText = useMemo(() => statusForState(state, returning, scannerPhase), [returning, scannerPhase, state])
+  const signal = signalForPhase(phase)
+  const readerPhase = readerPhaseFor(phase, aligned)
+  const accessibleTitle = titleForPhase(phase)
+  const statusText = useMemo(
+    () => statusForPhase(phase, returning, aligned),
+    [aligned, phase, returning],
+  )
 
   useEffect(() => {
-    const transition = automaticTransition(state, reducedMotion)
-    if (!transition) return
-    const timeout = window.setTimeout(() => setState(transition.next), transition.delay)
+    if (phase !== 'detected') return
+    const timeout = window.setTimeout(
+      () => setPhase('recognized'),
+      reducedMotion ? 180 : 1320,
+    )
     return () => window.clearTimeout(timeout)
-  }, [reducedMotion, state])
+  }, [phase, reducedMotion])
 
   useEffect(() => {
-    if (state !== 'entering') return
-    setScannerPhase('captured')
+    if (phase !== 'captured') return
+    const timeout = window.setTimeout(
+      () => setPhase('reading'),
+      reducedMotion ? 80 : 390,
+    )
+    return () => window.clearTimeout(timeout)
+  }, [phase, reducedMotion])
 
-    if (reducedMotion) {
-      setScannerPhase('accepted')
+  useEffect(() => {
+    if (phase !== 'reading') return
+    const timeout = window.setTimeout(
+      () => setPhase('accepted'),
+      reducedMotion ? 100 : 640,
+    )
+    return () => window.clearTimeout(timeout)
+  }, [phase, reducedMotion])
+
+  useEffect(() => {
+    if (phase !== 'accepted') return
+
+    if (!acceptedRef.current) {
+      acceptedRef.current = true
+      onAccepted()
       triggerFieldScanCompleteFeedback()
-      return
     }
 
-    const readingTimer = window.setTimeout(() => setScannerPhase('reading'), 430)
-    const acceptedTimer = window.setTimeout(() => {
-      setScannerPhase('accepted')
-      triggerFieldScanCompleteFeedback()
-    }, 1450)
-
-    return () => {
-      window.clearTimeout(readingTimer)
-      window.clearTimeout(acceptedTimer)
-    }
-  }, [reducedMotion, state])
-
-  useEffect(() => {
-    if (state !== 'granted' || acceptedRef.current) return
-    acceptedRef.current = true
-    onAccepted()
-  }, [onAccepted, state])
-
-  useEffect(() => {
-    if (state !== 'ready' || begunRef.current) return
-    begunRef.current = true
-    const timeout = window.setTimeout(onBegin, reducedMotion ? 180 : 980)
+    sinkAcceptedCard(directLayerRef.current, reducedMotion)
+    const timeout = window.setTimeout(
+      () => setPhase('unlocked'),
+      reducedMotion ? 140 : 720,
+    )
     return () => window.clearTimeout(timeout)
-  }, [onBegin, reducedMotion, state])
+  }, [onAccepted, phase, reducedMotion])
 
   useEffect(() => {
-    if (state !== 'recognized' && state !== 'insert' && state !== 'unlocked') return
+    if (phase !== 'recognized' && phase !== 'presented' && phase !== 'unlocked') return
     const frame = window.requestAnimationFrame(() => {
-      if (state === 'recognized') presentButtonRef.current?.focus({ preventScroll: true })
-      if (state === 'insert') insertButtonRef.current?.focus({ preventScroll: true })
-      if (state === 'unlocked') beginButtonRef.current?.focus({ preventScroll: true })
+      if (phase === 'recognized') presentButtonRef.current?.focus({ preventScroll: true })
+      if (phase === 'presented') directLayerRef.current?.focus({ preventScroll: true })
+      if (phase === 'unlocked') beginButtonRef.current?.focus({ preventScroll: true })
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [state])
+  }, [phase])
 
-  const enterInsertState = () => {
+  useEffect(() => () => {
+    if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current)
+    captureAnimationRef.current?.cancel()
+  }, [])
+
+  const presentObject = () => {
     committedRef.current = false
-    rawDragRef.current = 0
     alignedRef.current = false
-    setDragX(0)
-    setDragY(0)
     setAligned(false)
-    setScannerPhase('idle')
-    setState('insert')
+    setReaderProximity(readerRef.current, 0)
+    clearDirectLayer(directLayerRef.current)
+    dragRef.current = emptyDragSnapshot()
+    setPhase('presented')
   }
 
   const commitInsertion = () => {
-    if (state !== 'insert' || committedRef.current) return
+    if (phase !== 'presented' || committedRef.current) return
     committedRef.current = true
-    rawDragRef.current = RAW_COMMIT_DISTANCE
-    setDragX(0)
-    setDragY(VISUAL_DRAG_LIMIT)
+    alignedRef.current = true
     setAligned(true)
-    setScannerPhase('captured')
+    setReaderProximity(readerRef.current, 1)
     triggerFieldCaptureFeedback()
-    setState('entering')
+    setPhase('captured')
+
+    const node = directLayerRef.current
+    if (!node) return
+
+    captureAnimationRef.current?.cancel()
+    const startTransform = node.style.transform || 'translate3d(0px, 0px, 0px) rotate(0deg)'
+    const finalTransform = `translate3d(0px, ${CAPTURE_TRANSLATE_Y}px, 0px) scale(.992)`
+
+    if (reducedMotion) {
+      node.style.transform = finalTransform
+      return
+    }
+
+    const animation = node.animate(
+      [
+        { transform: startTransform },
+        { transform: finalTransform, offset: 1 },
+      ],
+      {
+        duration: CAPTURE_DURATION,
+        easing: 'cubic-bezier(.18, .82, .22, 1)',
+        fill: 'forwards',
+      },
+    )
+    captureAnimationRef.current = animation
+    animation.addEventListener('finish', () => {
+      node.style.transform = finalTransform
+      animation.cancel()
+      captureAnimationRef.current = null
+    }, { once: true })
   }
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (state !== 'insert') return
-    pointerOrigin.current = { x: event.clientX, y: event.clientY }
+    if (phase !== 'presented') return
+    pointerOriginRef.current = { x: event.clientX, y: event.clientY }
+    dragRef.current = {
+      ...emptyDragSnapshot(),
+      lastY: event.clientY,
+      lastAt: event.timeStamp,
+    }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (state !== 'insert' || !event.currentTarget.hasPointerCapture(event.pointerId)) return
+    if (phase !== 'presented' || !event.currentTarget.hasPointerCapture(event.pointerId)) return
 
-    const rawY = Math.max(0, Math.min(RAW_DRAG_LIMIT, event.clientY - pointerOrigin.current.y))
-    const progress = Math.min(1, rawY / RAW_COMMIT_DISTANCE)
-    const rawX = Math.max(-30, Math.min(30, event.clientX - pointerOrigin.current.x))
-    const magneticPull = Math.max(0, Math.min(1, (progress - 0.3) / 0.7))
-    const nextX = rawX * (1 - magneticPull)
-    const nextY = resistedDistance(rawY)
+    const rawY = clamp(event.clientY - pointerOriginRef.current.y, 0, MAX_DRAG_DISTANCE)
+    const rawX = clamp(event.clientX - pointerOriginRef.current.x, -26, 26)
+    const progress = clamp(rawY / COMMIT_DISTANCE, 0, 1)
+    const magneticPull = clamp((progress - 0.42) / 0.58, 0, 1)
+    const visualX = rawX * (1 - magneticPull * 0.94)
+    const visualY = directDistance(rawY)
+    const elapsed = Math.max(1, event.timeStamp - dragRef.current.lastAt)
+    const velocityY = (event.clientY - dragRef.current.lastY) / elapsed
+
+    dragRef.current = {
+      rawX,
+      rawY,
+      visualX,
+      visualY,
+      velocityY,
+      lastY: event.clientY,
+      lastAt: event.timeStamp,
+    }
+
+    scheduleDirectTransform(visualX, visualY)
+    setReaderProximity(readerRef.current, progress)
+
     const nextAligned = progress >= ALIGNMENT_THRESHOLD
-
-    rawDragRef.current = rawY
-    setDragX(nextX)
-    setDragY(nextY)
-
     if (nextAligned && !alignedRef.current) {
       alignedRef.current = true
       setAligned(true)
-      setScannerPhase('aligned')
       triggerFieldAlignmentFeedback()
-    } else if (!nextAligned && alignedRef.current && progress < ALIGNMENT_THRESHOLD - 0.12) {
+    } else if (!nextAligned && alignedRef.current && progress < ALIGNMENT_THRESHOLD - 0.16) {
       alignedRef.current = false
       setAligned(false)
-      setScannerPhase('idle')
     }
   }
 
   const handlePointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (state !== 'insert') return
+    if (phase !== 'presented') return
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
 
-    if (rawDragRef.current >= RAW_COMMIT_DISTANCE) {
+    const drag = dragRef.current
+    const committed = drag.rawY >= COMMIT_DISTANCE
+      || (drag.rawY >= FLICK_DISTANCE && drag.velocityY >= 0.48)
+
+    if (committed) {
       commitInsertion()
       return
     }
 
-    rawDragRef.current = 0
     alignedRef.current = false
-    setDragX(0)
-    setDragY(0)
     setAligned(false)
-    setScannerPhase('idle')
+    setReaderProximity(readerRef.current, 0)
+    returnCardToRest(directLayerRef.current, reducedMotion)
+    dragRef.current = emptyDragSnapshot()
   }
 
   const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -200,12 +266,29 @@ export function FieldAccessRitual({
     commitInsertion()
   }
 
-  const insertProgress = Math.min(1, rawDragRef.current / RAW_COMMIT_DISTANCE)
+  const beginOperation = () => {
+    if (begunRef.current) return
+    begunRef.current = true
+    onBegin()
+  }
+
+  const scheduleDirectTransform = (x: number, y: number) => {
+    pendingTransformRef.current = { x, y }
+    if (rafRef.current !== null) return
+
+    rafRef.current = window.requestAnimationFrame(() => {
+      rafRef.current = null
+      const node = directLayerRef.current
+      if (!node) return
+      const pending = pendingTransformRef.current
+      node.style.transform = `translate3d(${pending.x}px, ${pending.y}px, 0px) rotate(${pending.x * 0.012}deg)`
+    })
+  }
 
   return (
     <main
       className="field-access-terminal"
-      data-state={state}
+      data-state={phase}
       data-returning={returning ? 'true' : 'false'}
       aria-labelledby="field-access-title"
     >
@@ -216,168 +299,103 @@ export function FieldAccessRitual({
         </header>
 
         <div className="field-access-terminal__content">
-          {state === 'detected' && (
-            <section className="field-access-screen field-access-screen--detected">
+          {phase === 'detected' ? (
+            <section className="field-access-screen field-access-screen--detected field-access-detection">
               <p className="field-access-kicker">EXTERNAL INPUT</p>
               <h1 id="field-access-title">OBJECT<br />DETECTED</h1>
               <p>A field object has entered range.<br />Hold steady while the terminal reads it.</p>
-              <div className="field-access-scan" aria-hidden="true">
-                <i /><i /><i /><i />
-              </div>
+              <div className="field-access-scan" aria-hidden="true"><i /><i /><i /><i /></div>
               <span className="field-access-machine-copy">READING EXTERNAL OBJECT…</span>
               <div className="field-access-ghost-object" aria-hidden="true">UNRESOLVED OBJECT</div>
             </section>
-          )}
-
-          {state === 'recognized' && (
-            <section className="field-access-screen field-access-screen--recognized">
-              <p className="field-access-kicker">AUTHENTICITY / VALID</p>
-              <h1 id="field-access-title">OBJECT<br />RECOGNIZED</h1>
-              <FieldObjectCard edition={config.edition} token={token} compact />
-              <dl className="field-access-metadata">
-                <div><dt>FIELD OBJECT</dt><dd>LD–{config.edition}</dd></div>
-                <div><dt>CLASS</dt><dd>{config.objectName.toUpperCase()}</dd></div>
-                <div><dt>SERIAL</dt><dd>{token}</dd></div>
-                <div><dt>ACCESS</dt><dd>{returning ? 'RECOGNIZED' : 'VALID'}</dd></div>
-              </dl>
-              <p className="field-access-caption">
-                {returning ? 'The terminal remembers this object.' : 'Compare the object in your hand. Continue when ready.'}
-              </p>
-              <button
-                ref={presentButtonRef}
-                type="button"
-                className="field-access-button field-access-button--secondary field-access-button--present"
-                onClick={enterInsertState}
-              >
-                PRESENT OBJECT
-              </button>
-            </section>
-          )}
-
-          {state === 'insert' && (
-            <section className="field-access-screen field-access-screen--insert">
-              <p className="field-access-kicker">FIELD ACCESS REQUIRED</p>
-              <h1 id="field-access-title">INSERT THE<br />FOUND OBJECT</h1>
-              <p>Guide the artifact into the reader.<br />The machine will take it from you.</p>
-              <div
-                className="field-access-draggable"
-                data-aligned={aligned ? 'true' : 'false'}
-                role="button"
-                tabIndex={0}
-                aria-label={`Insert field object ${config.edition}`}
-                aria-describedby="field-access-insert-help"
-                style={{
-                  '--field-card-drag-x': `${dragX}px`,
-                  '--field-card-drag-y': `${dragY}px`,
-                  '--field-card-progress': insertProgress,
-                } as CSSProperties}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerEnd}
-                onPointerCancel={handlePointerEnd}
-                onKeyDown={handleCardKeyDown}
-              >
-                <FieldObjectCard edition={config.edition} token={token} compact />
+          ) : (
+            <section className="field-access-one-shot" data-phase={phase} data-aligned={aligned ? 'true' : 'false'}>
+              <div className="field-access-one-shot__hero">
+                <p className="field-access-kicker field-access-one-shot__kicker" aria-hidden="true">
+                  <span data-copy="recognized">AUTHENTICITY / VALID</span>
+                  <span data-copy="accepted">FIELD OBJECT / ACCEPTED</span>
+                  <span data-copy="unlocked">MACHINE ASSIGNMENT / COMPLETE</span>
+                </p>
+                <h1 id="field-access-title" className="field-access-one-shot__title">
+                  <span data-copy="recognized" aria-hidden="true">OBJECT<br />RECOGNIZED</span>
+                  <span data-copy="accepted" aria-hidden="true">OBJECT<br />ACCEPTED</span>
+                  <span data-copy="unlocked" aria-hidden="true">BAD DAY<br />RECEIPT</span>
+                  <span className="field-access-sr-only">{accessibleTitle}</span>
+                </h1>
+                <p className="field-access-one-shot__lead">
+                  {returning ? 'The terminal remembers this object.' : 'Compare the object in your hand.'}<br />
+                  Continue when ready.
+                </p>
               </div>
-              <span id="field-access-insert-help" className="field-access-swipe-label">
-                {aligned ? 'ALIGNMENT FOUND' : 'SWIPE DOWN'}
-              </span>
-              <MachineSlot aligned={aligned} progress={insertProgress} phase={aligned ? 'aligned' : 'idle'} />
-              <button
-                ref={insertButtonRef}
-                type="button"
-                className="field-access-button field-access-button--secondary"
-                onClick={commitInsertion}
-              >
-                INSERT ARTIFACT
-              </button>
-            </section>
-          )}
 
-          {state === 'entering' && (
-            <section className="field-access-screen field-access-screen--entering" data-scanner-phase={scannerPhase}>
-              <p className="field-access-kicker">MECHANICAL CAPTURE</p>
-              <h1 id="field-access-title">OBJECT<br />UNDER READ</h1>
-              <p className="field-access-machine-copy">
-                {scannerPhase === 'captured' && <>CONTACT / CONFIRMED<br />ROLLER DRIVE / ACTIVE</>}
-                {scannerPhase === 'reading' && <>READING PRINTED FIELD<br />MATCHING SERIAL / {token}</>}
-                {scannerPhase === 'accepted' && <>OBJECT / ACCEPTED<br />RELEASING MACHINE ACCESS</>}
-              </p>
-              <div className="field-access-entering-object" aria-hidden="true">
-                <FieldObjectCard edition={config.edition} token={token} compact entering />
+              <div className="field-access-one-shot__metadata" aria-label="Field object details">
+                <span>LD–{config.edition}</span>
+                <span>{config.objectName.toUpperCase()}</span>
+                <span>SERIAL / {token}</span>
               </div>
-              <MachineSlot engaged progress={1} phase={scannerPhase} />
-              <div className="field-access-dark-well">
-                <span>{scannerPhase === 'accepted' ? 'READ COMPLETE' : 'DO NOT REMOVE OBJECT'}</span>
-                <p>{scannerPhase === 'reading' ? 'OPTICAL FIELD PASS…' : scannerPhase === 'accepted' ? 'FIELD OBJECT RETAINED' : 'MECHANICAL COUPLING…'}</p>
-              </div>
-            </section>
-          )}
 
-          {state === 'verifying' && (
-            <section className="field-access-screen field-access-screen--verifying">
-              <p className="field-access-kicker">FIELD OBJECT / ACCEPTED</p>
-              <h1 id="field-access-title">VERIFYING<br />ACCESS</h1>
-              <div className="field-access-checklist" role="status">
-                <div><span>READING OBJECT HISTORY</span><strong>COMPLETE</strong></div>
-                <div><span>VERIFYING FIELD ACCESS</span><strong>COMPLETE</strong></div>
-                <div><span>CALIBRATING MACHINE</span><strong>ACTIVE</strong></div>
-              </div>
-              <span className="field-access-muted-note">PLEASE KEEP THIS WINDOW OPEN</span>
-            </section>
-          )}
-
-          {state === 'granted' && (
-            <section className="field-access-screen field-access-screen--granted">
-              <p className="field-access-kicker">AUTHORIZATION / FIELD OBJECT</p>
-              <h1 id="field-access-title">ACCESS<br />GRANTED</h1>
-              <div className="field-access-grant-card" role="status">
-                <span aria-hidden="true">✓</span>
-                <strong>FIELD OBJECT {config.edition}<br />HAS BEEN ACCEPTED</strong>
-                <small>SERIAL / {token}<br />ACCESS CLASS / SOFT MACHINE</small>
-              </div>
-              <span className="field-access-machine-copy">UNLOCKING ASSIGNED MACHINE…</span>
-            </section>
-          )}
-
-          {state === 'unlocked' && (
-            <section className="field-access-screen field-access-screen--unlocked">
-              <p className="field-access-kicker">MACHINE ASSIGNMENT / COMPLETE</p>
-              <h1 id="field-access-title">BAD DAY<br />RECEIPT</h1>
-              <span className="field-access-machine-copy">{config.machineLabel} / SOFT MACHINE</span>
-              <hr />
-              <p>Documents difficult days<br />before they leak everywhere.</p>
-              <div className="field-access-machine-state">
-                <span>MACHINE STATE</span>
-                <strong>READY</strong>
-                <i aria-hidden="true" />
-                <small>UNLOCKED BY LD–{config.edition} / {token}</small>
-              </div>
-              <button
-                ref={beginButtonRef}
-                type="button"
-                className="field-access-button field-access-button--primary"
-                onClick={() => setState('ready')}
-              >
-                BEGIN OPERATION
-              </button>
-            </section>
-          )}
-
-          {state === 'ready' && (
-            <section className="field-access-screen field-access-screen--ready">
-              <p className="field-access-kicker">SM–001 / OPERATION READY</p>
-              <h1 id="field-access-title">DOCUMENT<br />THE DAY</h1>
-              <p>Before attempting to understand it.</p>
-              <div className="field-access-receipt-preview" aria-hidden="true">
-                <span>BAD DAY RECEIPT / SM–001</span>
-                <div>
-                  <strong>BAD DAY<br />RECEIPT</strong>
-                  <p>EMOTIONAL OVERHEAD ··· OPEN<br />UNFINISHED THOUGHTS ··· 14<br />THINGS SURVIVED ········ 6</p>
-                  <small>FIELD ACCESS / LD–{config.edition}</small>
+              <div className="field-access-one-shot__stage">
+                <div className="field-access-card-trajectory">
+                  <div
+                    ref={directLayerRef}
+                    className="field-access-card-direct"
+                    data-continuous-object="true"
+                    role="button"
+                    tabIndex={phase === 'presented' ? 0 : -1}
+                    aria-label={`Guide field object ${config.edition} into the reader`}
+                    aria-describedby="field-access-gesture-help"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerEnd}
+                    onPointerCancel={handlePointerEnd}
+                    onKeyDown={handleCardKeyDown}
+                  >
+                    <FieldObjectCard edition={config.edition} token={token} compact />
+                  </div>
                 </div>
+
+                <MachineSlot ref={readerRef} phase={readerPhase}>
+                  <div className="field-access-machine-reveal">
+                    <span>{config.machineLabel} / SOFT MACHINE</span>
+                    <strong>BAD DAY<br />RECEIPT</strong>
+                    <p>Documents difficult days<br />before they leak everywhere.</p>
+                    <small>UNLOCKED BY LD–{config.edition} / {token}</small>
+                    <button
+                      ref={beginButtonRef}
+                      type="button"
+                      className="field-access-button field-access-button--primary"
+                      onClick={beginOperation}
+                    >
+                      BEGIN OPERATION
+                    </button>
+                  </div>
+                </MachineSlot>
+
+                <p id="field-access-gesture-help" className="field-access-one-shot__gesture">
+                  {phase === 'presented' ? 'Guide the object to the reader.' : statusText}
+                </p>
               </div>
-              <span className="field-access-machine-copy">MACHINE ONLINE…</span>
+
+              {phase === 'recognized' && (
+                <button
+                  ref={presentButtonRef}
+                  type="button"
+                  className="field-access-button field-access-button--secondary field-access-button--present"
+                  onClick={presentObject}
+                >
+                  PRESENT OBJECT
+                </button>
+              )}
+
+              {phase === 'presented' && (
+                <button
+                  type="button"
+                  className="field-access-one-shot__fallback"
+                  onClick={commitInsertion}
+                >
+                  INSERT ARTIFACT
+                </button>
+              )}
             </section>
           )}
         </div>
@@ -392,43 +410,124 @@ export function FieldAccessRitual({
   )
 }
 
-function automaticTransition(
-  state: RitualState,
-  reducedMotion: boolean,
-): { next: RitualState; delay: number } | null {
-  switch (state) {
-    case 'detected': return { next: 'recognized', delay: reducedMotion ? 220 : 1500 }
-    case 'entering': return { next: 'verifying', delay: reducedMotion ? 320 : 2100 }
-    case 'verifying': return { next: 'granted', delay: reducedMotion ? 480 : 2100 }
-    case 'granted': return { next: 'unlocked', delay: reducedMotion ? 420 : 1400 }
-    default: return null
+function readerPhaseFor(phase: RitualPhase, aligned: boolean): MachineSlotPhase {
+  if (phase === 'captured' || phase === 'reading' || phase === 'accepted' || phase === 'unlocked') {
+    return phase
   }
+  return aligned ? 'aligned' : 'idle'
 }
 
-function signalForState(state: RitualState): 0 | 1 | 2 | 3 {
-  if (state === 'detected') return 0
-  if (state === 'recognized' || state === 'insert') return 1
-  if (state === 'entering' || state === 'verifying') return 2
+function signalForPhase(phase: RitualPhase): 0 | 1 | 2 | 3 {
+  if (phase === 'detected') return 0
+  if (phase === 'recognized' || phase === 'presented') return 1
+  if (phase === 'captured' || phase === 'reading') return 2
   return 3
 }
 
-function statusForState(state: RitualState, returning: boolean, scannerPhase: ScannerPhase): string {
-  switch (state) {
+function titleForPhase(phase: RitualPhase): string {
+  if (phase === 'accepted') return 'Object accepted'
+  if (phase === 'unlocked') return 'Bad Day Receipt'
+  if (phase === 'detected') return 'Object detected'
+  return 'Object recognized'
+}
+
+function statusForPhase(phase: RitualPhase, returning: boolean, aligned: boolean): string {
+  switch (phase) {
     case 'detected': return 'External field object detected.'
     case 'recognized': return returning ? 'Known field object recognized. Present it when ready.' : 'Field object authenticity verified. Present it when ready.'
-    case 'insert': return 'Guide the field object into the reader by swiping down or activating Insert Artifact.'
-    case 'entering': return scannerPhase === 'accepted' ? 'Field object accepted.' : scannerPhase === 'reading' ? 'Field object serial is being read.' : 'The machine has captured the field object.'
-    case 'verifying': return 'Field access is being verified.'
-    case 'granted': return 'Access granted.'
+    case 'presented': return aligned ? 'Field object aligned with the reader.' : 'Guide the field object into the reader.'
+    case 'captured': return 'The reader has taken control of the field object.'
+    case 'reading': return 'Reading field object.'
+    case 'accepted': return 'Field object accepted.'
     case 'unlocked': return 'Bad Day Receipt unlocked. Begin operation when ready.'
-    case 'ready': return 'Bad Day Receipt machine online.'
   }
 }
 
-function resistedDistance(rawDistance: number): number {
-  if (rawDistance <= 48) return rawDistance
-  if (rawDistance <= RAW_COMMIT_DISTANCE) return 48 + (rawDistance - 48) * 0.72
-  return Math.min(VISUAL_DRAG_LIMIT, 94.08 + (rawDistance - RAW_COMMIT_DISTANCE) * 0.42)
+function directDistance(rawDistance: number): number {
+  if (rawDistance <= 84) return rawDistance
+  return 84 + (rawDistance - 84) * 0.58
+}
+
+function emptyDragSnapshot(): DragSnapshot {
+  return {
+    rawX: 0,
+    rawY: 0,
+    visualX: 0,
+    visualY: 0,
+    velocityY: 0,
+    lastY: 0,
+    lastAt: 0,
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function setReaderProximity(node: HTMLDivElement | null, value: number): void {
+  node?.style.setProperty('--field-reader-proximity', String(clamp(value, 0, 1)))
+}
+
+function clearDirectLayer(node: HTMLDivElement | null): void {
+  if (!node) return
+  node.getAnimations().forEach((animation) => animation.cancel())
+  node.style.removeProperty('transform')
+  node.style.removeProperty('opacity')
+}
+
+function returnCardToRest(node: HTMLDivElement | null, reducedMotion: boolean): void {
+  if (!node) return
+  const currentTransform = node.style.transform || 'translate3d(0px, 0px, 0px)'
+  if (reducedMotion) {
+    node.style.removeProperty('transform')
+    return
+  }
+
+  const animation = node.animate(
+    [
+      { transform: currentTransform },
+      { transform: 'translate3d(0px, 0px, 0px) rotate(0deg)' },
+    ],
+    {
+      duration: 360,
+      easing: 'cubic-bezier(.22, .8, .2, 1)',
+      fill: 'forwards',
+    },
+  )
+  animation.addEventListener('finish', () => {
+    node.style.removeProperty('transform')
+    animation.cancel()
+  }, { once: true })
+}
+
+function sinkAcceptedCard(node: HTMLDivElement | null, reducedMotion: boolean): void {
+  if (!node) return
+  const finalTransform = `translate3d(0px, ${CAPTURE_TRANSLATE_Y + 64}px, 0px) scale(.982)`
+  if (reducedMotion) {
+    node.style.transform = finalTransform
+    node.style.opacity = '0'
+    return
+  }
+
+  const currentTransform = getComputedStyle(node).transform === 'none'
+    ? `translate3d(0px, ${CAPTURE_TRANSLATE_Y}px, 0px) scale(.992)`
+    : getComputedStyle(node).transform
+  const animation = node.animate(
+    [
+      { transform: currentTransform, opacity: 1 },
+      { transform: finalTransform, opacity: 0 },
+    ],
+    {
+      duration: 620,
+      easing: 'cubic-bezier(.22, .8, .2, 1)',
+      fill: 'forwards',
+    },
+  )
+  animation.addEventListener('finish', () => {
+    node.style.transform = finalTransform
+    node.style.opacity = '0'
+    animation.cancel()
+  }, { once: true })
 }
 
 function useReducedMotion(): boolean {
