@@ -49,12 +49,12 @@ export function claimFieldAccess(
   ))
   const timestamp = now.toISOString()
   const context: FieldAccessContext = existing
-    ? { ...existing, lastAccessedAt: timestamp }
+    ? { ...existing, machineId: 'LD-001', lastAccessedAt: timestamp }
     : {
         edition: config.edition,
         token: normalizedToken,
         objectType: config.objectType,
-        machineId: config.machineId,
+        machineId: 'LD-001',
         firstAccessedAt: timestamp,
         lastAccessedAt: timestamp,
       }
@@ -134,7 +134,7 @@ function parseContext(value: unknown): FieldAccessContext | null {
   if (typeof value.edition !== 'string' || !/^\d{2}$/.test(value.edition)) return null
   if (typeof value.token !== 'string' || !/^[A-Z0-9]{4,24}$/.test(value.token)) return null
   if (!isFieldObjectType(value.objectType)) return null
-  if (value.machineId !== 'bad-day-receipt') return null
+  if (value.machineId !== 'LD-001' && value.machineId !== 'bad-day-receipt') return null
   if (typeof value.firstAccessedAt !== 'string') return null
   if (typeof value.lastAccessedAt !== 'string') return null
 
@@ -142,7 +142,7 @@ function parseContext(value: unknown): FieldAccessContext | null {
     edition: value.edition,
     token: value.token,
     objectType: value.objectType,
-    machineId: value.machineId,
+    machineId: 'LD-001',
     firstAccessedAt: value.firstAccessedAt,
     lastAccessedAt: value.lastAccessedAt,
   }
