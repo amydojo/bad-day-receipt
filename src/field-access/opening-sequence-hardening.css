@@ -13,6 +13,12 @@ body.field-access-scroll-locked {
   touch-action: none;
 }
 
+body.field-access-scroll-locked #root {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .field-access-terminal {
   width: 100vw;
   height: 100vh;
