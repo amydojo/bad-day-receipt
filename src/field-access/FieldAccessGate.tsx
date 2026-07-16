@@ -3,6 +3,7 @@ import {
   lazy,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -59,6 +60,8 @@ function ResolvedFieldAccessGate({
   const [machineOpen, setMachineOpen] = useState(false)
   const [context, setContext] = useState<FieldAccessContext | null>(null)
   const returning = isRecognizedFieldAccess(route.edition, route.token)
+
+  useFieldAccessDocumentLock(!machineOpen)
 
   const acceptObject = useCallback(() => {
     setContext(claimFieldAccess(config, route.token))
@@ -179,6 +182,58 @@ function UnknownFieldObject({ reason }: { reason: string }) {
       </div>
     </main>
   )
+}
+
+function useFieldAccessDocumentLock(active: boolean): void {
+  useLayoutEffect(() => {
+    if (!active) return
+
+    const root = document.documentElement
+    const body = document.body
+    const scrollX = window.scrollX
+    const scrollY = window.scrollY
+    const previous = {
+      rootOverflow: root.style.overflow,
+      rootOverscrollBehavior: root.style.overscrollBehavior,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      bodyHeight: body.style.height,
+      bodyOverflow: body.style.overflow,
+      bodyOverscrollBehavior: body.style.overscrollBehavior,
+    }
+
+    root.classList.add('field-access-scroll-locked')
+    body.classList.add('field-access-scroll-locked')
+    root.style.overflow = 'hidden'
+    root.style.overscrollBehavior = 'none'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.left = `-${scrollX}px`
+    body.style.right = '0'
+    body.style.width = '100%'
+    body.style.height = '100%'
+    body.style.overflow = 'hidden'
+    body.style.overscrollBehavior = 'none'
+
+    return () => {
+      root.classList.remove('field-access-scroll-locked')
+      body.classList.remove('field-access-scroll-locked')
+      root.style.overflow = previous.rootOverflow
+      root.style.overscrollBehavior = previous.rootOverscrollBehavior
+      body.style.position = previous.bodyPosition
+      body.style.top = previous.bodyTop
+      body.style.left = previous.bodyLeft
+      body.style.right = previous.bodyRight
+      body.style.width = previous.bodyWidth
+      body.style.height = previous.bodyHeight
+      body.style.overflow = previous.bodyOverflow
+      body.style.overscrollBehavior = previous.bodyOverscrollBehavior
+      window.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' })
+    }
+  }, [active])
 }
 
 function readLastCompletedReceiptNumber(): string | null {
