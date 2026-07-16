@@ -1,6 +1,8 @@
+import { Analytics } from '@vercel/analytics/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { analyticsBeforeSend } from './analytics/fieldAnalytics'
 import { MachineErrorBoundary } from './components/MachineErrorBoundary'
 import { FieldAccessGate } from './field-access/FieldAccessGate'
 import './styles.css'
@@ -33,6 +35,7 @@ import './field-access/top-load-reader-motion.css'
 import './field-access/field-access-accessibility.css'
 // Keep the viewport contract last; it is the release-level source of truth.
 import './field-access/opening-sequence-hardening.css'
+import './analytics/analytics.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -40,6 +43,10 @@ createRoot(document.getElementById('root')!).render(
       <FieldAccessGate>
         <App />
       </FieldAccessGate>
+      <Analytics
+        mode={import.meta.env.PROD ? 'production' : 'development'}
+        beforeSend={analyticsBeforeSend}
+      />
     </MachineErrorBoundary>
   </StrictMode>,
 )

@@ -9,7 +9,9 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { getFieldAccessConfig, publicArchiveUrl } from './fieldAccessConfig'
+import { InstagramRedirect, MetricsDashboard } from '../analytics/AnalyticsRoutes'
+import { fieldEventContext, trackFieldEvent } from '../analytics/fieldAnalytics'
+import { getFieldAccessConfig } from './fieldAccessConfig'
 import { parseFieldAccessRoute } from './fieldAccessRoute'
 import {
   claimFieldAccess,
@@ -33,8 +35,11 @@ interface FieldAccessGateProps {
 type ResolvedAccessRoute = Extract<FieldAccessRoute, { kind: 'access' }>
 
 export function FieldAccessGate({ children }: FieldAccessGateProps) {
-  const route = useMemo(() => parseFieldAccessRoute(window.location.pathname), [])
+  const pathname = window.location.pathname
+  const route = useMemo(() => parseFieldAccessRoute(pathname), [pathname])
 
+  if (pathname === '/go/instagram') return <InstagramRedirect />
+  if (pathname === '/lab/metrics') return <MetricsDashboard />
   if (route.kind === 'root') return children
   if (route.kind === 'invalid') return <UnknownFieldObject reason={route.reason} />
 
@@ -60,22 +65,43 @@ function ResolvedFieldAccessGate({
   const [machineOpen, setMachineOpen] = useState(false)
   const [context, setContext] = useState<FieldAccessContext | null>(null)
   const returning = isRecognizedFieldAccess(route.edition, route.token)
+  const analyticsContext = useMemo(
+    () => fieldEventContext(config, route.token, returning),
+    [config, returning, route.token],
+  )
 
   useFieldAccessDocumentLock(!machineOpen)
 
+  useEffect(() => {
+    trackFieldEvent('field_opened', analyticsContext, { oncePerLoad: true })
+  }, [analyticsContext])
+
+  useEffect(() => {
+    const trackPresentation = (event: MouseEvent) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (!target.closest('.field-access-button--present')) return
+      trackFieldEvent('object_presented', analyticsContext, { oncePerLoad: true })
+    }
+    document.addEventListener('click', trackPresentation)
+    return () => document.removeEventListener('click', trackPresentation)
+  }, [analyticsContext])
+
   const acceptObject = useCallback(() => {
     setContext(claimFieldAccess(config, route.token))
-  }, [config, route.token])
+    trackFieldEvent('qr_verified', analyticsContext, { oncePerLoad: true })
+  }, [analyticsContext, config, route.token])
 
   const beginMachine = useCallback(() => {
     const accepted = context ?? claimFieldAccess(config, route.token)
     setContext(accepted)
+    trackFieldEvent('machine_started', analyticsContext, { oncePerLoad: true })
     setMachineOpen(true)
-  }, [config, context, route.token])
+  }, [analyticsContext, config, context, route.token])
 
   if (!machineOpen || !context) {
     return (
-      <Suspense fallback={<FieldAccessLoading />}>
+      <Suspense fallback={<FieldAccessLoading edition={config.edition} />}>
         <FieldAccessRitual
           config={config}
           token={route.token}
@@ -88,18 +114,18 @@ function ResolvedFieldAccessGate({
   }
 
   return (
-    <FieldAccessContinuation context={context}>
+    <FieldAccessContinuation context={context} config={config}>
       {children}
     </FieldAccessContinuation>
   )
 }
 
-function FieldAccessLoading() {
+function FieldAccessLoading({ edition }: { edition: string }) {
   return (
     <main className="field-access-terminal" aria-label="Loading field access terminal">
       <div className="field-access-terminal__shell">
         <header className="field-access-terminal__header">
-          <span>LD–FIELD TERMINAL / 01</span>
+          <span>LD–FIELD TERMINAL / {edition}</span>
         </header>
         <section className="field-access-screen field-access-screen--detected">
           <p className="field-access-kicker">EXTERNAL INPUT</p>
@@ -115,21 +141,30 @@ function FieldAccessLoading() {
 function FieldAccessContinuation({
   children,
   context,
+  config,
 }: {
   children: ReactNode
   context: FieldAccessContext
+  config: FieldAccessConfig
 }) {
   const baselineReceipt = useRef(readLastCompletedReceiptNumber())
+  const trackedReceipt = useRef<string | null>(null)
   const [rewardReady, setRewardReady] = useState(false)
   const [archiveDismissed, setArchiveDismissed] = useState(false)
 
   useEffect(() => {
     const interval = window.setInterval(() => {
       const current = readLastCompletedReceiptNumber()
-      if (current && current !== baselineReceipt.current) setRewardReady(true)
+      if (!current || current === baselineReceipt.current) return
+      setRewardReady(true)
+      if (trackedReceipt.current === current) return
+      trackedReceipt.current = current
+      trackFieldEvent('receipt_generated', fieldEventContext(config, context.token), { oncePerLoad: true })
     }, 700)
     return () => window.clearInterval(interval)
-  }, [])
+  }, [config, context.token])
+
+  const archiveUrl = `/go/instagram?edition=${encodeURIComponent(context.edition)}&token=${encodeURIComponent(context.token)}&source=artifact-bridge`
 
   return (
     <div
@@ -156,7 +191,7 @@ function FieldAccessContinuation({
           <span>ARTIFACT GENERATED</span>
           <strong id="field-archive-title">FIELD OBJECT {context.edition}<br />HAS OPERATED SM–001</strong>
           <p>Other field objects and future machines are documented inside the public archive.</p>
-          <a href={publicArchiveUrl} target="_blank" rel="noreferrer">
+          <a href={archiveUrl} target="_blank" rel="noopener">
             OPEN THE PUBLIC ARCHIVE ↗
           </a>
         </aside>

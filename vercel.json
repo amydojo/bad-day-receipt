@@ -1,5 +1,7 @@
 {
   "rewrites": [
-    { "source": "/access/:path*", "destination": "/index.html" }
+    { "source": "/access/:path*", "destination": "/index.html" },
+    { "source": "/go/:path*", "destination": "/index.html" },
+    { "source": "/lab/:path*", "destination": "/index.html" }
   ]
 }
