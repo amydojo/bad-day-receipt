@@ -1,8 +1,10 @@
 import { track } from '@vercel/analytics'
 import type { BeforeSendEvent } from '@vercel/analytics/react'
 import type { FieldAccessConfig } from '../field-access/fieldAccessTypes'
+import { sendFieldTelemetry } from './supabaseFieldClient'
 
 export const FIELD_ANALYTICS_BATCH = 'FIELD-001'
+export const CANONICAL_MACHINE_CODE = 'LD-001'
 
 export const fieldEventNames = [
   'field_opened',
@@ -40,21 +42,28 @@ export function trackFieldEvent(
 
   const placement = sanitizeDimension(context.placement ?? readPlacement())
   const source = sanitizeDimension(context.source)
+  const canonicalContext: FieldEventContext = {
+    ...context,
+    machineId: CANONICAL_MACHINE_CODE,
+    placement,
+    source,
+  }
 
   try {
     track(eventName, {
       batch: FIELD_ANALYTICS_BATCH,
       edition: context.edition,
-      token: context.token,
       object_type: context.objectType ?? 'unknown',
-      machine: context.machineId ?? 'bad-day-receipt',
+      machine: CANONICAL_MACHINE_CODE,
       returning: context.returning ?? false,
       placement: placement ?? 'unassigned',
       source: source ?? 'field-object',
     })
   } catch {
-    // Analytics must never interrupt the machine ritual.
+    // Vercel analytics is supplemental and must never interrupt the ritual.
   }
+
+  sendFieldTelemetry(eventName, canonicalContext)
 }
 
 export function fieldEventContext(
@@ -66,7 +75,7 @@ export function fieldEventContext(
     edition: config.edition,
     token,
     objectType: config.objectType,
-    machineId: config.machineId,
+    machineId: CANONICAL_MACHINE_CODE,
     returning,
   }
 }
@@ -74,7 +83,7 @@ export function fieldEventContext(
 export function analyticsBeforeSend(event: BeforeSendEvent): BeforeSendEvent | null {
   const url = new URL(event.url)
 
-  // The operator dashboard is intentionally excluded from traffic totals.
+  // The operator dashboard is intentionally excluded from public traffic totals.
   if (url.pathname.startsWith('/lab/metrics')) return null
 
   // Query parameters are operational metadata, not page identity.
