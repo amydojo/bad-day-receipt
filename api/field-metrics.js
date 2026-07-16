@@ -13,7 +13,7 @@ const fieldObjects = [
   { edition: '08', token: 'JWB639', name: 'Operating Instructions' },
   { edition: '09', token: 'STS68S', name: 'Field Note' },
   { edition: '10', token: 'DJ39LF', name: 'Specimen Room' },
-] as const
+]
 
 const eventNames = [
   'field_opened',
@@ -22,25 +22,10 @@ const eventNames = [
   'machine_started',
   'receipt_generated',
   'instagram_clicked',
-] as const
-
-type EventName = (typeof eventNames)[number]
-
-type MetricCard = {
-  edition: string
-  token: string
-  name: string
-  pageviews: number
-  visitors: number
-} & Record<EventName, number>
-
-type VisitTotals = {
-  pageviews: number
-  visitors: number
-}
+]
 
 export default {
-  async fetch(request: Request): Promise<Response> {
+  async fetch(request) {
     if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405)
 
     const operatorKey = process.env.LAB_METRICS_KEY
@@ -69,7 +54,7 @@ export default {
         queryEvents(vercelToken, since, until).catch(() => []),
       ])
 
-      const cards = fieldObjects.map<MetricCard>((object) => ({
+      const cards = fieldObjects.map((object) => ({
         ...object,
         pageviews: 0,
         visitors: 0,
@@ -105,7 +90,7 @@ export default {
         const token = dimension(row, 'token')
         const eventName = stringValue(row.eventName ?? row.event_name)
         const card = token ? byToken.get(token) : null
-        if (!card || !isEventName(eventName)) continue
+        if (!card || !eventNames.includes(eventName)) continue
         const count = eventCount(row)
         if (eventName === 'instagram_clicked') {
           card.instagram_clicked = Math.max(card.instagram_clicked, count)
@@ -142,7 +127,7 @@ export default {
   },
 }
 
-async function queryVisits(token: string, since: Date, until: Date): Promise<Record<string, unknown>[]> {
+async function queryVisits(token, since, until) {
   const url = analyticsUrl('/visits/aggregate', since, until)
   url.searchParams.append('by', 'requestPath')
   url.searchParams.set('limit', '100')
@@ -150,7 +135,7 @@ async function queryVisits(token: string, since: Date, until: Date): Promise<Rec
   return queryRows(url, token)
 }
 
-async function queryVisitTotals(token: string, since: Date, until: Date): Promise<VisitTotals> {
+async function queryVisitTotals(token, since, until) {
   const url = analyticsUrl('/visits/count', since, until)
   url.searchParams.set('filter', accessPathFilter())
   const response = await fetch(url, {
@@ -159,10 +144,7 @@ async function queryVisitTotals(token: string, since: Date, until: Date): Promis
       Accept: 'application/json',
     },
   })
-  const payload = await response.json() as {
-    data?: { pageviews?: unknown; visitors?: unknown }
-    error?: { message?: string } | string
-  }
+  const payload = await response.json()
   if (!response.ok) {
     const message = typeof payload.error === 'string' ? payload.error : payload.error?.message
     throw new Error(message ?? `Vercel Analytics returned ${response.status}.`)
@@ -173,7 +155,7 @@ async function queryVisitTotals(token: string, since: Date, until: Date): Promis
   }
 }
 
-async function queryEvents(token: string, since: Date, until: Date): Promise<Record<string, unknown>[]> {
+async function queryEvents(token, since, until) {
   const url = analyticsUrl('/events/aggregate', since, until)
   url.searchParams.append('by', 'eventName')
   url.searchParams.append('by', 'eventData/edition')
@@ -183,30 +165,30 @@ async function queryEvents(token: string, since: Date, until: Date): Promise<Rec
   return queryRows(url, token)
 }
 
-function accessPathFilter(): string {
+function accessPathFilter() {
   return pathFilter(fieldObjects.map(accessPath))
 }
 
-function trackedPathFilter(): string {
+function trackedPathFilter() {
   return pathFilter([
     ...fieldObjects.map(accessPath),
     ...fieldObjects.map(instagramPath),
   ])
 }
 
-function pathFilter(paths: readonly string[]): string {
+function pathFilter(paths) {
   return `requestPath in (${paths.map((path) => `'${path}'`).join(',')})`
 }
 
-function accessPath(object: { edition: string; token: string }): string {
+function accessPath(object) {
   return `/access/${object.edition}/${object.token}`
 }
 
-function instagramPath(object: { edition: string; token: string }): string {
+function instagramPath(object) {
   return `/go/instagram/${object.edition}/${object.token}`
 }
 
-function analyticsUrl(path: string, since: Date, until: Date): URL {
+function analyticsUrl(path, since, until) {
   const url = new URL(`${ANALYTICS_API}${path}`)
   url.searchParams.set('projectId', PROJECT_ID)
   url.searchParams.set('teamId', TEAM_ID)
@@ -215,14 +197,14 @@ function analyticsUrl(path: string, since: Date, until: Date): URL {
   return url
 }
 
-async function queryRows(url: URL, token: string): Promise<Record<string, unknown>[]> {
+async function queryRows(url, token) {
   const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'application/json',
     },
   })
-  const payload = await response.json() as { data?: unknown; error?: { message?: string } | string }
+  const payload = await response.json()
   if (!response.ok) {
     const message = typeof payload.error === 'string' ? payload.error : payload.error?.message
     throw new Error(message ?? `Vercel Analytics returned ${response.status}.`)
@@ -230,21 +212,21 @@ async function queryRows(url: URL, token: string): Promise<Record<string, unknow
   return Array.isArray(payload.data) ? payload.data.filter(isRecord) : []
 }
 
-function dimension(row: Record<string, unknown>, key: string): string | null {
+function dimension(row, key) {
   const direct = row[`eventData/${key}`] ?? row[`eventData.${key}`] ?? row[key]
   if (typeof direct === 'string') return direct
   const eventData = row.eventData
-  if (isRecord(eventData) && typeof eventData[key] === 'string') return eventData[key] as string
+  if (isRecord(eventData) && typeof eventData[key] === 'string') return eventData[key]
   const attributes = row.attributes
   if (typeof attributes === 'string') {
     try {
-      const parsed = JSON.parse(attributes) as unknown
+      const parsed = JSON.parse(attributes)
       if (isRecord(parsed)) {
         const parsedEventData = parsed.eventData
         if (isRecord(parsedEventData) && typeof parsedEventData[key] === 'string') {
-          return parsedEventData[key] as string
+          return parsedEventData[key]
         }
-        if (typeof parsed[key] === 'string') return parsed[key] as string
+        if (typeof parsed[key] === 'string') return parsed[key]
       }
     } catch {
       return null
@@ -253,7 +235,7 @@ function dimension(row: Record<string, unknown>, key: string): string | null {
   return null
 }
 
-function eventCount(row: Record<string, unknown>): number {
+function eventCount(row) {
   return numberValue(
     row.count
     ?? row.events
@@ -264,7 +246,7 @@ function eventCount(row: Record<string, unknown>): number {
   )
 }
 
-function numberValue(value: unknown): number {
+function numberValue(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string') {
     const parsed = Number(value)
@@ -273,25 +255,21 @@ function numberValue(value: unknown): number {
   return 0
 }
 
-function stringValue(value: unknown): string {
+function stringValue(value) {
   return typeof value === 'string' ? value : ''
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function isEventName(value: string): value is EventName {
-  return eventNames.includes(value as EventName)
-}
-
-function normalizeRange(value: string | null): { label: string; days: number } {
+function normalizeRange(value) {
   if (value === '7d') return { label: '7d', days: 7 }
   if (value === '90d') return { label: '90d', days: 90 }
   return { label: '30d', days: 30 }
 }
 
-function json(value: unknown, status = 200): Response {
+function json(value, status = 200) {
   return Response.json(value, {
     status,
     headers: {
