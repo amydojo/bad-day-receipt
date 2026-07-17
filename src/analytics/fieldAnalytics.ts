@@ -12,6 +12,7 @@ export const fieldEventNames = [
   'qr_verified',
   'machine_started',
   'receipt_generated',
+  'field_archive_viewed',
   'instagram_clicked',
 ] as const
 
