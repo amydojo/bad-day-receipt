@@ -6,6 +6,7 @@ const allowedEvents = new Set([
   'qr_verified',
   'machine_started',
   'receipt_generated',
+  'field_archive_viewed',
   'instagram_clicked',
 ])
 
@@ -65,24 +66,28 @@ Deno.serve(async (request: Request) => {
 
   if (error) {
     const status = error.code === 'P0002' ? 404 : error.code === '55000' ? 410 : 400
-    return json({ error: error.code === 'P0002' ? 'Unknown field object' : 'Event rejected' }, status, cors)
+    return json({ error: publicError(error.code) }, status, cors)
   }
 
   const result = Array.isArray(data) ? data[0] : data
-  return json({ accepted: true, object: result ? {
-    edition: result.edition,
-    objectName: result.object_name,
-    machineCode: result.machine_code,
-    firstSeenAt: result.first_seen_at,
-    lastSeenAt: result.last_seen_at,
-    counts: {
-      opens: result.open_count,
-      verified: result.verified_count,
-      operations: result.operation_count,
-      receipts: result.receipt_count,
-      instagram: result.instagram_click_count,
-    },
-  } : null }, 200, cors)
+  return json({
+    accepted: true,
+    object: result ? {
+      edition: result.edition,
+      objectName: result.object_name,
+      machineCode: result.machine_code,
+      firstSeenAt: result.first_seen_at,
+      lastSeenAt: result.last_seen_at,
+      counts: {
+        opens: result.open_count,
+        verified: result.verified_count,
+        operations: result.operation_count,
+        receipts: result.receipt_count,
+        archive: result.archive_view_count,
+        instagram: result.instagram_click_count,
+      },
+    } : null,
+  }, 200, cors)
 })
 
 function hasValidPublishableKey(value: string | null): boolean {
@@ -90,7 +95,7 @@ function hasValidPublishableKey(value: string | null): boolean {
   try {
     const keys = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') ?? '{}')
     if (Object.values(keys).includes(value)) return true
-  } catch { /* legacy fallback below */ }
+  } catch { /* legacy fallback */ }
   return value === Deno.env.get('SUPABASE_ANON_KEY')
 }
 
@@ -114,7 +119,15 @@ function corsHeaders(origin: string | null): HeadersInit {
 }
 
 function json(value: unknown, status: number, cors: HeadersInit): Response {
-  return Response.json(value, { status, headers: { ...cors, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } })
+  return Response.json(value, {
+    status,
+    headers: {
+      ...cors,
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+    },
+  })
 }
 
 function cleanString(value: unknown, max: number): string | null {
@@ -135,4 +148,10 @@ function requiredEnv(name: string): string {
   const value = Deno.env.get(name)
   if (!value) throw new Error(`Missing ${name}`)
   return value
+}
+
+function publicError(code: string | undefined): string {
+  if (code === 'P0002') return 'Unknown field object'
+  if (code === '55000') return 'Field object unavailable'
+  return 'Event rejected'
 }

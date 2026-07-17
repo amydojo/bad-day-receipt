@@ -1,8 +1,12 @@
-const CACHE_NAME = 'bad-day-receipt-shell-v2'
+const CACHE_NAME = 'bad-day-receipt-shell-v3'
 const CORE_ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/icon-maskable.svg']
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)))
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(CORE_ASSETS))
+      .then(() => self.skipWaiting()),
+  )
 })
 
 self.addEventListener('activate', (event) => {
@@ -33,6 +37,21 @@ self.addEventListener('fetch', (event) => {
           return response
         })
         .catch(() => caches.match('/index.html')),
+    )
+    return
+  }
+
+  if (request.destination === 'script' || request.destination === 'style') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok && !url.searchParams.has('_vercel_share')) {
+            const copy = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+          }
+          return response
+        })
+        .catch(() => caches.match(request)),
     )
     return
   }

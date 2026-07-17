@@ -3,6 +3,18 @@ import { expect, test } from '@playwright/test'
 import { mockPlatformApis } from '../fixtures/platformApis'
 
 const accessPath = '/access/07/J49AQW'
+const fieldObjects = [
+  ['01', 'CTNZL8'],
+  ['02', 'W9JK4J'],
+  ['03', 'NRDND8'],
+  ['04', '7PGQZM'],
+  ['05', 'JEJCFM'],
+  ['06', '44ZSSL'],
+  ['07', 'J49AQW'],
+  ['08', 'JWB639'],
+  ['09', 'STS68S'],
+  ['10', 'DJ39LF'],
+] as const
 
 async function presentObject(page: import('@playwright/test').Page) {
   await expect(page.getByRole('button', { name: 'PRESENT OBJECT' })).toBeVisible()
@@ -40,11 +52,22 @@ test.describe('Lab Dojo field access ritual', () => {
     await page.getByRole('button', { name: 'BEGIN OPERATION' }).click()
 
     await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
-    await expect(page.locator('.field-access-provenance')).toContainText('LD–07 / J49AQW')
+    await expect(page.locator('.field-access-provenance')).toContainText('FIELD–001 · OBJECT 07 / 10')
+    await expect(page.locator('.field-access-provenance')).toContainText('LD–001 / BAD DAY RECEIPT')
 
     const stored = await page.evaluate(() => localStorage.getItem('labdojo-field-access-v1'))
     expect(stored).toContain('J49AQW')
     expect(stored).toContain('LD-001')
+  })
+
+  test('makes the first discovery collectible and geographically real before asking for action', async ({ page }) => {
+    await page.goto('/access/06/44ZSSL')
+
+    await expect(page.getByRole('button', { name: 'PRESENT OBJECT' })).toBeVisible()
+    await expect(page.getByText('FIELD OBJECT 06 / RECOVERED', { exact: true })).toBeVisible()
+    await expect(page.getByText('One of ten physical access objects released across Southern California.', { exact: true })).toBeVisible()
+    await expect(page.locator('.field-access-one-shot__metadata')).toContainText('FIELD–001')
+    await expect(page.locator('.field-access-one-shot__metadata')).toContainText('OBJECT 06 / 10')
   })
 
   test('holds on the recognized digital twin until the operator continues', async ({ page }) => {
@@ -53,6 +76,16 @@ test.describe('Lab Dojo field access ritual', () => {
     await page.waitForTimeout(1800)
     await expect(page.locator('.field-access-terminal')).toHaveAttribute('data-state', 'recognized')
     await expect(page.locator('.field-card__e06-title')).toHaveText('CURIOSITYSUFFICIENT')
+  })
+
+  test('uses the same collectible notation for all ten physical objects', async ({ page }) => {
+    for (const [edition, token] of fieldObjects) {
+      await page.goto(`/access/${edition}/${token}`)
+      await expect(page.getByRole('button', { name: 'PRESENT OBJECT' })).toBeVisible()
+      await expect(page.getByText(`FIELD OBJECT ${edition} / RECOVERED`, { exact: true })).toBeVisible()
+      await expect(page.locator('.field-access-one-shot__metadata')).toContainText(`OBJECT ${edition} / 10`)
+      await expect(page.locator('.field-access-terminal')).toHaveJSProperty('scrollHeight', await page.locator('.field-access-terminal').evaluate((node) => node.clientHeight))
+    }
   })
 
   test('validates the QR on the card surface instead of scanning behind it', async ({ page }) => {
@@ -107,7 +140,46 @@ test.describe('Lab Dojo field access ritual', () => {
 
     await page.reload()
     await expect(page.locator('.field-access-terminal')).toHaveAttribute('data-returning', 'true')
+    await expect(page.getByText('FIELD OBJECT 07 / RECOGNIZED', { exact: true })).toBeVisible()
+    await expect(page.getByText('Previously recovered. This object’s field history remains active.', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'PRESENT OBJECT' })).toBeVisible()
+  })
+
+  test('renders the public ten-object field ledger without exposing tokens', async ({ page }) => {
+    await page.route('**/functions/v1/field-release', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          releaseCode: 'FIELD-001',
+          releaseLabel: 'FIELD–001',
+          machineCode: 'LD-001',
+          machineLabel: 'LD–001',
+          machineName: 'Bad Day Receipt',
+          region: 'SOUTHERN CALIFORNIA',
+          total: 10,
+          recoveredCount: 1,
+          generatedAt: '2026-07-17T00:00:00.000Z',
+          cards: fieldObjects.map(([edition]) => ({
+            edition,
+            object_name: edition === '04' ? 'Human Subject' : 'Field Object',
+            object_type: 'field-object',
+            status: edition === '04' ? 'recovered' : 'signal-absent',
+            recovered_at: edition === '04' ? '2026-07-17T00:00:00.000Z' : null,
+            last_seen_at: null,
+            operation_count: edition === '04' ? 1 : 0,
+            region: 'SOUTHERN CALIFORNIA',
+          })),
+        }),
+      })
+    })
+
+    await page.goto('/field/001?edition=06&token=44ZSSL&source=test')
+    await expect(page.getByRole('heading', { name: 'FIELD–001' })).toBeVisible()
+    await expect(page.getByText('01 / 10')).toBeVisible()
+    await expect(page.locator('.field-release-object')).toHaveCount(10)
+    await expect(page.locator('.field-release-object[data-status="recovered"]')).toHaveCount(1)
+    await expect(page.getByText('OPERATED LD–001')).toBeVisible()
+    await expect(page.getByText(/44ZSSL|J49AQW|CTNZL8/)).toHaveCount(0)
   })
 
   test('preserves the authored FIELD-001 print lines', async ({ page }) => {

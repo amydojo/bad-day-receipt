@@ -71,6 +71,7 @@ export function MetricsDashboard() {
 
   const machineCode = metrics?.machine.machine_code?.replace('-', '–') ?? 'LD–001'
   const machineName = metrics?.machine.machine_name ?? 'Bad Day Receipt'
+  const archiveTotal = metrics ? archiveViews(metrics.totals) : 0
 
   return (
     <main className="metrics-console" aria-labelledby="metrics-title">
@@ -114,6 +115,7 @@ export function MetricsDashboard() {
             <Metric label="UNIQUE VISITORS" value={metrics.totals.visitors} />
             <Metric label="QR VERIFIED" value={metrics.totals.qr_verified} />
             <Metric label="RECEIPTS" value={metrics.totals.receipt_generated} />
+            <Metric label="ARCHIVE VIEWS" value={archiveTotal} />
             <Metric label="INSTAGRAM" value={metrics.totals.instagram_clicked} />
           </section>
 
@@ -126,6 +128,7 @@ export function MetricsDashboard() {
             <FunnelStep label="QR VERIFIED" value={metrics.totals.qr_verified} base={metrics.totals.field_opened} />
             <FunnelStep label={`${machineCode} STARTED`} value={metrics.totals.machine_started} base={metrics.totals.field_opened} />
             <FunnelStep label="RECEIPT GENERATED" value={metrics.totals.receipt_generated} base={metrics.totals.field_opened} />
+            <FunnelStep label="FIELD ARCHIVE VIEWED" value={archiveTotal} base={metrics.totals.field_opened} />
             <FunnelStep label="INSTAGRAM CLICKED" value={metrics.totals.instagram_clicked} base={metrics.totals.field_opened} />
           </section>
 
@@ -135,7 +138,7 @@ export function MetricsDashboard() {
             </div>
             <div className="metrics-console__table-wrap">
               <table>
-                <thead><tr><th>OBJECT</th><th>OPEN</th><th>PEOPLE</th><th>VERIFY</th><th>RECEIPT</th><th>IG</th></tr></thead>
+                <thead><tr><th>OBJECT</th><th>OPEN</th><th>PEOPLE</th><th>VERIFY</th><th>RECEIPT</th><th>ARCHIVE</th><th>IG</th></tr></thead>
                 <tbody>
                   {metrics.cards.map((card) => (
                     <tr key={card.edition}>
@@ -148,6 +151,7 @@ export function MetricsDashboard() {
                       <td>{card.visitors}</td>
                       <td>{card.qr_verified}</td>
                       <td>{card.receipt_generated}</td>
+                      <td>{archiveViews(card)}</td>
                       <td>{card.instagram_clicked}</td>
                     </tr>
                   ))}
@@ -190,6 +194,11 @@ function FunnelStep({ label, value, base }: { label: string; value: number; base
       <strong>{value.toLocaleString()}</strong><small>{rate}%</small>
     </div>
   )
+}
+
+function archiveViews(value: object): number {
+  const candidate = value as { field_archive_viewed?: unknown }
+  return typeof candidate.field_archive_viewed === 'number' ? candidate.field_archive_viewed : 0
 }
 
 function readRedirectIdentity(): { edition: string | null; token: string | null; source: string } {
