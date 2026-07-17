@@ -1,4 +1,6 @@
 import type { CSSProperties } from 'react'
+import { fieldReleaseStamp } from '../field-access/fieldRelease'
+import { getCurrentFieldAccess } from '../field-access/fieldAccessStorage'
 import { currency, summarizeReceipt } from '../receipt'
 import type { PrinterPhase } from '../printer/printerTypes'
 import {
@@ -32,6 +34,9 @@ export function Receipt({
   anomaly,
 }: ReceiptProps) {
   const summary = summarizeReceipt(items)
+  const fieldAccess = typeof window !== 'undefined' && window.location.pathname.startsWith('/access/')
+    ? getCurrentFieldAccess()
+    : null
   const date = new Intl.DateTimeFormat('en-US', {
     month: '2-digit',
     day: '2-digit',
@@ -124,6 +129,18 @@ export function Receipt({
       <div className="receipt-note" data-printed={showVerdict}>
         {theme.notes.map((note) => <p key={note}>{note}</p>)}
       </div>
+
+      {fieldAccess && (
+        <div
+          className="receipt-field-provenance"
+          data-printed={showVerdict}
+          aria-label={`${fieldReleaseStamp(fieldAccess.edition)}, generated through LD–001`}
+        >
+          <span>GENERATED THROUGH LD–001</span>
+          <span>{fieldReleaseStamp(fieldAccess.edition)}</span>
+          <span>SOUTHERN CALIFORNIA FIELD RELEASE</span>
+        </div>
+      )}
 
       {couponTailMounted && coupons.length > 0 && (
         <div
