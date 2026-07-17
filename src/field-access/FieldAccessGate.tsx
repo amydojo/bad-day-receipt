@@ -12,6 +12,8 @@ import {
 import { InstagramRedirect, MetricsDashboard } from '../analytics/AnalyticsRoutes'
 import { fieldEventContext, trackFieldEvent } from '../analytics/fieldAnalytics'
 import { getFieldAccessConfig } from './fieldAccessConfig'
+import { FieldReleaseBoard } from './FieldReleaseBoard'
+import { fieldReleasePath, fieldReleaseStamp } from './fieldRelease'
 import { parseFieldAccessRoute } from './fieldAccessRoute'
 import {
   claimFieldAccess,
@@ -40,6 +42,7 @@ export function FieldAccessGate({ children }: FieldAccessGateProps) {
 
   if (pathname === '/go/instagram' || pathname.startsWith('/go/instagram/')) return <InstagramRedirect />
   if (pathname === '/lab/metrics') return <MetricsDashboard />
+  if (pathname === '/field/001') return <FieldReleaseBoard />
   if (route.kind === 'root') return children
   if (route.kind === 'invalid') return <UnknownFieldObject reason={route.reason} />
 
@@ -164,7 +167,7 @@ function FieldAccessContinuation({
     return () => window.clearInterval(interval)
   }, [config, context.token])
 
-  const archiveUrl = `/go/instagram/${encodeURIComponent(context.edition)}/${encodeURIComponent(context.token)}?edition=${encodeURIComponent(context.edition)}&token=${encodeURIComponent(context.token)}&source=artifact-bridge`
+  const archiveUrl = fieldReleasePath(context.edition, context.token, 'artifact-logged')
 
   return (
     <div
@@ -174,8 +177,8 @@ function FieldAccessContinuation({
     >
       {children}
       <aside className="field-access-provenance" aria-label="Current field access">
-        <span>FIELD ACCESS</span>
-        <strong>LD–{context.edition} / {context.token}</strong>
+        <span>{fieldReleaseStamp(context.edition)}</span>
+        <strong>LD–001 / BAD DAY RECEIPT</strong>
       </aside>
 
       {rewardReady && !archiveDismissed && (
@@ -183,17 +186,16 @@ function FieldAccessContinuation({
           <button
             type="button"
             className="field-access-archive-bridge__close"
-            aria-label="Close public archive invitation"
+            aria-label="Close field archive confirmation"
             onClick={() => setArchiveDismissed(true)}
           >
             ×
           </button>
-          <span>ARTIFACT GENERATED</span>
-          <strong id="field-archive-title">FIELD OBJECT {context.edition}<br />HAS OPERATED LD–001</strong>
-          <p>Other field objects and future machines are documented inside the public archive.</p>
-          <a href={archiveUrl} target="_blank" rel="noopener">
-            OPEN THE PUBLIC ARCHIVE ↗
-          </a>
+          <span>FIELD OBJECT {context.edition} / LOGGED</span>
+          <strong id="field-archive-title">THIS OBJECT HAS NOW<br />OPERATED LD–001.</strong>
+          <p>Its signal has been added to the FIELD–001 archive.</p>
+          <small>{fieldReleaseStamp(context.edition)} · SOUTHERN CALIFORNIA</small>
+          <a href={archiveUrl}>VIEW THE FIELD ARCHIVE ↗</a>
         </aside>
       )}
     </div>
