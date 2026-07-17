@@ -1,5 +1,5 @@
 # Vercel retry: Iconic FIELD–001 release
 
-This deduplicated marker retriggers the Vercel Git integration for the production release beginning at main commit `dfe52daaed01071d2aa472276929e0fcd1447fca`.
+This marker retriggers the Vercel Git integration for the canonical production release now present on `main`.
 
-Created after Vercel rejected the original production webhook because the Hobby account was inside its hourly build-rate window.
+The original production webhook was rejected while the Hobby account was inside its hourly build-rate window. A fresh production sync was requested again on July 17, 2026 after confirming the public alias was still serving an older commit.
