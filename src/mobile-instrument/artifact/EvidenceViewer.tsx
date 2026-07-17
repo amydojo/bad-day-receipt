@@ -5,6 +5,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react'
+import { createDojoArchiveHandoffUrl } from '../../dojoLab'
 import type { ArtifactExport } from '../../export/exportTypes'
 import { ArtifactActions } from '../../soft-machine/ArtifactActions'
 import {
@@ -41,6 +42,11 @@ export function EvidenceViewer({
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const platform = useMemo(createBrowserArtifactPlatform, [])
+  const archiveHref = useMemo(() => createDojoArchiveHandoffUrl({
+    receiptNumber,
+    paperName,
+    shareText,
+  }), [paperName, receiptNumber, shareText])
   const [moreOpen, setMoreOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -96,6 +102,7 @@ export function EvidenceViewer({
           <ArtifactActions
             shareText={shareText}
             createExport={createExport}
+            onArchive={() => window.location.assign(archiveHref)}
             onReset={onNew}
             onReprint={onReprint}
             onMore={() => setMoreOpen(true)}
