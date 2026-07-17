@@ -34,8 +34,9 @@ import './field-access/scanner-breathing-pass.css'
 import './field-access/top-load-qr-reader.css'
 import './field-access/top-load-reader-motion.css'
 import './field-access/field-access-accessibility.css'
-// Keep the viewport contract last; it is the release-level source of truth.
+// Keep the viewport contract and release identity last.
 import './field-access/opening-sequence-hardening.css'
+import './field-access/iconic-field-release.css'
 import './analytics/analytics.css'
 
 createRoot(document.getElementById('root')!).render(
