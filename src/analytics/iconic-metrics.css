@@ -1,0 +1,13 @@
+.metrics-console__totals {
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+}
+
+.metrics-console__cards table {
+  min-width: 820px;
+}
+
+@media (max-width: 760px) {
+  .metrics-console__totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
