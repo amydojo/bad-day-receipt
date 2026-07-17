@@ -12,6 +12,7 @@ import {
 interface ArtifactActionsProps {
   shareText: string
   createExport: (format: ExportFormat) => Promise<ArtifactExport>
+  onArchive?: () => void
   onReset: () => void
   onReprint: () => void
   onMore?: () => void
@@ -21,6 +22,7 @@ interface ArtifactActionsProps {
 export function ArtifactActions({
   shareText,
   createExport,
+  onArchive,
   onReset,
   onReprint,
   onMore,
@@ -91,6 +93,11 @@ export function ArtifactActions({
         >
           SAVE
         </button>
+        {onArchive && (
+          <button type="button" disabled={Boolean(busyAction)} onClick={onArchive}>
+            ADD TO DOJO ARCHIVE
+          </button>
+        )}
         {onMore ? (
           <button type="button" disabled={Boolean(busyAction)} onClick={onMore}>
             MORE
