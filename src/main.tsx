@@ -38,6 +38,7 @@ import './field-access/field-access-accessibility.css'
 import './field-access/opening-sequence-hardening.css'
 import './field-access/iconic-field-release.css'
 import './analytics/analytics.css'
+import './analytics/iconic-metrics.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
