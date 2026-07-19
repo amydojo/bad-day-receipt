@@ -11,5 +11,5 @@
     "allowSyntheticDefaultImports": true,
     "types": ["node"]
   },
-  "include": ["api"]
+  "include": ["api/compile-task.ts", "tests/api/**/*.ts"]
 }

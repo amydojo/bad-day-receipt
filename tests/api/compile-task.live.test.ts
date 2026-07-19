@@ -2,15 +2,15 @@ import { dirname, resolve } from 'node:path'
 import { loadEnvFile } from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import handler from './compile-task'
-import { INSURANCE_DENIAL_SOURCE, INSURANCE_DENIAL_TASK } from '../src/carry-forward/fixtures'
-import { createInteractionBudget, DEFAULT_INTERACTION_POLICIES } from '../src/carry-forward/interactionBudget'
-import { parseValidatedTaskPlan } from '../src/carry-forward/taskPlanSchema'
+import handler from '../../api/compile-task'
+import { INSURANCE_DENIAL_SOURCE, INSURANCE_DENIAL_TASK } from '../../src/carry-forward/fixtures'
+import { createInteractionBudget, DEFAULT_INTERACTION_POLICIES } from '../../src/carry-forward/interactionBudget'
+import { parseValidatedTaskPlan } from '../../src/carry-forward/taskPlanSchema'
 
 const runLive = process.env.RUN_OPENAI_LIVE === '1'
 
 if (runLive && !process.env.OPENAI_API_KEY?.trim()) {
-  const envPath = resolve(dirname(fileURLToPath(import.meta.url)), '../.env.local')
+  const envPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../.env.local')
   try {
     delete process.env.OPENAI_API_KEY
     loadEnvFile(envPath)

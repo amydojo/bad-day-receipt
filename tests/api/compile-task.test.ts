@@ -3,8 +3,8 @@ import {
   INSURANCE_DENIAL_CANDIDATE,
   INSURANCE_DENIAL_SOURCE,
   INSURANCE_DENIAL_TASK,
-} from '../src/carry-forward/fixtures'
-import { createInteractionBudget, DEFAULT_INTERACTION_POLICIES } from '../src/carry-forward/interactionBudget'
+} from '../../src/carry-forward/fixtures'
+import { createInteractionBudget, DEFAULT_INTERACTION_POLICIES } from '../../src/carry-forward/interactionBudget'
 
 const openaiMocks = vi.hoisted(() => ({ create: vi.fn() }))
 
@@ -27,7 +27,7 @@ vi.mock('openai', () => {
   }
 })
 
-import handler from './compile-task'
+import handler from '../../api/compile-task'
 import OpenAI from 'openai'
 
 function modelResponse(candidate: unknown) {

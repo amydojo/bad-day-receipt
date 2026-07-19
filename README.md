@@ -488,7 +488,7 @@ npm run release:carry-forward
 The opt-in live compiler smoke test loads the ignored `.env.local` when `OPENAI_API_KEY` is not already exported and reports only sanitized failure classifications:
 
 ```bash
-RUN_OPENAI_LIVE=1 npx vitest run api/compile-task.live.test.ts
+RUN_OPENAI_LIVE=1 npx vitest run tests/api/compile-task.live.test.ts
 ```
 
 Create an ignored `.env.local` file for the server-only compiler key:
