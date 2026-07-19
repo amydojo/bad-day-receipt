@@ -11,6 +11,10 @@ const compileEnvelopeSchema = z.object({
   }).strict(),
 }).strict()
 
+const compilerErrorEnvelopeSchema = z.object({
+  error: z.object({ code: z.string().regex(/^[a-z0-9_]{1,80}$/) }).strict(),
+}).strict()
+
 export class CarryForwardCompileError extends Error {
   constructor(public readonly reason: FallbackReason) {
     super(reason)
@@ -48,8 +52,18 @@ export async function compileCarryForwardTask({
     throw new CarryForwardCompileError('server_error')
   }
 
+  let serverErrorCode = 'unknown_error'
+  if (!response.ok) {
+    try {
+      const parsed = compilerErrorEnvelopeSchema.safeParse(await response.json())
+      if (parsed.success) serverErrorCode = parsed.data.error.code
+    } catch {
+      // A malformed error body remains a generic, non-rendered server failure.
+    }
+  }
+
   const safeReason: FallbackReason = response.status === 429
-    ? 'rate_limited'
+    ? serverErrorCode === 'openai_quota_exhausted' ? 'server_error' : 'rate_limited'
     : response.status === 504
       ? 'timeout'
     : response.status === 422

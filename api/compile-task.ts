@@ -157,7 +157,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return
   }
 
-  const key = process.env.OPENAI_API_KEY
+  const key = process.env.OPENAI_API_KEY?.trim()
   if (!key) {
     safeError(response, 503, 'compiler_unavailable')
     return
@@ -217,14 +217,17 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     if (controller.signal.aborted) safeError(response, 504, 'compiler_timeout')
     else if (error instanceof OpenAI.APIError) {
       const upstreamStatus = error.status
+      const quotaExhausted = upstreamStatus === 429 && error.code === 'insufficient_quota'
       const status = upstreamStatus === 429 ? 429 : upstreamStatus === 401 || upstreamStatus === 403 ? 503 : 502
-      const code = upstreamStatus === 429
-        ? 'openai_rate_limited'
-        : upstreamStatus === 401 || upstreamStatus === 403
-          ? 'compiler_not_authorized'
-          : upstreamStatus === 400
-            ? 'compiler_contract_rejected'
-            : 'compiler_failed'
+      const code = quotaExhausted
+        ? 'openai_quota_exhausted'
+        : upstreamStatus === 429
+          ? 'openai_rate_limited'
+          : upstreamStatus === 401 || upstreamStatus === 403
+            ? 'compiler_not_authorized'
+            : upstreamStatus === 400
+              ? 'compiler_contract_rejected'
+              : 'compiler_failed'
       safeError(response, status, code)
     } else safeError(response, 502, 'compiler_failed')
   } finally {

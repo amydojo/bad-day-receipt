@@ -10,7 +10,14 @@ const openaiMocks = vi.hoisted(() => ({ create: vi.fn() }))
 
 vi.mock('openai', () => {
   class MockApiError extends Error {
-    status = 500
+    status: number
+    code: string | null
+
+    constructor(status = 500, error: { code?: string | null } = {}) {
+      super(error.code ?? 'mock_api_error')
+      this.status = status
+      this.code = error.code ?? null
+    }
   }
   return {
     default: class MockOpenAI {
@@ -21,6 +28,7 @@ vi.mock('openai', () => {
 })
 
 import handler from './compile-task'
+import OpenAI from 'openai'
 
 function modelResponse(candidate: unknown) {
   return {
@@ -156,5 +164,37 @@ describe('server-only Carry Forward compiler', () => {
     await handler(mismatched, response)
     expect(capture).toMatchObject({ status: 400, body: { error: { code: 'invalid_request' } } })
     expect(openaiMocks.create).not.toHaveBeenCalled()
+  })
+
+  it('fails before network access when the key is unavailable', async () => {
+    delete process.env.OPENAI_API_KEY
+    const { capture, response } = captureResponse()
+    await handler(request('missing-key-test'), response)
+    expect(capture).toMatchObject({ status: 503, body: { error: { code: 'compiler_unavailable' } } })
+    expect(openaiMocks.create).not.toHaveBeenCalled()
+  })
+
+  it('classifies authorization, quota, and ordinary rate-limit errors without upstream text', async () => {
+    const cases = [
+      { status: 401, upstreamCode: 'invalid_api_key', expectedStatus: 503, expectedCode: 'compiler_not_authorized' },
+      { status: 429, upstreamCode: 'insufficient_quota', expectedStatus: 429, expectedCode: 'openai_quota_exhausted' },
+      { status: 429, upstreamCode: 'rate_limit_exceeded', expectedStatus: 429, expectedCode: 'openai_rate_limited' },
+    ]
+
+    for (const item of cases) {
+      openaiMocks.create.mockRejectedValueOnce(new OpenAI.APIError(
+        item.status,
+        { code: item.upstreamCode, message: 'sensitive upstream diagnostic' },
+        'sensitive upstream diagnostic',
+        new Headers(),
+      ))
+      const { capture, response } = captureResponse()
+      await handler(request(`classified-${item.upstreamCode}`), response)
+      expect(capture).toMatchObject({
+        status: item.expectedStatus,
+        body: { error: { code: item.expectedCode } },
+      })
+      expect(JSON.stringify(capture.body)).not.toContain('sensitive upstream diagnostic')
+    }
   })
 })

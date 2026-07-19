@@ -74,6 +74,19 @@ test.describe('Carry Forward vertical slice', () => {
     await expect(page.getByText('<iframe>')).toHaveCount(0)
   })
 
+  test('treats exhausted project quota as unavailable, not a transient rate limit', async ({ page }) => {
+    await page.unroute('**/api/compile-task')
+    await page.route('**/api/compile-task', (route) => route.fulfill({
+      status: 429,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: { code: 'openai_quota_exhausted' } }),
+    }))
+    await openCarryForwardPreview(page)
+    await page.getByRole('button', { name: 'COMPILE TASK PLAN' }).click()
+    await expect(page.getByRole('heading', { name: 'The compiler is unavailable' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'The compiler needs a moment' })).toHaveCount(0)
+  })
+
   test('recovers from ambiguous input without losing it', async ({ page }) => {
     await page.goto('/carry-forward')
     await page.getByLabel('ONE CONCRETE TASK').fill('Deal with that thing')
