@@ -227,7 +227,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     }
 
     const firstValidation = validateTaskPlan(first.candidate, input.data.sources)
-    if (firstValidation.ok) {
+    if ('plan' in firstValidation) {
       response.status(200).json({
         plan: firstValidation.plan,
         meta: { model: first.response.model, repaired: false },
@@ -256,7 +256,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     }
 
     const repairedValidation = validateTaskPlan(repair.candidate, input.data.sources)
-    if (!repairedValidation.ok) {
+    if (!('plan' in repairedValidation)) {
       safeError(response, 422, 'plan_validation_failed')
       return
     }
