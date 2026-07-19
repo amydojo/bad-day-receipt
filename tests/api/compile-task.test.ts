@@ -107,6 +107,50 @@ describe('server-only Carry Forward compiler', () => {
       reasoning: { effort: 'low' },
       text: { format: { type: 'json_schema', strict: true } },
     })
+    expect(call.input[0].content).toContain('Target 200 to 220 characters')
+    expect(call.input[0].content).toContain('do not claim external submission or completion occurred')
+  })
+
+  it('repairs an incomplete summary and fully validates the complete replacement', async () => {
+    const incomplete = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    incomplete.summary = `${'x'.repeat(319)}-`
+    const repaired = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    repaired.summary = 'Prepare the appeal package, review every detail, and choose the documented submission route.'
+    openaiMocks.create
+      .mockResolvedValueOnce(modelResponse(incomplete))
+      .mockResolvedValueOnce(modelResponse(repaired))
+
+    const { capture, response } = captureResponse()
+    await handler(request('summary-repair-test'), response)
+
+    expect(capture.status).toBe(200)
+    expect(openaiMocks.create).toHaveBeenCalledTimes(2)
+    const repairData = JSON.parse(openaiMocks.create.mock.calls[1][0].input[1].content) as {
+      validationIssues: Array<Record<string, unknown>>
+    }
+    expect(repairData.validationIssues).toEqual([
+      { code: 'summary_incomplete', path: 'summary' },
+    ])
+    expect(capture.body).toMatchObject({
+      plan: { summary: repaired.summary },
+      meta: { repaired: true },
+    })
+  })
+
+  it('fails closed when the single summary repair is also incomplete', async () => {
+    const incomplete = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    incomplete.summary = 'Prepare the appeal and review the required records-'
+    const invalidRepair = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    invalidRepair.summary = 'Prepare the appeal and review the required records,'
+    openaiMocks.create
+      .mockResolvedValueOnce(modelResponse(incomplete))
+      .mockResolvedValueOnce(modelResponse(invalidRepair))
+
+    const { capture, response } = captureResponse()
+    await handler(request('summary-failed-repair-test'), response)
+
+    expect(capture).toMatchObject({ status: 422, body: { error: { code: 'plan_validation_failed' } } })
+    expect(openaiMocks.create).toHaveBeenCalledTimes(2)
   })
 
   it('makes at most one repair using machine-readable codes and paths', async () => {

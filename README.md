@@ -19,7 +19,7 @@ Carry Forward lets the next task respond.
 </p>
 
 > **Project status**  
-> The receipt machine is live. The Carry Forward vertical slice is implemented and testable on this branch with Codex and GPT-5.6. Hosted availability still depends on deploying the branch with a funded OpenAI project key.
+> The receipt machine is live. The Carry Forward vertical slice is implemented on this branch with Codex and GPT-5.6. Assisted compilation requires a funded server-side OpenAI project key; current release evidence is recorded on PR #78.
 
 ---
 
@@ -213,6 +213,8 @@ No model output controls layout, routing, persistence, or application actions.
 
 The compiler receives no tools because it does not need tools.
 
+The deployed compiler uses the explicit `gpt-5.6` model alias through the Responses API with `reasoning.effort: "low"`, `max_output_tokens: 5000`, `store: false`, `tools: []`, and SDK retries disabled. Each of the initial and at-most-one repair attempts has an independent 25-second budget; the browser allows 58 seconds for the bounded sequence.
+
 ### Minimum Necessary Interface
 
 A **Minimum Necessary Interface** contains the smallest complete set of information, decisions, and actions required to finish one user-selected task.
@@ -243,6 +245,7 @@ Structured model output constrains the shape of a proposed plan. The application
 * One to five approved step types
 * No more than three options in a choice step
 * Concrete completion definition
+* A bounded plan summary that ends as a complete sentence
 * No executable markup
 * No external side-effect actions
 * Exact source substring verification for extracted evidence
@@ -250,6 +253,7 @@ Structured model output constrains the shape of a proposed plan. The application
 * Stable layout during the task
 * Unknown or malformed output rejected
 * Separate expiring task storage
+* Application-owned plain-text copy and `carry-forward-plan.txt` download output, including full review content
 
 ### Evaluation questions
 
@@ -459,7 +463,7 @@ Official references:
 ### Install and start
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
@@ -495,6 +499,14 @@ The opt-in live compiler smoke test loads the ignored `.env.local` when `OPENAI_
 RUN_OPENAI_LIVE=1 npx vitest run tests/api/compile-task.live.test.ts
 ```
 
+For latency troubleshooting, an additional paid diagnostic ladder is retained but skipped by default. It uses synthetic inputs only and prints allowlisted lifecycle timing, token counts, safe status, model IDs, and request IDs—never credentials or prompt, source, evidence, or output content:
+
+```bash
+RUN_OPENAI_DIAGNOSTICS=1 npm run diagnose:carry-forward
+```
+
+Neither opt-in command runs in ordinary CI or the focused release gate.
+
 Create an ignored `.env.local` file for the server-only compiler key:
 
 ```bash
@@ -527,6 +539,14 @@ The Build Week submission implements one complete vertical slice:
 It will not include connected accounts, automatic submission, browser extensions, biometrics, sentiment scoring, permanent user profiles, cross-application preference exchange, multiple agents, or model-generated HTML.
 
 Carry Forward cannot guarantee that every generated plan represents the objectively perfect minimum path. Schema enforcement can guarantee shape and prohibited operations. Semantic quality still requires representative evaluations and user review.
+
+### Human-review requirements
+
+The user must review consequential facts, legal or insurance correctness, the final draft, the selected submission method, and any real external action. Carry Forward prepares work; it never proves that the work is correct or submitted.
+
+### Residual limitations
+
+Rate limiting and duplicate-request protection are instance-local, model latency varies, browser storage may be unavailable, and hosted compilation requires a configured funded API project. `store: false` is not a universal zero-retention guarantee, and observed live latency is limited evidence rather than a distribution.
 
 The project does not provide medical, legal, insurance, or financial advice. It is not clinically validated or an accessibility certification. It does not claim to have invented simplified or adaptive interfaces.
 

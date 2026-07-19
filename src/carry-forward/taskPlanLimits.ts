@@ -4,7 +4,7 @@ export const TASK_PLAN_LIMITS = {
   title: 80,
   goal: 240,
   completionDefinition: 240,
-  summary: 240,
+  summary: 320,
   stepCount: 5,
   choiceCount: 3,
   checklistCount: 8,

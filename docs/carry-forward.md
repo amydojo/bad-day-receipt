@@ -410,14 +410,16 @@ The budget contains no:
 
 ```ts
 export interface TaskPlan {
-  version: '0.1'
+  version: 1
   id: string
   title: string
   goal: string
   completionDefinition: string
+  summary: string
   steps: TaskStep[]
-  deferred: DeferredItem[]
+  later: DeferredItem[]
   extractedFacts: ExtractedFact[]
+  output: { format: 'plain_text' }
 }
 
 export type TaskStep =
@@ -434,7 +436,7 @@ export type TaskStep =
 export interface BaseStep {
   id: string
   title: string
-  essential: boolean
+  required: true
 }
 
 export interface ReadStep extends BaseStep {
@@ -465,10 +467,11 @@ export interface ChecklistStep extends BaseStep {
 export interface ReviewStep extends BaseStep {
   kind: 'review'
   summary: string
+  includes: string[]
 }
 ```
 
-The model contract declares only `plain_text` output. Copy, download, and the fixed download filename are application-owned controls and never model-authored fields.
+The model contract declares only `plain_text` output. Copy, download, and the fixed `carry-forward-plan.txt` filename are application-owned controls and never model-authored fields. The canonical formatter includes the review heading, `review.summary`, and each `review.includes` item in both clipboard and download output.
 
 ### Deferred work
 
@@ -526,6 +529,7 @@ A plan is rejected unless all of the following are true:
 | Step count | Between one and five |
 | Choice count | No more than three options per choice step |
 | Completion | A concrete nonempty completion definition exists |
+| Summary | At most 320 characters and ends as a complete sentence; clear truncation enters the single repair path |
 | Side effects | No automatic send, submit, purchase, delete, or account action |
 | Evidence | Every extracted source fact has an exact source match |
 | Rendering | Every step uses an allowed component type |
@@ -536,6 +540,8 @@ A plan is rejected unless all of the following are true:
 | Safety | Unknown or malformed output fails closed |
 
 The validator may retry once with machine-readable errors.
+
+The compiler requests one concise summary targeting 200–220 characters. Application code never truncates, slices, ellipsizes, or rewrites a summary to force acceptance.
 
 After one failed retry, the system opens the manual fallback.
 

@@ -70,6 +70,16 @@ The user-facing name is **One Thing Mode**.
 
 The engineering primitive is an **Interaction Budget**.
 
+### Evidence claim boundaries
+
+**Hard guarantees** come from code and deterministic checks: the compiler has no tools or automatic external actions; strict plans are fully validated before fixed renderers receive them; source evidence must match exactly; copy, download, and the fixed filename remain application-owned; repair is bounded to one; errors and operational logs contain safe codes and counters rather than task content.
+
+**Evaluated properties** are measured rather than guaranteed: useful decomposition, appropriate deferral of optional work, choice quality, and draft usefulness depend on representative fixtures and review.
+
+**Human review remains required** for legal or insurance correctness, final factual accuracy, consequential decisions, the prepared draft, and every real submission. Carry Forward prepares work but never claims that an external action occurred.
+
+**Residual limitations** include instance-local abuse protection, variable model latency, non-guaranteed semantic optimality, browser-storage availability, and the fact that `store: false` is not a universal zero-retention guarantee. Hosted assisted compilation also requires a configured funded API project; live latency observations are limited samples, not a distribution.
+
 ---
 
 ## Implementation checklist

@@ -26,7 +26,7 @@ export const INSURANCE_DENIAL_CANDIDATE: TaskPlanCandidate = {
   title: 'Submit the insurance appeal',
   goal: 'Prepare a complete insurance appeal package and submit it through the chosen route.',
   completionDefinition: 'The appeal note and required records are submitted, and a confirmation is saved.',
-  summary: 'Gather the required records, draft a short appeal, and submit it before the stated deadline.',
+  summary: 'Confirm the appeal deadline and reference number, gather the required records, choose a submission route, draft the appeal, and review the evidence, contact details, and deadline before taking any external action.',
   extractedFacts: [
     {
       id: 'fact-deadline',
@@ -94,10 +94,10 @@ export const INSURANCE_DENIAL_CANDIDATE: TaskPlanCandidate = {
     {
       id: 'final-review',
       kind: 'review',
-      title: 'Review and submit',
+      title: 'Review before submission',
       required: true,
-      summary: 'Check the reference, attachments, deadline, and submission confirmation before you finish.',
-      includes: ['Reference number', 'Appeal note', 'Required records', 'Submission confirmation'],
+      summary: 'Review the appeal, evidence, contact details, and deadline before taking any external action.',
+      includes: ['Appeal draft', 'Supporting document checklist', 'Submission method', 'Deadline and contact details'],
     },
   ],
   later: [

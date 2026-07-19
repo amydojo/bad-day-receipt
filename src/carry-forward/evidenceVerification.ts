@@ -1,5 +1,6 @@
 import {
   TaskPlanCandidateSchema,
+  hasCompletePlanSummary,
   parseValidatedTaskPlan,
   type TaskPlanCandidate,
   type TaskPlanValidationIssue,
@@ -18,6 +19,7 @@ const ISSUE_DETAILS: Record<TaskPlanValidationIssue['code'], {
 }> = {
   schema_invalid: { message: 'The candidate does not match the task-plan schema.', repairable: true },
   semantic_invalid: { message: 'The candidate violates an application plan invariant.', repairable: true },
+  summary_incomplete: { message: 'The plan summary does not end as a complete sentence.', repairable: true },
   source_missing: { message: 'The fact refers to a source that was not supplied.', repairable: true },
   quote_missing: { message: 'The evidence quote does not exactly match the supplied source.', repairable: true },
   quote_ambiguous: { message: 'The evidence quote occurs more than once in the supplied source.', repairable: true },
@@ -53,6 +55,10 @@ export function validateTaskPlan(
     startOffset: number
     endOffset: number
   }> = []
+
+  if (!hasCompletePlanSummary(proposed.data.summary)) {
+    issues.push(validationIssue('summary_incomplete', 'summary'))
+  }
 
   const allIds = [
     proposed.data.id,

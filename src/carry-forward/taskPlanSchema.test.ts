@@ -7,6 +7,7 @@ import {
   createInsuranceDenialPlan,
 } from './fixtures'
 import { TaskPlanCandidateSchema, parseTaskPlanCandidate } from './taskPlanSchema'
+import { TASK_PLAN_LIMITS } from './taskPlanLimits'
 
 describe('Carry Forward task plan trust boundary', () => {
   it('creates a strict Structured Outputs format from the runtime schema', () => {
@@ -24,6 +25,39 @@ describe('Carry Forward task plan trust boundary', () => {
       'compose',
       'review',
     ])
+  })
+
+  it('accepts concise summaries that end as complete sentences', () => {
+    const complete = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    complete.summary = 'Prepare the appeal package, review it, and choose how to submit it.'
+
+    expect(validateTaskPlan(complete, [INSURANCE_DENIAL_SOURCE_RECORD])).toMatchObject({ ok: true })
+
+    complete.summary = 'Prepare the appeal package before asking, “Is every required item attached?”'
+    expect(validateTaskPlan(complete, [INSURANCE_DENIAL_SOURCE_RECORD])).toMatchObject({ ok: true })
+  })
+
+  it.each(['-', '–', '—', ',', ':', ';', '/', ' and.'])('rejects an obviously incomplete summary ending in %s', (ending) => {
+    const incomplete = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    incomplete.summary = `Prepare the appeal and review the required records${ending}`
+
+    expect(validateTaskPlan(incomplete, [INSURANCE_DENIAL_SOURCE_RECORD])).toMatchObject({
+      ok: false,
+      issues: [{ code: 'summary_incomplete', path: 'summary', repairable: true }],
+    })
+  })
+
+  it('reports a max-length visibly incomplete summary without slicing model output', () => {
+    const incomplete = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    const originalSummary = `${'x'.repeat(TASK_PLAN_LIMITS.summary - 1)}-`
+    incomplete.summary = originalSummary
+
+    expect(validateTaskPlan(incomplete, [INSURANCE_DENIAL_SOURCE_RECORD])).toMatchObject({
+      ok: false,
+      issues: [{ code: 'summary_incomplete', path: 'summary', repairable: true }],
+    })
+    expect(incomplete.summary).toBe(originalSummary)
+    expect(incomplete.summary).toHaveLength(TASK_PLAN_LIMITS.summary)
   })
 
   it('rejects unknown keys and unknown step kinds', () => {

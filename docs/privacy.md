@@ -10,7 +10,7 @@ Task text, optional source text, generated drafts, extracted facts, evidence exc
 
 1. Task and optional source text begin in React memory.
 2. Nothing is sent until the user confirms the Interaction Budget, reviews the preview, and selects **Compile task plan**.
-3. The server sends one bounded Responses API request to GPT-5.6 with `store: false` and no tools. A repair is attempted at most once, with a fresh bounded timeout and only safe validation codes and paths as repair instructions.
+3. The server sends one bounded initial Responses API request to GPT-5.6 with `store: false` and no tools. A repair request is attempted at most once, with a fresh bounded timeout and only safe validation codes and paths as repair instructions.
 4. Candidate output is parsed and validated server-side. Evidence quotes are preserved without normalization, must match one exact source substring, and must directly contain the displayed fact value. The application derives and rechecks offsets.
 5. Only a branded validated plan is returned to the fixed React runtime.
 6. Raw source text is removed from application state after successful compilation.

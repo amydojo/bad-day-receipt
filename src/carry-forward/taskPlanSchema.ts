@@ -3,6 +3,13 @@ import { TASK_PLAN_LIMITS } from './taskPlanLimits.js'
 
 const SAFE_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/
 const PROHIBITED_TEXT = /(?:https?:\/\/|www\.|<\/?[a-z][^>]*>|javascript:|mailto:|function_call|tool_call|open_url)/i
+const COMPLETE_SUMMARY_ENDING = /[.!?](?:["'\u2019\u201d\u00bb)\]}]+)?$/u
+const DANGLING_SUMMARY_CONJUNCTION = /\b(?:and|or|but|nor|so|yet)[.!?](?:["'\u2019\u201d\u00bb)\]}]+)?$/iu
+
+export function hasCompletePlanSummary(summary: string) {
+  const ending = summary.trimEnd()
+  return COMPLETE_SUMMARY_ENDING.test(ending) && !DANGLING_SUMMARY_CONJUNCTION.test(ending)
+}
 
 function safeText(max: number) {
   return z.string().trim().min(1).max(max).refine(
@@ -142,6 +149,10 @@ const validatedTaskPlanSchema = z.object({
   ...planShape,
   extractedFacts: z.array(extractedFactSchema).max(TASK_PLAN_LIMITS.factCount),
 }).strict()
+  .refine(
+    (plan) => hasCompletePlanSummary(plan.summary),
+    'Plan summaries must end as complete sentences.',
+  )
   .refine(uniquePlanIds, 'Plan, fact, and LATER ids must be unique.')
   .refine(
     (plan) => plan.steps.every((step) => step.kind !== 'choice'
@@ -168,6 +179,7 @@ export type ValidatedTaskPlan = z.infer<typeof validatedTaskPlanSchema>
 export type TaskPlanValidationIssue = {
   code: 'schema_invalid'
     | 'semantic_invalid'
+    | 'summary_incomplete'
     | 'source_missing'
     | 'quote_missing'
     | 'quote_ambiguous'

@@ -40,7 +40,7 @@ test.describe('Carry Forward vertical slice', () => {
     await expect(draft).toHaveValue(/Reference IR-48291/)
     await page.getByRole('button', { name: 'COMPLETE STEP' }).click()
 
-    await expect(page.getByRole('heading', { name: 'Review and submit' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Review before submission' })).toBeVisible()
     await page.getByRole('button', { name: 'FINISH PLAN' }).click()
 
     await expect(page.getByText('PLAN COMPLETE · M12')).toBeVisible()

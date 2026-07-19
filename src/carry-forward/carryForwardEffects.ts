@@ -106,7 +106,7 @@ export function formatPlanOutput(plan: ValidatedTaskPlan, session: RuntimeSessio
         .filter((fact) => fact !== undefined)
       return `${heading}\n${facts.map((fact) => `   ${fact.label}: ${fact.value}`).join('\n')}`.trimEnd()
     }
-    return heading
+    return `${heading}\n${step.summary}\n${step.includes.map((item) => `- ${item}`).join('\n')}`
   })
   const later = plan.later.length > 0
     ? `\n\nLATER\n${plan.later.map((item) => `- ${item.title}: ${item.body}`).join('\n')}`
