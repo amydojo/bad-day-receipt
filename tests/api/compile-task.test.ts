@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   INSURANCE_DENIAL_CANDIDATE,
   INSURANCE_DENIAL_SOURCE,
@@ -73,6 +73,8 @@ describe('server-only Carry Forward compiler', () => {
     openaiMocks.create.mockReset()
   })
 
+  afterEach(() => vi.useRealTimers())
+
   it('uses the bounded GPT-5.6 Responses request contract', async () => {
     openaiMocks.create.mockResolvedValueOnce(modelResponse(INSURANCE_DENIAL_CANDIDATE))
     const { capture, response } = captureResponse()
@@ -114,6 +116,7 @@ describe('server-only Carry Forward compiler', () => {
       { code: 'quote_missing', path: 'extractedFacts.0.evidenceQuote' },
     ])
     expect(Object.keys(repairData.validationIssues[0])).toEqual(['code', 'path'])
+    expect(openaiMocks.create.mock.calls[0][1].signal).not.toBe(openaiMocks.create.mock.calls[1][1].signal)
   })
 
   it('fails closed after the single repair is still invalid', async () => {
@@ -144,6 +147,29 @@ describe('server-only Carry Forward compiler', () => {
     expect(capture.status).toBe(200)
   })
 
+  it('preserves the exact submitted source representation through evidence validation', async () => {
+    const exactCandidate = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    exactCandidate.extractedFacts = [exactCandidate.extractedFacts[0]]
+    exactCandidate.extractedFacts[0].evidenceQuote = '\r\nYour appeal must be received by August 12, 2026.'
+    const read = exactCandidate.steps[0]
+    if (read.kind !== 'read') throw new Error('Expected read fixture')
+    read.evidenceFactIds = [exactCandidate.extractedFacts[0].id]
+    openaiMocks.create.mockResolvedValueOnce(modelResponse(exactCandidate))
+    const exactRequest = request('exact-source-test')
+    exactRequest.body.sources[0].text = '\r\nYour appeal must be received by August 12, 2026.\r\n'
+
+    const { capture, response } = captureResponse()
+    await handler(exactRequest, response)
+    expect(capture.status).toBe(200)
+    const sent = JSON.parse(openaiMocks.create.mock.calls[0][0].input[1].content) as {
+      sources: Array<{ text: string }>
+    }
+    expect(sent.sources[0].text).toBe(exactRequest.body.sources[0].text)
+    const body = capture.body as { plan: { extractedFacts: Array<{ startOffset: number; endOffset: number; evidenceQuote: string }> } }
+    const fact = body.plan.extractedFacts[0]
+    expect(exactRequest.body.sources[0].text.slice(fact.startOffset, fact.endOffset)).toBe(fact.evidenceQuote)
+  })
+
   it('treats prompt-injection source as data and never enables tools', async () => {
     openaiMocks.create.mockResolvedValueOnce(modelResponse(INSURANCE_DENIAL_CANDIDATE))
     const injected = request('prompt-injection-test')
@@ -166,12 +192,97 @@ describe('server-only Carry Forward compiler', () => {
     expect(openaiMocks.create).not.toHaveBeenCalled()
   })
 
+  it('returns invalid_request for an empty POST without invoking OpenAI', async () => {
+    const { capture, response } = captureResponse()
+    await handler({ method: 'POST', headers: { 'x-forwarded-for': 'empty-post-test' }, body: undefined }, response)
+    expect(capture).toMatchObject({ status: 400, body: { error: { code: 'invalid_request' } } })
+    expect(openaiMocks.create).not.toHaveBeenCalled()
+  })
+
   it('fails before network access when the key is unavailable', async () => {
     delete process.env.OPENAI_API_KEY
     const { capture, response } = captureResponse()
     await handler(request('missing-key-test'), response)
     expect(capture).toMatchObject({ status: 503, body: { error: { code: 'compiler_unavailable' } } })
     expect(openaiMocks.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects oversized request bodies before network access', async () => {
+    const oversized = request('oversized-request-test')
+    oversized.body.sources[0].text = 'x'.repeat(13_000)
+    const { capture, response } = captureResponse()
+    await handler(oversized, response)
+    expect(capture).toMatchObject({ status: 413, body: { error: { code: 'input_too_large' } } })
+    expect(openaiMocks.create).not.toHaveBeenCalled()
+  })
+
+  it('rate limits repeated attempts with a stable retry hint', async () => {
+    for (let index = 0; index < 8; index += 1) {
+      const attempt = captureResponse()
+      await handler({ method: 'POST', headers: { 'x-forwarded-for': 'rate-limit-test' }, body: {} }, attempt.response)
+      expect(attempt.capture.status).toBe(400)
+    }
+    const limited = captureResponse()
+    await handler({ method: 'POST', headers: { 'x-forwarded-for': 'rate-limit-test' }, body: {} }, limited.response)
+    expect(limited.capture).toMatchObject({ status: 429, body: { error: { code: 'rate_limited' } } })
+    expect(limited.capture.headers.get('retry-after')).toBe('60')
+    expect(openaiMocks.create).not.toHaveBeenCalled()
+  })
+
+  it('rejects a concurrent duplicate request without starting a second model call', async () => {
+    let resolveFirst: ((value: ReturnType<typeof modelResponse>) => void) | undefined
+    openaiMocks.create.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveFirst = resolve
+    }))
+    const duplicate = request('duplicate-request-test')
+    const firstCapture = captureResponse()
+    const firstRequest = handler(duplicate, firstCapture.response)
+    await vi.waitFor(() => expect(openaiMocks.create).toHaveBeenCalledTimes(1))
+
+    const secondCapture = captureResponse()
+    await handler(duplicate, secondCapture.response)
+    expect(secondCapture.capture).toMatchObject({
+      status: 409,
+      body: { error: { code: 'duplicate_request' } },
+    })
+    expect(openaiMocks.create).toHaveBeenCalledTimes(1)
+
+    resolveFirst?.(modelResponse(INSURANCE_DENIAL_CANDIDATE))
+    await firstRequest
+    expect(firstCapture.capture.status).toBe(200)
+  })
+
+  it('cancels a timed-out model attempt and returns only a sanitized timeout code', async () => {
+    vi.useFakeTimers()
+    openaiMocks.create.mockImplementationOnce((_body, options: { signal: AbortSignal }) => new Promise((_, reject) => {
+      options.signal.addEventListener('abort', () => reject(new Error('sensitive timeout detail')))
+    }))
+    const { capture, response } = captureResponse()
+    const pending = handler(request('timeout-test'), response)
+    await vi.advanceTimersByTimeAsync(12_000)
+    await pending
+    expect(capture).toMatchObject({ status: 504, body: { error: { code: 'compiler_timeout' } } })
+    expect(JSON.stringify(capture.body)).not.toContain('sensitive timeout detail')
+  })
+
+  it('distinguishes refusal and incomplete outcomes without returning model content', async () => {
+    const cases = [
+      {
+        response: { ...modelResponse(null), output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'private refusal text' }] }] },
+        code: 'compilation_refused',
+      },
+      {
+        response: { ...modelResponse(null), status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } },
+        code: 'compilation_incomplete',
+      },
+    ]
+    for (const [index, item] of cases.entries()) {
+      openaiMocks.create.mockResolvedValueOnce(item.response)
+      const { capture, response } = captureResponse()
+      await handler(request(`bounded-outcome-${index}`), response)
+      expect(capture).toMatchObject({ status: 409, body: { error: { code: item.code } } })
+      expect(JSON.stringify(capture.body)).not.toContain('private refusal text')
+    }
   })
 
   it('classifies authorization, quota, and ordinary rate-limit errors without upstream text', async () => {

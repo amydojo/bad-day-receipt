@@ -465,9 +465,10 @@ export interface ChecklistStep extends BaseStep {
 export interface ReviewStep extends BaseStep {
   kind: 'review'
   summary: string
-  outputAction: 'copy' | 'download'
 }
 ```
+
+The model contract declares only `plain_text` output. Copy, download, and the fixed download filename are application-owned controls and never model-authored fields.
 
 ### Deferred work
 
@@ -481,24 +482,28 @@ export interface DeferredItem {
 ### Extracted facts and evidence
 
 ```ts
-export interface ExtractedFact {
+export interface ProposedExtractedFact {
   id: string
   label: string
   value: string
   sourceId: string
-  evidence: {
-    quote: string
-    startOffset: number
-    endOffset: number
-  }
+  evidenceQuote: string
+}
+
+export interface ExtractedFact extends ProposedExtractedFact {
+  startOffset: number
+  endOffset: number
 }
 ```
 
 The server verifies:
 
 ```ts
-source.slice(startOffset, endOffset) === quote
+evidenceQuote.includes(value)
+source.slice(startOffset, endOffset) === evidenceQuote
 ```
+
+The evidence quote is not trimmed or normalized. CRLF, LF, Unicode, punctuation, and whitespace are verified against the exact submitted representation.
 
 No model-generated markup enters the DOM.
 
@@ -735,8 +740,8 @@ for abuse monitoring unless additional retention controls are enabled.
 1. Keep the API key server side
 2. Never log raw request bodies
 3. Limit input length
-4. Apply rate limits
-5. Add a request timeout
+4. Apply bounded, instance-local rate limits and in-flight request-ID deduplication
+5. Apply a fresh cancellation timeout to each of at most two model attempts
 6. Use `store: false`
 7. Do not enable background mode for this short interaction
 8. Return generic server errors

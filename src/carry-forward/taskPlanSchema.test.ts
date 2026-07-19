@@ -57,6 +57,16 @@ describe('Carry Forward task plan trust boundary', () => {
     expect(parseTaskPlanCandidate(choices).success).toBe(false)
   })
 
+  it('keeps copy, download, and filenames outside the model contract', () => {
+    const modelControlledOutput = structuredClone(INSURANCE_DENIAL_CANDIDATE) as Record<string, unknown>
+    modelControlledOutput.output = {
+      format: 'plain_text',
+      primaryAction: 'download',
+      filename: 'model-chosen.txt',
+    }
+    expect(parseTaskPlanCandidate(modelControlledOutput).success).toBe(false)
+  })
+
   it('derives offsets only after an exact unique evidence match', () => {
     const result = validateTaskPlan(INSURANCE_DENIAL_CANDIDATE, [INSURANCE_DENIAL_SOURCE_RECORD])
     expect(result.ok).toBe(true)
@@ -79,6 +89,47 @@ describe('Carry Forward task plan trust boundary', () => {
     const ambiguous = validateTaskPlan(INSURANCE_DENIAL_CANDIDATE, [repeatedSource])
     expect(ambiguous).toMatchObject({ ok: false })
     if (!ambiguous.ok) expect(ambiguous.issues.some((issue) => issue.code === 'quote_ambiguous')).toBe(true)
+  })
+
+  it('preserves exact whitespace and line endings while deriving evidence offsets', () => {
+    const candidate = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    candidate.extractedFacts = [candidate.extractedFacts[0]]
+    const read = candidate.steps[0]
+    if (read.kind !== 'read') throw new Error('Expected read fixture')
+    read.evidenceFactIds = [candidate.extractedFacts[0].id]
+    candidate.extractedFacts[0].evidenceQuote = '\r\nYour appeal must be received by August 12, 2026.'
+    const source = {
+      ...INSURANCE_DENIAL_SOURCE_RECORD,
+      text: 'HEADER\r\nYour appeal must be received by August 12, 2026.\r\nFOOTER',
+    }
+
+    const exact = validateTaskPlan(candidate, [source])
+    expect(exact.ok).toBe(true)
+    if (exact.ok) {
+      const fact = exact.plan.extractedFacts[0]
+      expect(source.text.slice(fact.startOffset, fact.endOffset)).toBe(fact.evidenceQuote)
+      expect(fact.evidenceQuote.startsWith('\r\n')).toBe(true)
+    }
+
+    expect(validateTaskPlan(candidate, [{ ...source, text: source.text.replaceAll('\r\n', '\n') }])).toMatchObject({
+      ok: false,
+      issues: [{ code: 'quote_missing', repairable: true }],
+    })
+  })
+
+  it('requires the displayed fact value to be directly supported by its evidence', () => {
+    const unsupported = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    unsupported.extractedFacts[0].value = 'August 13, 2026'
+    const result = validateTaskPlan(unsupported, [INSURANCE_DENIAL_SOURCE_RECORD])
+    expect(result).toMatchObject({
+      ok: false,
+      issues: [{
+        code: 'value_not_supported',
+        path: 'extractedFacts.0.value',
+        repairable: true,
+      }],
+    })
+    if (!result.ok) expect(JSON.stringify(result.issues)).not.toContain(INSURANCE_DENIAL_SOURCE_RECORD.text)
   })
 
   it('rejects duplicate nested ids and duplicate choice labels during application validation', () => {

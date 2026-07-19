@@ -12,13 +12,33 @@ export type CompilerSource = {
   text: string
 }
 
+const ISSUE_DETAILS: Record<TaskPlanValidationIssue['code'], {
+  message: string
+  repairable: boolean
+}> = {
+  schema_invalid: { message: 'The candidate does not match the task-plan schema.', repairable: true },
+  semantic_invalid: { message: 'The candidate violates an application plan invariant.', repairable: true },
+  source_missing: { message: 'The fact refers to a source that was not supplied.', repairable: true },
+  quote_missing: { message: 'The evidence quote does not exactly match the supplied source.', repairable: true },
+  quote_ambiguous: { message: 'The evidence quote occurs more than once in the supplied source.', repairable: true },
+  value_not_supported: { message: 'The displayed fact value is not an exact substring of its evidence quote.', repairable: true },
+  evidence_range_invalid: { message: 'The application-derived evidence range failed verification.', repairable: false },
+}
+
+function validationIssue(
+  code: TaskPlanValidationIssue['code'],
+  path: string,
+): TaskPlanValidationIssue {
+  return { code, path, ...ISSUE_DETAILS[code] }
+}
+
 function schemaIssues(value: unknown): TaskPlanValidationIssue[] {
   const parsed = TaskPlanCandidateSchema.safeParse(value)
   if (parsed.success) return []
-  return parsed.error.issues.map((issue) => ({
-    code: 'schema_invalid' as const,
-    path: issue.path.join('.') || '$',
-  }))
+  return parsed.error.issues.map((issue) => validationIssue(
+    'schema_invalid',
+    issue.path.join('.') || '$',
+  ))
 }
 
 export function validateTaskPlan(
@@ -46,20 +66,20 @@ export function validateTaskPlan(
     ...proposed.data.extractedFacts.map((fact) => fact.id),
   ]
   if (new Set(allIds).size !== allIds.length) {
-    issues.push({ code: 'semantic_invalid', path: '$.ids' })
+    issues.push(validationIssue('semantic_invalid', '$.ids'))
   }
 
   proposed.data.steps.forEach((step, index) => {
     if (step.kind === 'choice' && step.options.filter((option) => option.primary).length !== 1) {
-      issues.push({ code: 'semantic_invalid', path: `steps.${index}.options` })
+      issues.push(validationIssue('semantic_invalid', `steps.${index}.options`))
     }
     if (step.kind === 'choice' && new Set(step.options.map((option) => option.label.toLocaleLowerCase())).size !== step.options.length) {
-      issues.push({ code: 'semantic_invalid', path: `steps.${index}.options.labels` })
+      issues.push(validationIssue('semantic_invalid', `steps.${index}.options.labels`))
     }
     if (step.kind === 'read') {
       step.evidenceFactIds.forEach((factId, factIndex) => {
         if (!proposed.data.extractedFacts.some((fact) => fact.id === factId)) {
-          issues.push({ code: 'semantic_invalid', path: `steps.${index}.evidenceFactIds.${factIndex}` })
+          issues.push(validationIssue('semantic_invalid', `steps.${index}.evidenceFactIds.${factIndex}`))
         }
       })
     }
@@ -69,25 +89,36 @@ export function validateTaskPlan(
     const source = sources.find((candidate) => candidate.id === fact.sourceId)
     const path = `extractedFacts.${index}.evidenceQuote`
     if (!source) {
-      issues.push({ code: 'source_missing', path: `extractedFacts.${index}.sourceId` })
+      issues.push(validationIssue('source_missing', `extractedFacts.${index}.sourceId`))
       return
     }
 
     const startOffset = source.text.indexOf(fact.evidenceQuote)
     if (startOffset < 0) {
-      issues.push({ code: 'quote_missing', path })
+      issues.push(validationIssue('quote_missing', path))
       return
     }
 
     if (source.text.indexOf(fact.evidenceQuote, startOffset + 1) >= 0) {
-      issues.push({ code: 'quote_ambiguous', path })
+      issues.push(validationIssue('quote_ambiguous', path))
+      return
+    }
+
+    if (!fact.evidenceQuote.includes(fact.value)) {
+      issues.push(validationIssue('value_not_supported', `extractedFacts.${index}.value`))
+      return
+    }
+
+    const endOffset = startOffset + fact.evidenceQuote.length
+    if (source.text.slice(startOffset, endOffset) !== fact.evidenceQuote) {
+      issues.push(validationIssue('evidence_range_invalid', path))
       return
     }
 
     extractedFacts.push({
       ...fact,
       startOffset,
-      endOffset: startOffset + fact.evidenceQuote.length,
+      endOffset,
     })
   })
 

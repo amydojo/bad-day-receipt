@@ -3,6 +3,8 @@ import { parseValidatedTaskPlan, type ValidatedTaskPlan } from './taskPlanSchema
 import type { CarryForwardDraft, FallbackReason, RuntimeSession } from './carryForwardReducer'
 import type { InteractionBudget } from './interactionBudget'
 
+export const CARRY_FORWARD_DOWNLOAD_FILENAME = 'carry-forward-plan.txt'
+
 const compileEnvelopeSchema = z.object({
   plan: z.unknown(),
   meta: z.object({
@@ -68,8 +70,8 @@ export async function compileCarryForwardTask({
       ? 'timeout'
     : response.status === 422
       ? 'invalid_plan'
-      : response.status === 409
-        ? 'refusal'
+    : response.status === 409
+        ? serverErrorCode === 'duplicate_request' ? 'rate_limited' : 'refusal'
         : 'server_error'
   if (!response.ok) throw new CarryForwardCompileError(safeReason)
 
@@ -121,7 +123,7 @@ export function downloadPlanOutput(plan: ValidatedTaskPlan, session: RuntimeSess
   const href = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = href
-  anchor.download = plan.output.filename ?? 'carry-forward-plan.txt'
+  anchor.download = CARRY_FORWARD_DOWNLOAD_FILENAME
   anchor.click()
   URL.revokeObjectURL(href)
 }

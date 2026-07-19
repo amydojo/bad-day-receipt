@@ -13,3 +13,11 @@ export const TASK_PLAN_LIMITS = {
   composeDraft: 4000,
   laterCount: 5,
 } as const
+
+export const CARRY_FORWARD_COMPILER_LIMITS = {
+  requestBytes: 12_000,
+  outputTokens: 5_000,
+  attemptTimeoutMs: 12_000,
+  maxAttempts: 2,
+  clientTimeoutMs: 26_000,
+} as const

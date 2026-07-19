@@ -454,6 +454,7 @@ Official references:
 
 * Node.js compatible with Vite 8
 * npm
+* The exact `typescript@5.9.3` pin. Vercel's Node function builder requires `ts.sys.readFile`; do not upgrade the compiler independently of builder compatibility verification.
 
 ### Install and start
 
@@ -472,6 +473,7 @@ npm run preview
 ### Validation
 
 ```bash
+node -e "const ts=require('typescript'); console.log(ts.version, Boolean(ts.sys?.readFile))"
 npm run typecheck
 npm test
 npm run test:e2e
@@ -484,6 +486,8 @@ npm run evals:carry-forward
 npm run test:receipt-regression
 npm run release:carry-forward
 ```
+
+The compiler compatibility check must print `5.9.3 true`. Pull requests that touch Carry Forward run the same focused release gate in `.github/workflows/carry-forward.yml`; that workflow never makes a live model request.
 
 The opt-in live compiler smoke test loads the ignored `.env.local` when `OPENAI_API_KEY` is not already exported and reports only sanitized failure classifications:
 
@@ -498,6 +502,7 @@ OPENAI_API_KEY=your_project_key
 ```
 
 The browser never receives this value. `api/compile-task.ts` is the only OpenAI call boundary.
+API contract and live-smoke tests live under `tests/api/`, outside Vercel's deployable `api/` function root. The live smoke test is opt-in and is not part of the release gate.
 
 ---
 

@@ -1,10 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { CarryForwardCompileError, compileCarryForwardTask, formatPlanOutput } from './carryForwardEffects'
+import {
+  CARRY_FORWARD_DOWNLOAD_FILENAME,
+  CarryForwardCompileError,
+  compileCarryForwardTask,
+  formatPlanOutput,
+} from './carryForwardEffects'
 import { createInsuranceDenialPlan } from './fixtures'
 import { createInteractionBudget, DEFAULT_INTERACTION_POLICIES } from './interactionBudget'
 
 describe('Carry Forward copy/download output', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('uses an application-owned download filename', () => {
+    expect(CARRY_FORWARD_DOWNLOAD_FILENAME).toBe('carry-forward-plan.txt')
+    expect(createInsuranceDenialPlan().output).toEqual({ format: 'plain_text' })
+  })
 
   it('includes committed choices, checklist state, and the user-edited draft', () => {
     const plan = createInsuranceDenialPlan()

@@ -11,6 +11,15 @@ function safeText(max: number) {
   )
 }
 
+// Evidence is matched byte-for-byte against the submitted source. Never trim or
+// normalize it at the schema boundary, or application-derived offsets will no
+// longer refer to the representation the user supplied.
+const exactEvidenceQuote = z.string()
+  .min(1)
+  .max(TASK_PLAN_LIMITS.evidenceQuote)
+  .refine((value) => value.trim().length > 0, 'Evidence quotes must not be blank.')
+  .refine((value) => !PROHIBITED_TEXT.test(value), 'Evidence contains a URL, markup, or tool/action syntax.')
+
 const id = z.string().regex(SAFE_ID)
 const requiredStepBase = {
   id,
@@ -76,7 +85,7 @@ const proposedFactSchema = z.object({
   label: safeText(80),
   value: safeText(240),
   sourceId: id,
-  evidenceQuote: safeText(500),
+  evidenceQuote: exactEvidenceQuote,
 }).strict()
 
 const extractedFactSchema = proposedFactSchema.extend({
@@ -101,8 +110,6 @@ const planShape = {
   later: z.array(laterItemSchema).max(TASK_PLAN_LIMITS.laterCount),
   output: z.object({
     format: z.literal('plain_text'),
-    primaryAction: z.enum(['copy', 'download']),
-    filename: z.union([safeText(80), z.null()]),
   }).strict(),
 }
 
@@ -159,8 +166,16 @@ export type TaskPlanCandidate = z.infer<typeof TaskPlanCandidateSchema>
 export type ValidatedTaskPlan = z.infer<typeof validatedTaskPlanSchema>
 
 export type TaskPlanValidationIssue = {
-  code: 'schema_invalid' | 'semantic_invalid' | 'source_missing' | 'quote_missing' | 'quote_ambiguous'
+  code: 'schema_invalid'
+    | 'semantic_invalid'
+    | 'source_missing'
+    | 'quote_missing'
+    | 'quote_ambiguous'
+    | 'value_not_supported'
+    | 'evidence_range_invalid'
   path: string
+  message: string
+  repairable: boolean
 }
 
 export type TaskPlanValidationResult =

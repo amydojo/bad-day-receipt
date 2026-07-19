@@ -45,7 +45,7 @@ export const INSURANCE_DENIAL_CANDIDATE: TaskPlanCandidate = {
     {
       id: 'fact-records',
       label: 'Required records',
-      value: 'Denial letter and supporting medical records',
+      value: 'a copy of the denial letter and any supporting medical records',
       sourceId: 'source-1',
       evidenceQuote: 'Include a copy of the denial letter and any supporting medical records.',
     },
@@ -109,8 +109,6 @@ export const INSURANCE_DENIAL_CANDIDATE: TaskPlanCandidate = {
   ],
   output: {
     format: 'plain_text',
-    primaryAction: 'copy',
-    filename: 'insurance-appeal-plan.txt',
   },
 }
 

@@ -42,7 +42,8 @@ import {
 } from './carryForwardTelemetry'
 import type { ValidatedTaskPlan } from './taskPlanSchema'
 import { INSURANCE_DENIAL_SOURCE, INSURANCE_DENIAL_TASK } from './fixtures'
-import { TASK_PLAN_LIMITS } from './taskPlanLimits'
+import { CARRY_FORWARD_COMPILER_LIMITS, TASK_PLAN_LIMITS } from './taskPlanLimits'
+import { hasConcreteTask } from './taskAmbiguity'
 
 const COMPILE_PHASES = [
   { id: 'request-accepted', label: 'Request accepted' },
@@ -57,13 +58,6 @@ const FALLBACK_COPY: Record<FallbackReason, { title: string; body: string }> = {
   refusal: { title: 'The compiler could not make this plan', body: 'No model text was shown. You can edit the source or make a manual plan.' },
   invalid_plan: { title: 'The plan did not pass validation', body: 'Nothing unsafe rendered. Your original task and source are still available.' },
   server_error: { title: 'The compiler is unavailable', body: 'Your source is still in this tab and has not been added to progress storage.' },
-}
-
-function hasConcreteTask(value: string) {
-  const normalized = value.trim().toLowerCase()
-  if (normalized.length < 8) return false
-  if (/^(deal with|handle|fix|do|sort out) (it|that|this|the thing)/.test(normalized)) return false
-  return /\b(appeal|submit|prepare|write|send|schedule|cancel|review|compare|file|call|email|gather|complete|choose|renew|request|pay|book)\b/.test(normalized)
 }
 
 function getStateCode(state: CarryForwardState) {
@@ -190,11 +184,13 @@ function ActiveWorkspace({
   dispatch,
   headingRef,
   onEnd,
+  onCompleteStep,
 }: {
   state: Extract<CarryForwardState, { kind: 'active' }>
   dispatch: React.Dispatch<CarryForwardEvent>
   headingRef: React.Ref<HTMLHeadingElement>
   onEnd: () => void
+  onCompleteStep: () => void
 }) {
   const { plan } = state.session
   const step = plan.steps[state.session.stepIndex]
@@ -240,7 +236,7 @@ function ActiveWorkspace({
               {state.session.stepIndex > 0 && (
                 <ActionButton variant="quiet" onClick={() => dispatch({ type: 'PREVIOUS_STEP' })}>BACK</ActionButton>
               )}
-              <ActionButton disabled={!ready} onClick={() => dispatch({ type: 'COMPLETE_STEP' })}>
+              <ActionButton disabled={!ready} onClick={onCompleteStep}>
                 {state.session.stepIndex === plan.steps.length - 1 ? 'FINISH PLAN' : 'COMPLETE STEP'}
               </ActionButton>
             </div>
@@ -359,7 +355,7 @@ export default function CarryForwardApp() {
     if (state.kind !== 'compiling') return
     const snapshot = state
     const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 12_000)
+    const timeout = window.setTimeout(() => controller.abort(), CARRY_FORWARD_COMPILER_LIMITS.clientTimeoutMs)
     const phaseFrame = window.requestAnimationFrame(() => dispatch({ type: 'COMPILE_PHASE', phase: 'awaiting-plan' }))
 
     void compileCarryForwardTask({ draft: snapshot.draft, budget: snapshot.budget, signal: controller.signal })
@@ -418,13 +414,41 @@ export default function CarryForwardApp() {
       || Object.keys(state.session.checkedItems).length > 0
       || Object.keys(state.session.composeDrafts).length > 0
     if (hasWork && !window.confirm('End One Thing Mode and clear this temporary task?')) return
+    emitCarryForwardTelemetry('carry_forward_ended', {
+      state: 'active',
+      stepCount: state.session.completedStepIds.length,
+      durationMs: Math.max(0, Date.now() - new Date(state.session.startedAt).getTime()),
+    })
     reset()
+  }
+
+  const completeStep = (activeState: Extract<CarryForwardState, { kind: 'active' }>) => {
+    const step = activeState.session.plan.steps[activeState.session.stepIndex]
+    if (!step || !isStepReady(step, activeState.session)) return
+    emitCarryForwardTelemetry('carry_forward_step_completed', {
+      state: 'active',
+      stepKind: step.kind,
+      stepIndex: activeState.session.stepIndex,
+      stepCount: activeState.session.plan.steps.length,
+    })
+    if (activeState.session.stepIndex === activeState.session.plan.steps.length - 1) {
+      emitCarryForwardTelemetry('carry_forward_completed', {
+        state: 'complete',
+        stepCount: activeState.session.plan.steps.length,
+        durationMs: Math.max(0, Date.now() - new Date(activeState.session.startedAt).getTime()),
+      })
+    }
+    dispatch({ type: 'COMPLETE_STEP' })
+  }
+
+  const trackOutput = (outputKind: 'copy' | 'download', outcome: 'success' | 'failure', manual: boolean) => {
+    emitCarryForwardTelemetry('carry_forward_output_completed', { outputKind, outcome, manual })
   }
 
   const screenCode = getStateCode(state)
 
   if (state.kind === 'active') {
-    return <div className="cf-app" data-screen={screenCode}><ActiveWorkspace state={state} dispatch={dispatch} headingRef={headingRef} onEnd={endMode} /></div>
+    return <div className="cf-app" data-screen={screenCode}><ActiveWorkspace state={state} dispatch={dispatch} headingRef={headingRef} onEnd={endMode} onCompleteStep={() => completeStep(state)} /></div>
   }
 
   if (state.kind === 'explaining') {
@@ -437,8 +461,8 @@ export default function CarryForwardApp() {
     return (
       <div className="cf-app" data-screen={screenCode}>
         {state.returnTo === 'active'
-          ? <ActiveWorkspace state={activeState} dispatch={dispatch} headingRef={headingRef} onEnd={endMode} />
-          : <CompleteScreen state={{ ...state, kind: 'complete' }} dispatch={dispatch} headingRef={headingRef} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} />}
+          ? <ActiveWorkspace state={activeState} dispatch={dispatch} headingRef={headingRef} onEnd={endMode} onCompleteStep={() => completeStep(activeState)} />
+          : <CompleteScreen state={{ ...state, kind: 'complete' }} dispatch={dispatch} headingRef={headingRef} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} onOutput={trackOutput} />}
         <RuntimeInspector state={state} dispatch={dispatch} />
       </div>
     )
@@ -447,7 +471,7 @@ export default function CarryForwardApp() {
   if (state.kind === 'complete') {
     return (
       <div className="cf-app" data-screen={screenCode}>
-        <CompleteScreen state={state} dispatch={dispatch} headingRef={headingRef} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} />
+        <CompleteScreen state={state} dispatch={dispatch} headingRef={headingRef} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} onOutput={trackOutput} />
       </div>
     )
   }
@@ -644,22 +668,35 @@ export default function CarryForwardApp() {
                   const steps = state.manualItems.filter((item) => item.trim()).map((item, index) => `${index + 1}. ${item.trim()}`).join('\n')
                   const text = `${state.draft.task}\n\n${steps}${state.manualDraft.trim() ? `\n\nDRAFT\n${state.manualDraft.trim()}` : ''}`
                   void navigator.clipboard.writeText(text)
-                    .then(() => setOutputMessage('MANUAL WORK COPIED'))
-                    .catch(() => setOutputMessage('COPY FAILED · DOWNLOAD IS STILL AVAILABLE'))
+                    .then(() => {
+                      trackOutput('copy', 'success', true)
+                      setOutputMessage('MANUAL WORK COPIED')
+                    })
+                    .catch(() => {
+                      trackOutput('copy', 'failure', true)
+                      setOutputMessage('COPY FAILED · DOWNLOAD IS STILL AVAILABLE')
+                    })
                 }} disabled={!state.manualItems.some((item) => item.trim()) && !state.manualDraft.trim()}>COPY MANUAL WORK</ActionButton>
                 <ActionButton variant="secondary" onClick={() => {
                   const steps = state.manualItems.filter((item) => item.trim()).map((item, index) => `${index + 1}. ${item.trim()}`).join('\n')
                   const text = `${state.draft.task}\n\n${steps}${state.manualDraft.trim() ? `\n\nDRAFT\n${state.manualDraft.trim()}` : ''}`
-                  const href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
-                  const anchor = document.createElement('a')
-                  anchor.href = href
-                  anchor.download = 'manual-carry-forward.txt'
-                  anchor.click()
-                  URL.revokeObjectURL(href)
-                  setOutputMessage('MANUAL WORK DOWNLOADED')
+                  try {
+                    const href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
+                    const anchor = document.createElement('a')
+                    anchor.href = href
+                    anchor.download = 'manual-carry-forward.txt'
+                    anchor.click()
+                    URL.revokeObjectURL(href)
+                    trackOutput('download', 'success', true)
+                    setOutputMessage('MANUAL WORK DOWNLOADED')
+                  } catch {
+                    trackOutput('download', 'failure', true)
+                    setOutputMessage('DOWNLOAD FAILED · COPY IS STILL AVAILABLE')
+                  }
                 }} disabled={!state.manualItems.some((item) => item.trim()) && !state.manualDraft.trim()}>DOWNLOAD</ActionButton>
                 <ActionButton onClick={() => {
                   compileStartedAtRef.current = performance.now()
+                  emitCarryForwardTelemetry('carry_forward_compile_started', { state: 'compiling' })
                   dispatch({ type: 'RETRY_COMPILE' })
                 }} disabled={!state.budget}>RETRY COMPILER</ActionButton>
               </div>
@@ -691,6 +728,7 @@ function CompleteScreen({
   outputMessage,
   setOutputMessage,
   onReset,
+  onOutput,
 }: {
   state: Extract<CarryForwardState, { kind: 'complete' }>
   dispatch: React.Dispatch<CarryForwardEvent>
@@ -698,6 +736,7 @@ function CompleteScreen({
   outputMessage: string
   setOutputMessage: (message: string) => void
   onReset: () => void
+  onOutput: (outputKind: 'copy' | 'download', outcome: 'success' | 'failure', manual: boolean) => void
 }) {
   const { plan } = state.session
   return (
@@ -724,9 +763,24 @@ function CompleteScreen({
           <ActionButton variant="quiet" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'why' })}>WHY THIS VIEW</ActionButton>
           <ActionButton variant="quiet" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'plan' })}>SHOW COMPLETE PLAN</ActionButton>
           <ActionButton variant="secondary" onClick={() => {
-            void copyPlanOutput(plan, state.session).then(() => setOutputMessage('PLAN COPIED')).catch(() => setOutputMessage('COPY FAILED · DOWNLOAD IS STILL AVAILABLE'))
+            void copyPlanOutput(plan, state.session).then(() => {
+              onOutput('copy', 'success', false)
+              setOutputMessage('PLAN COPIED')
+            }).catch(() => {
+              onOutput('copy', 'failure', false)
+              setOutputMessage('COPY FAILED · DOWNLOAD IS STILL AVAILABLE')
+            })
           }}>COPY PLAN</ActionButton>
-          <ActionButton onClick={() => { downloadPlanOutput(plan, state.session); setOutputMessage('PLAN DOWNLOADED') }}>DOWNLOAD PLAN</ActionButton>
+          <ActionButton onClick={() => {
+            try {
+              downloadPlanOutput(plan, state.session)
+              onOutput('download', 'success', false)
+              setOutputMessage('PLAN DOWNLOADED')
+            } catch {
+              onOutput('download', 'failure', false)
+              setOutputMessage('DOWNLOAD FAILED · COPY IS STILL AVAILABLE')
+            }
+          }}>DOWNLOAD PLAN</ActionButton>
         </footer>
         <p className="cf-output-message" role="status">{outputMessage}</p>
       </article>

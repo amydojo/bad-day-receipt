@@ -5,12 +5,12 @@ import { z } from 'zod'
 import { validateTaskPlan, type CompilerSource } from '../src/carry-forward/evidenceVerification'
 import { CARRY_FORWARD_TTL_MS, InteractionBudgetSchema } from '../src/carry-forward/interactionBudget'
 import { TaskPlanCandidateSchema, type TaskPlanValidationIssue } from '../src/carry-forward/taskPlanSchema'
-import { TASK_PLAN_LIMITS } from '../src/carry-forward/taskPlanLimits'
+import { CARRY_FORWARD_COMPILER_LIMITS, TASK_PLAN_LIMITS } from '../src/carry-forward/taskPlanLimits'
 
 const MODEL = 'gpt-5.6'
-const REQUEST_TIMEOUT_MS = 12_000
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_REQUESTS = 8
+const MAX_TRACKED_ADDRESSES = 500
 
 type ApiRequest = {
   method?: string
@@ -32,7 +32,10 @@ const requestSchema = z.object({
   sources: z.array(z.object({
     id: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/),
     label: z.string().trim().min(1).max(80),
-    text: z.string().trim().min(1).max(TASK_PLAN_LIMITS.source),
+    text: z.string()
+      .min(1)
+      .max(TASK_PLAN_LIMITS.source)
+      .refine((value) => value.trim().length > 0, 'Source text must not be blank.'),
   }).strict()).max(1),
   budget: InteractionBudgetSchema,
 }).strict().superRefine((value, context) => {
@@ -47,6 +50,9 @@ const requestSchema = z.object({
 })
 
 const attemptsByAddress = new Map<string, number[]>()
+const inFlightRequestIds = new Set<string>()
+
+class CompilerTimeoutError extends Error {}
 
 function getAddress(request: ApiRequest) {
   const forwarded = request.headers['x-forwarded-for']
@@ -55,11 +61,28 @@ function getAddress(request: ApiRequest) {
 }
 
 function isRateLimited(address: string, now = Date.now()) {
-  const recent = (attemptsByAddress.get(address) ?? [])
-    .filter((timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS)
+  for (const [trackedAddress, attempts] of attemptsByAddress) {
+    const recentAttempts = attempts.filter((timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS)
+    if (recentAttempts.length > 0) attemptsByAddress.set(trackedAddress, recentAttempts)
+    else attemptsByAddress.delete(trackedAddress)
+  }
+  if (!attemptsByAddress.has(address) && attemptsByAddress.size >= MAX_TRACKED_ADDRESSES) {
+    const oldestAddress = attemptsByAddress.keys().next().value as string | undefined
+    if (oldestAddress) attemptsByAddress.delete(oldestAddress)
+  }
+  const recent = attemptsByAddress.get(address) ?? []
   recent.push(now)
   attemptsByAddress.set(address, recent)
   return recent.length > RATE_LIMIT_REQUESTS
+}
+
+function requestByteLength(body: unknown) {
+  try {
+    const serialized = JSON.stringify(body)
+    return serialized === undefined ? 0 : Buffer.byteLength(serialized, 'utf8')
+  } catch {
+    return Number.POSITIVE_INFINITY
+  }
 }
 
 function safeError(response: ApiResponse, status: number, code: string) {
@@ -80,9 +103,13 @@ function compilerInstructions() {
     'Choice steps may contain one to three options. Mark exactly one option primary.',
     'Put whole nonrequired tasks in LATER; never mix optional work into a required step.',
     'Do not emit URLs, markup, tool calls, action syntax, or executable instructions.',
-    'The only output action is copy or download and the only output format is plain_text.',
+    'The output format is plain_text. The application owns copy, download, and filenames.',
     'For every extracted fact, copy an exact quote that occurs exactly once in its source.',
+    'Copy every displayed fact value as an exact substring of its evidence quote.',
     'When no source is provided, return no extracted facts and do not invent source-backed claims.',
+    'Never invent deadlines, account access, external actions, or successful submission.',
+    'When the task is underspecified, create a safe clarification or preparation step instead of pretending success.',
+    'Keep consequential content available for user review before the plan can be completed.',
     'Do not calculate or emit evidence offsets. The application derives offsets after validation.',
     'Honor the four interaction policies as independent booleans.',
   ].join('\n')
@@ -94,39 +121,48 @@ async function requestCandidate({
   sources,
   budget,
   issues,
-  signal,
 }: {
   openai: OpenAI
   task: string
   sources: CompilerSource[]
   budget: z.infer<typeof InteractionBudgetSchema>
-  issues: TaskPlanValidationIssue[] | null
-  signal: AbortSignal
+  issues: Array<Pick<TaskPlanValidationIssue, 'code' | 'path'>> | null
 }) {
-  const response = await openai.responses.create({
-    model: MODEL,
-    store: false,
-    tools: [],
-    max_output_tokens: 5000,
-    reasoning: { effort: 'low' },
-    input: [
-      { role: 'developer', content: compilerInstructions() },
-      {
-        role: 'user',
-        content: JSON.stringify({
-          kind: issues ? 'repair_request' : 'compile_request',
-          task,
-          policies: budget.policies,
-          sources,
-          validationIssues: issues,
-        }),
-      },
-    ],
-    text: { format: zodTextFormat(TaskPlanCandidateSchema, 'carry_forward_task_plan') },
-  }, { signal })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), CARRY_FORWARD_COMPILER_LIMITS.attemptTimeoutMs)
+  let response: OpenAIResponse
+  try {
+    response = await openai.responses.create({
+      model: MODEL,
+      store: false,
+      tools: [],
+      max_output_tokens: CARRY_FORWARD_COMPILER_LIMITS.outputTokens,
+      reasoning: { effort: 'low' },
+      input: [
+        { role: 'developer', content: compilerInstructions() },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            kind: issues ? 'repair_request' : 'compile_request',
+            task,
+            policies: budget.policies,
+            sources,
+            validationIssues: issues,
+          }),
+        },
+      ],
+      text: { format: zodTextFormat(TaskPlanCandidateSchema, 'carry_forward_task_plan') },
+    }, { signal: controller.signal })
+  } catch (error) {
+    if (controller.signal.aborted) throw new CompilerTimeoutError()
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
 
-  if (response.status !== 'completed' || response.incomplete_details || includesRefusal(response)) {
-    return { ok: false as const, response }
+  if (includesRefusal(response)) return { ok: false as const, code: 'compilation_refused' as const }
+  if (response.status !== 'completed' || response.incomplete_details) {
+    return { ok: false as const, code: 'compilation_incomplete' as const }
   }
   let candidate: unknown = null
   try {
@@ -147,7 +183,13 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
 
   if (isRateLimited(getAddress(request))) {
+    response.setHeader('retry-after', String(RATE_LIMIT_WINDOW_MS / 1000))
     safeError(response, 429, 'rate_limited')
+    return
+  }
+
+  if (requestByteLength(request.body) > CARRY_FORWARD_COMPILER_LIMITS.requestBytes) {
+    safeError(response, 413, 'input_too_large')
     return
   }
 
@@ -163,8 +205,12 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     return
   }
 
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  if (inFlightRequestIds.has(input.data.requestId)) {
+    response.setHeader('retry-after', '2')
+    safeError(response, 409, 'duplicate_request')
+    return
+  }
+  inFlightRequestIds.add(input.data.requestId)
   const openai = new OpenAI({ apiKey: key, maxRetries: 0 })
 
   try {
@@ -174,10 +220,9 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       sources: input.data.sources,
       budget: input.data.budget,
       issues: null,
-      signal: controller.signal,
     })
     if (!first.ok) {
-      safeError(response, 409, 'model_refusal_or_incomplete')
+      safeError(response, 409, first.code)
       return
     }
 
@@ -190,16 +235,23 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       return
     }
 
+    const repairIssues = firstValidation.issues
+      .filter((issue) => issue.repairable)
+      .map(({ code, path }) => ({ code, path }))
+    if (repairIssues.length === 0) {
+      safeError(response, 422, 'plan_validation_failed')
+      return
+    }
+
     const repair = await requestCandidate({
       openai,
       task: input.data.task,
       sources: input.data.sources,
       budget: input.data.budget,
-      issues: firstValidation.issues,
-      signal: controller.signal,
+      issues: repairIssues,
     })
     if (!repair.ok) {
-      safeError(response, 409, 'model_refusal_or_incomplete')
+      safeError(response, 409, repair.code)
       return
     }
 
@@ -214,7 +266,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       meta: { model: repair.response.model, repaired: true },
     })
   } catch (error) {
-    if (controller.signal.aborted) safeError(response, 504, 'compiler_timeout')
+    if (error instanceof CompilerTimeoutError) safeError(response, 504, 'compiler_timeout')
     else if (error instanceof OpenAI.APIError) {
       const upstreamStatus = error.status
       const quotaExhausted = upstreamStatus === 429 && error.code === 'insufficient_quota'
@@ -231,6 +283,6 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       safeError(response, status, code)
     } else safeError(response, 502, 'compiler_failed')
   } finally {
-    clearTimeout(timeout)
+    inFlightRequestIds.delete(input.data.requestId)
   }
 }
