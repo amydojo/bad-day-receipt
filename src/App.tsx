@@ -275,7 +275,7 @@ function App() {
             <header className="masthead v2-masthead">
               <div className="system-row" aria-label="System status">
                 <span>SOFT MACHINE 001 · EMOTIONAL POS</span>
-                <span><i aria-hidden="true" /> {editingLocked ? 'PROCESSING' : 'READY'} · LOCAL ONLY</span>
+                <span><i aria-hidden="true" /> {editingLocked ? 'PROCESSING' : 'READY'} · LOCAL-FIRST</span>
               </div>
               <div className="brand-lockup">
                 <h1>bad day<br />receipt</h1>
@@ -308,6 +308,11 @@ function App() {
                 <span>EXPORT</span><strong>{machineState.isComplete ? 'READY' : 'AFTER PRINT'}</strong>
               </button>
             </nav>
+
+            <a className="cf-machine-entry" href="/carry-forward">
+              <span>NEW · CARRY FORWARD</span>
+              <strong>CARRY ONE THING FORWARD →</strong>
+            </a>
 
             <section className="theme-section theme-section-first" aria-labelledby="paperwork-heading">
               <div className="section-heading">

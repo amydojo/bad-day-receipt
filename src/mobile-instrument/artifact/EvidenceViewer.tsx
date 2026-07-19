@@ -6,8 +6,9 @@ import {
   type Ref,
 } from 'react'
 import { createDojoArchiveHandoffUrl } from '../../dojoLab'
+import { saveReceiptSeed } from '../../carry-forward/carryForwardStorage'
 import type { ArtifactExport } from '../../export/exportTypes'
-import { ArtifactActions } from '../../soft-machine/ArtifactActions'
+import { ArtifactActions } from '../../soft-machine/ArtifactActionDock'
 import {
   copyArtifactText,
   createBrowserArtifactPlatform,
@@ -107,6 +108,16 @@ export function EvidenceViewer({
             onReprint={onReprint}
             onMore={() => setMoreOpen(true)}
           />
+          <button
+            type="button"
+            className="cf-entry-link cf-entry-link--receipt"
+            onClick={() => {
+              saveReceiptSeed(window.sessionStorage, receiptNumber)
+              window.location.assign('/carry-forward')
+            }}
+          >
+            CARRY ONE THING FORWARD
+          </button>
         </footer>
       </div>
 

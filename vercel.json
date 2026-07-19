@@ -3,6 +3,7 @@
     { "source": "/access/:path*", "destination": "/index.html" },
     { "source": "/field/:path*", "destination": "/index.html" },
     { "source": "/go/:path*", "destination": "/index.html" },
-    { "source": "/lab/:path*", "destination": "/index.html" }
+    { "source": "/lab/:path*", "destination": "/index.html" },
+    { "source": "/carry-forward", "destination": "/index.html" }
   ]
 }

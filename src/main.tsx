@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import { analyticsBeforeSend } from './analytics/fieldAnalytics'
+import CarryForwardApp from './carry-forward/CarryForwardApp'
 import { MachineErrorBoundary } from './components/MachineErrorBoundary'
 import { FieldAccessGate } from './field-access/FieldAccessGate'
 import './field-access/canonicalMachineLabels'
@@ -39,12 +40,16 @@ import './field-access/opening-sequence-hardening.css'
 import './field-access/iconic-field-release.css'
 import './analytics/analytics.css'
 import './analytics/iconic-metrics.css'
+import './carry-forward/carry-forward.css'
+
+const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/'
+const route = normalizedPath === '/carry-forward' ? <CarryForwardApp /> : <App />
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MachineErrorBoundary>
       <FieldAccessGate>
-        <App />
+        {route}
       </FieldAccessGate>
       <Analytics
         mode={import.meta.env.PROD ? 'production' : 'development'}
