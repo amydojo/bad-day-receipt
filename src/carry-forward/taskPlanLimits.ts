@@ -1,0 +1,15 @@
+export const TASK_PLAN_LIMITS = {
+  task: 240,
+  source: 6000,
+  title: 80,
+  goal: 240,
+  completionDefinition: 240,
+  summary: 240,
+  stepCount: 5,
+  choiceCount: 3,
+  checklistCount: 8,
+  factCount: 12,
+  evidenceQuote: 500,
+  composeDraft: 4000,
+  laterCount: 5,
+} as const

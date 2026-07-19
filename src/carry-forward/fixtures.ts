@@ -22,7 +22,10 @@ export const INSURANCE_DENIAL_SOURCE_RECORD: CompilerSource = {
 
 export const INSURANCE_DENIAL_CANDIDATE: TaskPlanCandidate = {
   version: 1,
+  id: 'insurance-appeal-plan',
   title: 'Submit the insurance appeal',
+  goal: 'Prepare a complete insurance appeal package and submit it through the chosen route.',
+  completionDefinition: 'The appeal note and required records are submitted, and a confirmation is saved.',
   summary: 'Gather the required records, draft a short appeal, and submit it before the stated deadline.',
   extractedFacts: [
     {

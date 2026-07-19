@@ -22,7 +22,7 @@ export type RuntimeSession = {
   startedAt: string
 }
 
-export type CompilePhase = 'request-accepted' | 'extracting-facts' | 'validating-plan'
+export type CompilePhase = 'request-accepted' | 'awaiting-plan' | 'validating-plan'
 export type FallbackReason = 'offline' | 'timeout' | 'rate_limited' | 'refusal' | 'invalid_plan' | 'server_error'
 
 export type CarryForwardState =
@@ -60,6 +60,7 @@ export type CarryForwardState =
     budget: InteractionBudget
     session: RuntimeSession
     returnTo: 'active' | 'complete'
+    inspector: 'plan' | 'why'
   }
   | {
     kind: 'complete'
@@ -73,6 +74,7 @@ export type CarryForwardState =
     budget: InteractionBudget | null
     reason: FallbackReason
     manualItems: string[]
+    manualDraft: string
   }
   | {
     kind: 'expired'
@@ -86,6 +88,7 @@ export type CarryForwardEvent =
   | { type: 'NEXT_INPUT' }
   | { type: 'BACK_INPUT' }
   | { type: 'TASK_AMBIGUOUS' }
+  | { type: 'LOAD_AMBIGUOUS_DEMO' }
   | { type: 'OPEN_BUDGET' }
   | { type: 'TOGGLE_POLICY'; policy: keyof InteractionPolicies }
   | { type: 'BACK_TO_SOURCE' }
@@ -96,19 +99,22 @@ export type CarryForwardEvent =
   | { type: 'COMPILE_SUCCESS'; plan: ValidatedTaskPlan; startedAt: string }
   | { type: 'COMPILE_FAILURE'; reason: FallbackReason }
   | { type: 'RESTORE_SESSION'; status: 'active' | 'complete'; task: string; budget: InteractionBudget; session: RuntimeSession }
+  | { type: 'RESTORE_FALLBACK'; draft: CarryForwardDraft; budget: InteractionBudget; reason: FallbackReason; manualItems: string[]; manualDraft: string }
   | { type: 'SELECT_CHOICE'; stepId: string; optionId: string }
   | { type: 'TOGGLE_CHECK'; itemId: string }
   | { type: 'UPDATE_COMPOSE'; stepId: string; value: string }
   | { type: 'SHOW_ALL_CHOICES'; stepId: string }
   | { type: 'COMPLETE_STEP' }
   | { type: 'PREVIOUS_STEP' }
-  | { type: 'OPEN_WHY' }
+  | { type: 'OPEN_INSPECTOR'; inspector: 'plan' | 'why' }
   | { type: 'CLOSE_WHY' }
   | { type: 'ADD_MANUAL_ITEM' }
   | { type: 'UPDATE_MANUAL_ITEM'; index: number; value: string }
+  | { type: 'UPDATE_MANUAL_DRAFT'; value: string }
   | { type: 'REMOVE_MANUAL_ITEM'; index: number }
   | { type: 'RETRY_COMPILE' }
   | { type: 'EDIT_AFTER_FAILURE' }
+  | { type: 'OPEN_DEMO_FALLBACK'; budget: InteractionBudget }
   | { type: 'EXPIRE' }
   | { type: 'RESET' }
 
@@ -158,6 +164,15 @@ export function carryForwardReducer(
     case 'TASK_AMBIGUOUS':
       return state.kind === 'input'
         ? { ...state, screen: 'task', error: 'Name the concrete thing you want to finish.' }
+        : state
+    case 'LOAD_AMBIGUOUS_DEMO':
+      return state.kind === 'input'
+        ? {
+          ...state,
+          screen: 'task',
+          draft: { ...state.draft, task: 'Deal with that insurance thing' },
+          error: 'Name the concrete thing you want to finish.',
+        }
         : state
     case 'OPEN_BUDGET':
       return state.kind === 'input'
@@ -214,10 +229,20 @@ export function carryForwardReducer(
           budget: state.budget,
           reason: event.reason,
           manualItems: ['', '', ''],
+          manualDraft: '',
         }
         : state
     case 'RESTORE_SESSION':
       return { kind: event.status, task: event.task, budget: event.budget, session: event.session }
+    case 'RESTORE_FALLBACK':
+      return {
+        kind: 'fallback',
+        draft: event.draft,
+        budget: event.budget,
+        reason: event.reason,
+        manualItems: event.manualItems,
+        manualDraft: event.manualDraft,
+      }
     case 'SELECT_CHOICE':
       return state.kind === 'active'
         ? updateActiveSession(state, {
@@ -274,9 +299,9 @@ export function carryForwardReducer(
       return state.kind === 'active' && state.session.stepIndex > 0
         ? updateActiveSession(state, { ...state.session, stepIndex: state.session.stepIndex - 1 })
         : state
-    case 'OPEN_WHY':
+    case 'OPEN_INSPECTOR':
       return state.kind === 'active' || state.kind === 'complete'
-        ? { ...state, kind: 'explaining', returnTo: state.kind }
+        ? { ...state, kind: 'explaining', returnTo: state.kind, inspector: event.inspector }
         : state
     case 'CLOSE_WHY':
       return state.kind === 'explaining'
@@ -298,6 +323,8 @@ export function carryForwardReducer(
           manualItems: state.manualItems.map((item, index) => index === event.index ? event.value : item),
         }
         : state
+    case 'UPDATE_MANUAL_DRAFT':
+      return state.kind === 'fallback' ? { ...state, manualDraft: event.value } : state
     case 'REMOVE_MANUAL_ITEM':
       return state.kind === 'fallback' && state.manualItems.length > 1
         ? { ...state, manualItems: state.manualItems.filter((_, index) => index !== event.index) }
@@ -309,6 +336,17 @@ export function carryForwardReducer(
     case 'EDIT_AFTER_FAILURE':
       return state.kind === 'fallback'
         ? { kind: 'input', screen: 'source', draft: state.draft, error: null }
+        : state
+    case 'OPEN_DEMO_FALLBACK':
+      return state.kind === 'input'
+        ? {
+          kind: 'fallback',
+          draft: state.draft,
+          budget: event.budget,
+          reason: 'server_error',
+          manualItems: ['', '', ''],
+          manualDraft: '',
+        }
         : state
     case 'EXPIRE':
       return {

@@ -8,6 +8,7 @@ const liveIt = process.env.RUN_OPENAI_LIVE === '1' ? it : it.skip
 
 describe('live GPT-5.6 compiler smoke test', () => {
   liveIt('returns a server-validated task plan without exposing raw output', async () => {
+    const budget = createInteractionBudget({ policies: DEFAULT_INTERACTION_POLICIES, receiptId: null })
     let status = 0
     let body: unknown
     const headers = new Map<string, string>()
@@ -22,9 +23,10 @@ describe('live GPT-5.6 compiler smoke test', () => {
       method: 'POST',
       headers: { 'x-forwarded-for': 'live-smoke-test' },
       body: {
+        requestId: budget.taskId,
         task: INSURANCE_DENIAL_TASK,
         sources: [{ id: 'source-1', label: 'Insurance denial notice', text: INSURANCE_DENIAL_SOURCE }],
-        budget: createInteractionBudget({ policies: DEFAULT_INTERACTION_POLICIES, receiptId: null }),
+        budget,
       },
     }, response)
 

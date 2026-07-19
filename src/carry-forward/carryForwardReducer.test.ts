@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { createInsuranceDenialPlan } from './fixtures'
-import { createInteractionBudget, DEFAULT_INTERACTION_POLICIES } from './interactionBudget'
+import { createInteractionBudget, DEFAULT_INTERACTION_POLICIES, InteractionBudgetSchema } from './interactionBudget'
 import { carryForwardReducer, createInitialCarryForwardState } from './carryForwardReducer'
 
 describe('carryForwardReducer', () => {
+  it('brands the budget as user-declared and rejects emotional-profile contamination', () => {
+    const budget = createInteractionBudget({ policies: DEFAULT_INTERACTION_POLICIES, receiptId: null })
+    expect(budget.declaredBy).toBe('user')
+    expect(budget.budgetId).not.toBe(budget.taskId)
+    expect(InteractionBudgetSchema.safeParse({ ...budget, inferredMood: 'overwhelmed' }).success).toBe(false)
+  })
+
   it('keeps the four policy controls independent', () => {
     let state = createInitialCarryForwardState()
     state = carryForwardReducer(state, { type: 'OPEN_BUDGET' })

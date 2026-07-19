@@ -6,6 +6,7 @@ import {
   clearCarryForwardSession,
   consumeReceiptSeed,
   loadCarryForwardSession,
+  saveCarryForwardFallback,
   saveCarryForwardSession,
   saveReceiptSeed,
 } from './carryForwardStorage'
@@ -54,19 +55,32 @@ describe('isolated Carry Forward storage', () => {
     expect(loadCarryForwardSession(storage, new Date('2026-07-18T13:00:00.000Z')).status).toBe('ready')
   })
 
-  it('does not persist choices or drafts when Protect progress is off', () => {
+  it('does not persist any task data when Protect progress is off', () => {
     const storage = memoryStorage()
     saveCarryForwardSession(storage, session(false))
+    expect(storage.data.has(CARRY_FORWARD_STORAGE_KEY)).toBe(false)
+  })
+
+  it('restores protected manual fallback work without storing raw source', () => {
+    const storage = memoryStorage()
+    const stored = session()
+    saveCarryForwardFallback(storage, {
+      status: 'fallback',
+      draft: { task: stored.task, source: 'private raw source', receiptId: stored.budget.receiptId },
+      budget: stored.budget,
+      reason: 'server_error',
+      manualItems: ['Gather the notice', 'Draft the appeal'],
+      manualDraft: 'A protected manual draft',
+    })
     const raw = storage.data.get(CARRY_FORWARD_STORAGE_KEY) ?? ''
-    expect(raw).not.toContain('private draft')
-    const stored = JSON.parse(raw) as {
-      status: string
-      progress: { stepIndex: number; completedStepIds: string[]; choices: Record<string, string> }
-    }
-    expect(stored.status).toBe('active')
-    expect(stored.progress.stepIndex).toBe(0)
-    expect(stored.progress.completedStepIds).toEqual([])
-    expect(stored.progress.choices).toEqual({})
+    expect(raw).not.toContain('private raw source')
+    expect(raw).toContain('A protected manual draft')
+    const loaded = loadCarryForwardSession(storage, new Date('2026-07-18T13:00:00.000Z'))
+    expect(loaded.status).toBe('ready')
+    if (loaded.status !== 'ready' || loaded.value.status !== 'fallback') return
+    expect(loaded.value.draft.source).toBe('')
+    expect(loaded.value.manualItems).toEqual(['Gather the notice', 'Draft the appeal'])
+    expect(loaded.value.manualDraft).toBe('A protected manual draft')
   })
 
   it('expires after four hours and clears only its isolated key', () => {
@@ -84,5 +98,21 @@ describe('isolated Carry Forward storage', () => {
     expect([...storage.data.values()][0]).toBe('{"receiptId":"BD-2026-0042"}')
     expect(consumeReceiptSeed(storage)).toBe('BD-2026-0042')
     expect(consumeReceiptSeed(storage)).toBeNull()
+  })
+
+  it('returns a safe failure when browser storage rejects a write', () => {
+    const storage = {
+      setItem() { throw new DOMException('Quota exceeded', 'QuotaExceededError') },
+    }
+    expect(saveCarryForwardSession(storage, session())).toBe(false)
+  })
+
+  it('treats storage read denial as an empty recoverable state', () => {
+    const storage = {
+      getItem() { throw new DOMException('Denied', 'SecurityError') },
+      removeItem() { throw new DOMException('Denied', 'SecurityError') },
+    }
+    expect(loadCarryForwardSession(storage)).toEqual({ status: 'empty' })
+    expect(() => clearCarryForwardSession(storage)).not.toThrow()
   })
 })

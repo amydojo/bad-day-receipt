@@ -3,8 +3,9 @@ import { zodTextFormat } from 'openai/helpers/zod'
 import type { Response as OpenAIResponse } from 'openai/resources/responses/responses'
 import { z } from 'zod'
 import { validateTaskPlan, type CompilerSource } from '../src/carry-forward/evidenceVerification'
-import { InteractionBudgetSchema } from '../src/carry-forward/interactionBudget'
+import { CARRY_FORWARD_TTL_MS, InteractionBudgetSchema } from '../src/carry-forward/interactionBudget'
 import { TaskPlanCandidateSchema, type TaskPlanValidationIssue } from '../src/carry-forward/taskPlanSchema'
+import { TASK_PLAN_LIMITS } from '../src/carry-forward/taskPlanLimits'
 
 const MODEL = 'gpt-5.6'
 const REQUEST_TIMEOUT_MS = 12_000
@@ -26,14 +27,24 @@ type ApiResponse = {
 }
 
 const requestSchema = z.object({
-  task: z.string().trim().min(3).max(240),
+  requestId: z.string().trim().min(1).max(64),
+  task: z.string().trim().min(3).max(TASK_PLAN_LIMITS.task),
   sources: z.array(z.object({
     id: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/),
     label: z.string().trim().min(1).max(80),
-    text: z.string().trim().min(1).max(6000),
-  }).strict()).length(1),
+    text: z.string().trim().min(1).max(TASK_PLAN_LIMITS.source),
+  }).strict()).max(1),
   budget: InteractionBudgetSchema,
-}).strict()
+}).strict().superRefine((value, context) => {
+  const createdAt = new Date(value.budget.createdAt).getTime()
+  const expiresAt = new Date(value.budget.expiresAt).getTime()
+  if (value.requestId !== value.budget.taskId) {
+    context.addIssue({ code: 'custom', path: ['requestId'], message: 'Request and task ids must match.' })
+  }
+  if (expiresAt <= createdAt || expiresAt - createdAt > CARRY_FORWARD_TTL_MS || expiresAt <= Date.now()) {
+    context.addIssue({ code: 'custom', path: ['budget', 'expiresAt'], message: 'Budget expiry is invalid.' })
+  }
+})
 
 const attemptsByAddress = new Map<string, number[]>()
 
@@ -71,6 +82,7 @@ function compilerInstructions() {
     'Do not emit URLs, markup, tool calls, action syntax, or executable instructions.',
     'The only output action is copy or download and the only output format is plain_text.',
     'For every extracted fact, copy an exact quote that occurs exactly once in its source.',
+    'When no source is provided, return no extracted facts and do not invent source-backed claims.',
     'Do not calculate or emit evidence offsets. The application derives offsets after validation.',
     'Honor the four interaction policies as independent booleans.',
   ].join('\n')

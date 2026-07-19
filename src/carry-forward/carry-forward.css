@@ -4,6 +4,11 @@
   --cf-signal: #ff5b4d;
   --cf-muted: #6e6b63;
   --cf-canvas: #d6d4cc;
+  --cf-motion-instant: 0ms;
+  --cf-motion-local: 120ms;
+  --cf-motion-step: 180ms;
+  --cf-motion-mode: 280ms;
+  --cf-motion-scene: 420ms;
   min-height: 100svh;
   overflow-x: clip;
   color: var(--cf-ink);
@@ -241,7 +246,7 @@
   color: var(--cf-ink);
   background: transparent;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -267,6 +272,55 @@
 
 .cf-field {
   margin-top: 24px;
+}
+
+.cf-data-details {
+  margin: 14px 0 22px;
+  border-bottom: 1px solid rgb(23 23 19 / 25%);
+}
+
+.cf-demo-controls {
+  margin-top: 16px;
+}
+
+.cf-demo-controls summary {
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+  color: var(--cf-muted);
+  font-size: 11px;
+  letter-spacing: .08em;
+}
+
+.cf-demo-controls > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cf-demo-controls button {
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 1px solid rgb(23 23 19 / 35%);
+  color: var(--cf-ink);
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.cf-data-details summary {
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+}
+
+.cf-data-details p {
+  margin: 0 0 16px;
+  color: var(--cf-muted);
+  font-size: 13px;
 }
 
 .cf-field__label-row {
@@ -313,7 +367,7 @@
 .cf-field__error {
   margin: 8px 0 0;
   color: var(--cf-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .cf-field__error {
@@ -351,7 +405,7 @@
 .cf-status p {
   margin: 3px 0 0;
   color: var(--cf-muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .cf-policy-grid {
@@ -374,7 +428,7 @@
   cursor: pointer;
 }
 
-.cf-policy[aria-pressed="true"] {
+.cf-policy[data-selected] {
   color: var(--cf-paper);
   background: var(--cf-ink);
   box-shadow: inset 0 -4px var(--cf-signal);
@@ -388,7 +442,15 @@
   letter-spacing: .1em;
 }
 
-.cf-policy[aria-pressed="true"] .cf-policy__mark { color: var(--cf-signal); }
+.cf-policy[data-selected] .cf-policy__mark { color: var(--cf-signal); }
+.cf-policy__input {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 22px;
+  height: 22px;
+  accent-color: var(--cf-signal);
+}
 
 .cf-policy strong {
   font-family: "Instrument Serif", Georgia, serif;
@@ -400,10 +462,10 @@
 .cf-policy > span:last-child {
   margin-top: 12px;
   color: var(--cf-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
-.cf-policy[aria-pressed="true"] > span:last-child { color: #c8c3ae; }
+.cf-policy[data-selected] > span:last-child { color: #c8c3ae; }
 
 .cf-preview-list,
 .cf-inspector-policies {
@@ -473,7 +535,7 @@
   width: 12px;
   height: 60px;
   background: var(--cf-ink);
-  animation: cf-compile 1.1s ease-in-out infinite alternate;
+  animation: cf-compile var(--cf-motion-scene) ease-out 1 alternate both;
 }
 
 .cf-compile-mark span:nth-child(2) { height: 86px; animation-delay: 120ms; background: var(--cf-signal); }
@@ -555,7 +617,9 @@
 .cf-task-rail li[data-complete] span::after { content: " ✓"; color: var(--cf-signal); }
 
 .cf-task-rail > button,
-.cf-mobile-runtime-head button {
+.cf-mobile-runtime-head button,
+.cf-runtime-links button,
+.cf-mobile-runtime-links button {
   min-height: 48px;
   padding: 12px;
   color: var(--cf-paper);
@@ -565,6 +629,19 @@
   font: inherit;
   font-size: 10px;
   letter-spacing: .08em;
+}
+
+.cf-runtime-links {
+  display: grid;
+  gap: 8px;
+}
+
+.cf-runtime-links button {
+  width: 100%;
+}
+
+.cf-mobile-runtime-links {
+  display: none;
 }
 
 .cf-workspace {
@@ -619,6 +696,33 @@
   min-height: 360px;
   padding: 34px 0;
 }
+
+.cf-plan-context {
+  padding: 22px;
+  margin-top: 30px;
+  border: 1px solid var(--cf-ink);
+  background: rgb(255 255 255 / 24%);
+}
+
+.cf-plan-context ol {
+  padding: 0;
+  margin: 14px 0 0;
+  list-style: none;
+}
+
+.cf-plan-context li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 42px;
+  border-top: 1px solid rgb(23 23 19 / 24%);
+}
+
+.cf-plan-context li[data-current] { box-shadow: inset 3px 0 var(--cf-signal); }
+.cf-plan-context li span,
+.cf-plan-context li small { color: var(--cf-muted); font-size: 9px; letter-spacing: .08em; }
+.cf-plan-context li strong { font-size: 12px; }
 
 .cf-step-shell > footer {
   padding-top: 22px;
@@ -807,8 +911,32 @@
 .cf-completion-slip > footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding-top: 28px; border-top: 1px solid var(--cf-ink); }
 .cf-output-message { min-height: 20px; color: #376d3f; font-size: 10px; text-align: right; }
 .cf-start-another { display: block; margin: 0 auto; }
+.cf-complete-exits {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+  margin: 20px auto 0;
+}
+
+.cf-complete-exits a,
+.cf-complete-exits button {
+  min-height: 44px;
+  padding: 10px 4px;
+  border: 0;
+  color: var(--cf-ink);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
 
 .cf-manual-list { margin: 28px 0; }
+.cf-manual-draft { margin: 28px 0; }
 .cf-manual-list legend { margin-bottom: 12px; font-size: 10px; font-weight: 700; letter-spacing: .1em; }
 .cf-manual-list > div { display: grid; grid-template-columns: 36px 1fr 42px; align-items: center; border-top: 1px solid rgb(23 23 19 / 22%); }
 .cf-manual-list label { color: var(--cf-signal); font-size: 10px; }
@@ -864,6 +992,18 @@
   .cf-mobile-runtime-head .cf-wordmark { font-size: 26px; line-height: 1; }
   .cf-mobile-runtime-head button { min-height: 42px; padding: 8px; }
   .cf-progress { margin-bottom: 26px; }
+  .cf-mobile-runtime-links {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: -12px 0 24px;
+  }
+  .cf-mobile-runtime-links button {
+    min-height: 44px;
+    padding: 8px;
+    color: var(--cf-ink);
+    border-color: rgb(23 23 19 / 35%);
+  }
   .cf-step-shell { min-height: calc(100svh - 140px); }
   .cf-step-shell__body { min-height: 300px; padding: 26px 0; }
   .cf-step-shell > footer { position: sticky; bottom: 0; z-index: 2; padding: 12px 0 max(12px, env(safe-area-inset-bottom)); background: var(--cf-paper); }

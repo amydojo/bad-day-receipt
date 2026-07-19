@@ -95,7 +95,7 @@ export const POLICY_COPY: Record<keyof InteractionPolicies, { title: string; bod
     body: 'Keep secondary choices behind SHOW ALL CHOICES.',
   },
   protectProgress: {
-    title: 'Protect progress',
+    title: 'Protect my progress',
     body: 'Keep completed steps and drafts on this device for four hours.',
   },
   deferOptionalWork: {
@@ -115,16 +115,21 @@ export function InteractionPolicyCard({
 }) {
   const copy = POLICY_COPY[policy]
   return (
-    <button
-      type="button"
+    <label
       className="cf-policy"
-      aria-pressed={selected}
-      onClick={onToggle}
+      data-selected={selected || undefined}
     >
+      <input
+        className="cf-policy__input"
+        type="checkbox"
+        checked={selected}
+        onChange={onToggle}
+        aria-describedby={`cf-policy-${policy}-description`}
+      />
       <span className="cf-policy__mark" aria-hidden="true">{selected ? 'ON' : 'OFF'}</span>
       <strong>{copy.title}</strong>
-      <span>{copy.body}</span>
-    </button>
+      <span id={`cf-policy-${policy}-description`}>{copy.body}</span>
+    </label>
   )
 }
 

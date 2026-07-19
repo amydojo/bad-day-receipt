@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TASK_PLAN_LIMITS } from './taskPlanLimits'
 
 const SAFE_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/
 const PROHIBITED_TEXT = /(?:https?:\/\/|www\.|<\/?[a-z][^>]*>|javascript:|mailto:|function_call|tool_call|open_url)/i
@@ -34,7 +35,7 @@ const choiceStepSchema = z.object({
     label: safeText(64),
     detail: safeText(180),
     primary: z.boolean(),
-  }).strict()).min(1).max(3),
+  }).strict()).min(1).max(TASK_PLAN_LIMITS.choiceCount),
 }).strict()
 
 const composeStepSchema = z.object({
@@ -52,7 +53,7 @@ const checklistStepSchema = z.object({
   items: z.array(z.object({
     id,
     label: safeText(140),
-  }).strict()).min(1).max(8),
+  }).strict()).min(1).max(TASK_PLAN_LIMITS.checklistCount),
 }).strict()
 
 const reviewStepSchema = z.object({
@@ -91,10 +92,13 @@ const laterItemSchema = z.object({
 
 const planShape = {
   version: z.literal(1),
-  title: safeText(80),
-  summary: safeText(240),
-  steps: z.array(TaskStepSchema).min(1).max(5),
-  later: z.array(laterItemSchema).max(5),
+  id,
+  title: safeText(TASK_PLAN_LIMITS.title),
+  goal: safeText(TASK_PLAN_LIMITS.goal),
+  completionDefinition: safeText(TASK_PLAN_LIMITS.completionDefinition),
+  summary: safeText(TASK_PLAN_LIMITS.summary),
+  steps: z.array(TaskStepSchema).min(1).max(TASK_PLAN_LIMITS.stepCount),
+  later: z.array(laterItemSchema).max(TASK_PLAN_LIMITS.laterCount),
   output: z.object({
     format: z.literal('plain_text'),
     primaryAction: z.enum(['copy', 'download']),
@@ -103,12 +107,19 @@ const planShape = {
 }
 
 function uniquePlanIds(plan: {
-  steps: Array<{ id: string }>
+  id: string
+  steps: Array<z.infer<typeof TaskStepSchema>>
   later: Array<{ id: string }>
   extractedFacts: Array<{ id: string }>
 }) {
   const ids = [
+    plan.id,
     ...plan.steps.map((step) => step.id),
+    ...plan.steps.flatMap((step) => step.kind === 'choice'
+      ? step.options.map((option) => option.id)
+      : step.kind === 'checklist'
+        ? step.items.map((item) => item.id)
+        : []),
     ...plan.later.map((item) => item.id),
     ...plan.extractedFacts.map((fact) => fact.id),
   ]
@@ -117,12 +128,12 @@ function uniquePlanIds(plan: {
 
 export const TaskPlanCandidateSchema = z.object({
   ...planShape,
-  extractedFacts: z.array(proposedFactSchema).max(12),
+  extractedFacts: z.array(proposedFactSchema).max(TASK_PLAN_LIMITS.factCount),
 }).strict()
 
 const validatedTaskPlanSchema = z.object({
   ...planShape,
-  extractedFacts: z.array(extractedFactSchema).max(12),
+  extractedFacts: z.array(extractedFactSchema).max(TASK_PLAN_LIMITS.factCount),
 }).strict()
   .refine(uniquePlanIds, 'Plan, fact, and LATER ids must be unique.')
   .refine(

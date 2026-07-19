@@ -136,13 +136,13 @@ Update this list only when the corresponding behavior is working and testable.
 * [x] Manual fallback browser test
 * [ ] Keyboard completion test
 * [ ] Screen-reader status announcements
-* [ ] Reduced-motion coverage
-* [ ] Refresh recovery test
-* [ ] Expiry deletion test
-* [ ] Prompt-injection fixture
-* [ ] Unsupported-fact fixture
-* [ ] Invented-deadline fixture
-* [ ] Required-step deferral fixture
+* [x] Reduced-motion coverage
+* [x] Refresh recovery test
+* [x] Expiry deletion test
+* [x] Prompt-injection fixture
+* [x] Unsupported-fact fixture
+* [x] Invented-deadline fixture
+* [x] Required-step deferral fixture
 
 ---
 

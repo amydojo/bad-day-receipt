@@ -11,7 +11,9 @@ export const InteractionPolicySchema = z.object({
 
 export const InteractionBudgetSchema = z.object({
   version: z.literal(1),
+  budgetId: z.string().min(1).max(64),
   taskId: z.string().min(1).max(64),
+  declaredBy: z.literal('user'),
   receiptId: z.string().min(1).max(80).nullable(),
   createdAt: z.string().datetime(),
   expiresAt: z.string().datetime(),
@@ -39,9 +41,9 @@ export const DEFAULT_INTERACTION_POLICIES: InteractionPolicies = {
   deferOptionalWork: true,
 }
 
-function makeTaskId() {
+function makeId(prefix: string) {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
-  return `task-${Date.now().toString(36)}`
+  return `${prefix}-${Date.now().toString(36)}`
 }
 
 export function createInteractionBudget({
@@ -55,7 +57,9 @@ export function createInteractionBudget({
 }): InteractionBudget {
   return InteractionBudgetSchema.parse({
     version: 1,
-    taskId: makeTaskId(),
+    budgetId: makeId('budget'),
+    taskId: makeId('task'),
+    declaredBy: 'user',
     receiptId,
     createdAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + CARRY_FORWARD_TTL_MS).toISOString(),

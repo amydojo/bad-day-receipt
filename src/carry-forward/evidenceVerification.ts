@@ -35,7 +35,13 @@ export function validateTaskPlan(
   }> = []
 
   const allIds = [
+    proposed.data.id,
     ...proposed.data.steps.map((step) => step.id),
+    ...proposed.data.steps.flatMap((step) => step.kind === 'choice'
+      ? step.options.map((option) => option.id)
+      : step.kind === 'checklist'
+        ? step.items.map((item) => item.id)
+        : []),
     ...proposed.data.later.map((item) => item.id),
     ...proposed.data.extractedFacts.map((fact) => fact.id),
   ]
@@ -46,6 +52,9 @@ export function validateTaskPlan(
   proposed.data.steps.forEach((step, index) => {
     if (step.kind === 'choice' && step.options.filter((option) => option.primary).length !== 1) {
       issues.push({ code: 'semantic_invalid', path: `steps.${index}.options` })
+    }
+    if (step.kind === 'choice' && new Set(step.options.map((option) => option.label.toLocaleLowerCase())).size !== step.options.length) {
+      issues.push({ code: 'semantic_invalid', path: `steps.${index}.options.labels` })
     }
     if (step.kind === 'read') {
       step.evidenceFactIds.forEach((factId, factIndex) => {

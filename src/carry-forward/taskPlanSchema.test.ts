@@ -80,4 +80,15 @@ describe('Carry Forward task plan trust boundary', () => {
     expect(ambiguous).toMatchObject({ ok: false })
     if (!ambiguous.ok) expect(ambiguous.issues.some((issue) => issue.code === 'quote_ambiguous')).toBe(true)
   })
+
+  it('rejects duplicate nested ids and duplicate choice labels during application validation', () => {
+    const duplicate = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    const choice = duplicate.steps[1]
+    if (choice.kind !== 'choice') throw new Error('Expected choice fixture')
+    choice.options[1].id = choice.options[0].id
+    choice.options[1].label = choice.options[0].label
+    const result = validateTaskPlan(duplicate, [INSURANCE_DENIAL_SOURCE_RECORD])
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.issues.every((issue) => issue.code === 'semantic_invalid')).toBe(true)
+  })
 })

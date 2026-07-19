@@ -479,6 +479,9 @@ npm run test:accessibility
 npm run test:viewports
 npm run test:visual
 npm run analyze
+npm run test:carry-forward
+npm run evals:carry-forward
+npm run test:receipt-regression
 npm run release:carry-forward
 ```
 
@@ -527,6 +530,9 @@ The contribution is the product demonstration of a **user-declared, temporary, t
 
 * [`docs/build-week.md`](./docs/build-week.md)  
   Preexisting baseline, competition delta, Codex evidence, judge path, and final checklist.
+
+* [`docs/privacy.md`](./docs/privacy.md) and [`docs/threat-model.md`](./docs/threat-model.md)
+  Sensitive-data lifecycle, telemetry allowlist, prompt-injection boundary, and residual limitations.
 
 * [`docs/releases`](./docs/releases)  
   Existing release notes for the receipt machine and field-object system.

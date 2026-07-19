@@ -24,8 +24,8 @@ test.describe('Carry Forward accessibility gate', () => {
 
   test('Plan & Why is a named modal with a focused close control', async ({ page }) => {
     await compileCarryForwardDemo(page)
-    await page.getByRole('button', { name: 'PLAN & WHY' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Complete plan & why' })
+    await page.getByRole('button', { name: 'WHY THIS VIEW' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Why this view' })
     await expect(dialog).toBeVisible()
     await expect(page.getByRole('button', { name: 'CLOSE' })).toBeFocused()
     await expectAccessible(page)

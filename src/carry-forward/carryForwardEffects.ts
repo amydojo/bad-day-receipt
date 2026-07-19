@@ -34,8 +34,11 @@ export async function compileCarryForwardTask({
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        requestId: budget.taskId,
         task: draft.task,
-        sources: [{ id: 'source-1', label: 'User-provided source', text: draft.source }],
+        sources: draft.source.trim()
+          ? [{ id: 'source-1', label: 'User-provided source', text: draft.source }]
+          : [],
         budget,
       }),
       signal,
@@ -92,7 +95,7 @@ export function formatPlanOutput(plan: ValidatedTaskPlan, session: RuntimeSessio
   const later = plan.later.length > 0
     ? `\n\nLATER\n${plan.later.map((item) => `- ${item.title}: ${item.body}`).join('\n')}`
     : ''
-  return `${plan.title}\n${plan.summary}\n\n${required.join('\n')}${later}`
+  return `${plan.title}\nGoal: ${plan.goal}\nComplete when: ${plan.completionDefinition}\n\n${plan.summary}\n\n${required.join('\n')}${later}`
 }
 
 export async function copyPlanOutput(plan: ValidatedTaskPlan, session: RuntimeSession) {

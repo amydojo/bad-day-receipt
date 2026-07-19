@@ -11,6 +11,7 @@ import {
   clearCarryForwardSession,
   consumeReceiptSeed,
   loadCarryForwardSession,
+  saveCarryForwardFallback,
   saveCarryForwardSession,
 } from './carryForwardStorage'
 import {
@@ -21,6 +22,7 @@ import {
 } from './carryForwardEffects'
 import {
   createInteractionBudget,
+  DEFAULT_INTERACTION_POLICIES,
   type InteractionPolicies,
 } from './interactionBudget'
 import {
@@ -40,11 +42,12 @@ import {
 } from './carryForwardTelemetry'
 import type { ValidatedTaskPlan } from './taskPlanSchema'
 import { INSURANCE_DENIAL_SOURCE, INSURANCE_DENIAL_TASK } from './fixtures'
+import { TASK_PLAN_LIMITS } from './taskPlanLimits'
 
 const COMPILE_PHASES = [
   { id: 'request-accepted', label: 'Request accepted' },
-  { id: 'extracting-facts', label: 'Extracting exact facts' },
-  { id: 'validating-plan', label: 'Validating bounded plan' },
+  { id: 'awaiting-plan', label: 'Awaiting bounded plan' },
+  { id: 'validating-plan', label: 'Plan received · verifying source evidence' },
 ] as const
 
 const FALLBACK_COPY: Record<FallbackReason, { title: string; body: string }> = {
@@ -103,12 +106,34 @@ function telemetryPolicies(policies: InteractionPolicies): CarryForwardTelemetry
   return { ...policies }
 }
 
-function PlanInspector({ state, dispatch }: {
+function RuntimeInspector({ state, dispatch }: {
   state: Extract<CarryForwardState, { kind: 'explaining' }>
   dispatch: React.Dispatch<CarryForwardEvent>
 }) {
   return (
-    <InspectorSheet open title="Complete plan & why" onClose={() => dispatch({ type: 'CLOSE_WHY' })}>
+    <InspectorSheet
+      open
+      title={state.inspector === 'plan' ? 'Complete plan' : 'Why this view'}
+      onClose={() => dispatch({ type: 'CLOSE_WHY' })}
+    >
+      {state.inspector === 'why' ? (
+        <>
+          <section className="cf-inspector-section">
+            <span className="cf-eyebrow">USER-DECLARED POLICIES</span>
+            <dl className="cf-inspector-policies">
+              {(Object.keys(state.budget.policies) as Array<keyof InteractionPolicies>).map((policy) => (
+                <div key={policy}>
+                  <dt>{POLICY_COPY[policy].title}</dt>
+                  <dd>{state.budget.policies[policy] ? 'REQUESTED' : 'NOT REQUESTED'} · {POLICY_COPY[policy].body}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+          <StatusBanner title="Product invariant">Nothing will be sent, submitted, purchased, deleted, or changed automatically.</StatusBanner>
+          <StatusBanner title="Product invariant">The complete plan and exit remain available from every active step.</StatusBanner>
+        </>
+      ) : (
+        <>
       <section className="cf-inspector-section">
         <span className="cf-eyebrow">DECLARED BUDGET</span>
         <dl className="cf-inspector-policies">
@@ -123,8 +148,15 @@ function PlanInspector({ state, dispatch }: {
       <section className="cf-inspector-section">
         <span className="cf-eyebrow">REQUIRED PLAN</span>
         <ol className="cf-inspector-plan">
-          {state.session.plan.steps.map((step) => (
-            <li key={step.id}><strong>{step.title}</strong><span>{step.kind.toUpperCase()}</span></li>
+          {state.session.plan.steps.map((step, index) => (
+            <li key={step.id}>
+              <strong>{step.title}</strong>
+              <span>{state.session.completedStepIds.includes(step.id)
+                ? 'COMPLETED'
+                : index === state.session.stepIndex
+                  ? 'CURRENT'
+                  : 'UPCOMING'} · {step.kind.toUpperCase()}</span>
+            </li>
           ))}
         </ol>
       </section>
@@ -141,11 +173,13 @@ function PlanInspector({ state, dispatch }: {
       )}
       {state.session.plan.later.length > 0 && (
         <section className="cf-inspector-section cf-later">
-          <span className="cf-eyebrow">LATER · WHOLE OPTIONAL TASKS</span>
+          <span className="cf-eyebrow">{state.budget.policies.deferOptionalWork ? 'LATER' : 'OPTIONAL'} · WHOLE NONREQUIRED TASKS</span>
           {state.session.plan.later.map((item) => (
             <article key={item.id}><h3>{item.title}</h3><p>{item.body}</p></article>
           ))}
         </section>
+      )}
+        </>
       )}
     </InspectorSheet>
   )
@@ -155,10 +189,12 @@ function ActiveWorkspace({
   state,
   dispatch,
   headingRef,
+  onEnd,
 }: {
   state: Extract<CarryForwardState, { kind: 'active' }>
   dispatch: React.Dispatch<CarryForwardEvent>
   headingRef: React.Ref<HTMLHeadingElement>
+  onEnd: () => void
 }) {
   const { plan } = state.session
   const step = plan.steps[state.session.stepIndex]
@@ -179,14 +215,22 @@ function ActiveWorkspace({
             ))}
           </ol>
         </div>
-        <button type="button" onClick={() => dispatch({ type: 'OPEN_WHY' })}>COMPLETE PLAN & WHY</button>
+        <div className="cf-runtime-links">
+          <button type="button" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'plan' })}>SHOW COMPLETE PLAN</button>
+          <button type="button" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'why' })}>WHY THIS VIEW</button>
+          <button type="button" onClick={onEnd}>END ONE THING MODE</button>
+        </div>
       </aside>
       <main className="cf-workspace">
         <div className="cf-mobile-runtime-head">
           <a href="/" className="cf-wordmark">bad day receipt</a>
-          <button type="button" onClick={() => dispatch({ type: 'OPEN_WHY' })}>PLAN & WHY</button>
+          <button type="button" onClick={onEnd}>END MODE</button>
         </div>
         <TaskProgress steps={plan.steps} activeIndex={state.session.stepIndex} completedStepIds={state.session.completedStepIds} />
+        <div className="cf-mobile-runtime-links">
+          <button type="button" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'plan' })}>COMPLETE PLAN</button>
+          <button type="button" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'why' })}>WHY THIS VIEW</button>
+        </div>
         <TaskStepShell
           eyebrow={`STEP ${state.session.stepIndex + 1} OF ${plan.steps.length} · ${step.kind.toUpperCase()}`}
           title={step.title}
@@ -209,6 +253,20 @@ function ActiveWorkspace({
             fewerDecisions={state.budget.policies.fewerDecisions}
             dispatch={dispatch}
           />
+          {!state.budget.policies.oneStepAtATime && (
+            <section className="cf-plan-context" aria-label="Visible plan context">
+              <span className="cf-eyebrow">PLAN CONTEXT · ONE STEP POLICY OFF</span>
+              <ol>
+                {plan.steps.map((planStep, index) => (
+                  <li key={planStep.id} data-current={index === state.session.stepIndex || undefined}>
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                    <strong>{planStep.title}</strong>
+                    <small>{index < state.session.stepIndex ? 'COMPLETE' : index === state.session.stepIndex ? 'CURRENT' : 'UPCOMING'}</small>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
         </TaskStepShell>
       </main>
     </div>
@@ -225,13 +283,24 @@ export default function CarryForwardApp() {
     document.title = 'Carry Forward · Bad Day Receipt'
     const stored = loadCarryForwardSession(window.localStorage)
     if (stored.status === 'ready') {
-      dispatch({
-        type: 'RESTORE_SESSION',
-        status: stored.value.status,
-        task: stored.value.task,
-        budget: stored.value.budget,
-        session: stored.value.session,
-      })
+      if (stored.value.status === 'fallback') {
+        dispatch({
+          type: 'RESTORE_FALLBACK',
+          draft: stored.value.draft,
+          budget: stored.value.budget,
+          reason: stored.value.reason,
+          manualItems: stored.value.manualItems,
+          manualDraft: stored.value.manualDraft,
+        })
+      } else {
+        dispatch({
+          type: 'RESTORE_SESSION',
+          status: stored.value.status,
+          task: stored.value.task,
+          budget: stored.value.budget,
+          session: stored.value.session,
+        })
+      }
     } else if (stored.status === 'expired') {
       dispatch({ type: 'EXPIRE' })
     } else {
@@ -247,6 +316,17 @@ export default function CarryForwardApp() {
   }, [state.kind, state.kind === 'input' ? state.screen : '', state.kind === 'active' ? state.session.stepIndex : -1])
 
   useEffect(() => {
+    if (state.kind === 'fallback' && state.budget) {
+      saveCarryForwardFallback(window.localStorage, {
+        status: 'fallback',
+        draft: state.draft,
+        budget: state.budget,
+        reason: state.reason,
+        manualItems: state.manualItems,
+        manualDraft: state.manualDraft,
+      })
+      return
+    }
     if (state.kind !== 'active' && state.kind !== 'complete' && state.kind !== 'explaining') return
     const status = state.kind === 'complete' || (state.kind === 'explaining' && state.returnTo === 'complete')
       ? 'complete' as const
@@ -280,19 +360,24 @@ export default function CarryForwardApp() {
     const snapshot = state
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 12_000)
-    const phaseFrame = window.requestAnimationFrame(() => dispatch({ type: 'COMPILE_PHASE', phase: 'extracting-facts' }))
+    const phaseFrame = window.requestAnimationFrame(() => dispatch({ type: 'COMPILE_PHASE', phase: 'awaiting-plan' }))
 
     void compileCarryForwardTask({ draft: snapshot.draft, budget: snapshot.budget, signal: controller.signal })
       .then((result) => {
         dispatch({ type: 'COMPILE_PHASE', phase: 'validating-plan' })
         const startedAt = new Date().toISOString()
         const session = initialSession(result.plan, startedAt)
-        saveCarryForwardSession(window.localStorage, {
+        const persisted = saveCarryForwardSession(window.localStorage, {
           status: 'active',
           task: snapshot.draft.task,
           budget: snapshot.budget,
           session,
         })
+        if (!persisted) {
+          emitCarryForwardTelemetry('carry_forward_compile_failed', { state: 'fallback', errorCode: 'server_error' })
+          dispatch({ type: 'COMPILE_FAILURE', reason: 'server_error' })
+          return
+        }
         emitCarryForwardTelemetry('carry_forward_compile_succeeded', {
           state: 'active',
           stepCount: result.plan.steps.length,
@@ -326,10 +411,20 @@ export default function CarryForwardApp() {
     dispatch({ type: 'RESET' })
   }
 
+  const endMode = () => {
+    if (state.kind !== 'active' && state.kind !== 'explaining') return
+    const hasWork = state.session.completedStepIds.length > 0
+      || Object.keys(state.session.choices).length > 0
+      || Object.keys(state.session.checkedItems).length > 0
+      || Object.keys(state.session.composeDrafts).length > 0
+    if (hasWork && !window.confirm('End One Thing Mode and clear this temporary task?')) return
+    reset()
+  }
+
   const screenCode = getStateCode(state)
 
   if (state.kind === 'active') {
-    return <div className="cf-app" data-screen={screenCode}><ActiveWorkspace state={state} dispatch={dispatch} headingRef={headingRef} /></div>
+    return <div className="cf-app" data-screen={screenCode}><ActiveWorkspace state={state} dispatch={dispatch} headingRef={headingRef} onEnd={endMode} /></div>
   }
 
   if (state.kind === 'explaining') {
@@ -342,9 +437,9 @@ export default function CarryForwardApp() {
     return (
       <div className="cf-app" data-screen={screenCode}>
         {state.returnTo === 'active'
-          ? <ActiveWorkspace state={activeState} dispatch={dispatch} headingRef={headingRef} />
+          ? <ActiveWorkspace state={activeState} dispatch={dispatch} headingRef={headingRef} onEnd={endMode} />
           : <CompleteScreen state={{ ...state, kind: 'complete' }} dispatch={dispatch} headingRef={headingRef} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} />}
-        <PlanInspector state={state} dispatch={dispatch} />
+        <RuntimeInspector state={state} dispatch={dispatch} />
       </div>
     )
   }
@@ -391,7 +486,7 @@ export default function CarryForwardApp() {
                 error={state.error}
                 value={state.draft.task}
                 onChange={(value) => dispatch({ type: 'UPDATE_TASK', value })}
-                maxLength={240}
+                maxLength={TASK_PLAN_LIMITS.task}
                 placeholder="Prepare and submit…"
               />
               <button
@@ -404,6 +499,17 @@ export default function CarryForwardApp() {
               >
                 LOAD INSURANCE DENIAL DEMO
               </button>
+              <details className="cf-demo-controls">
+                <summary>VIEW RECOVERY DEMOS</summary>
+                <div>
+                  <button type="button" onClick={() => dispatch({ type: 'LOAD_AMBIGUOUS_DEMO' })}>AMBIGUOUS TASK</button>
+                  <button type="button" onClick={() => dispatch({
+                    type: 'OPEN_DEMO_FALLBACK',
+                    budget: createInteractionBudget({ policies: DEFAULT_INTERACTION_POLICIES, receiptId: state.draft.receiptId }),
+                  })}>COMPILER FAILURE</button>
+                  <button type="button" onClick={() => dispatch({ type: 'EXPIRE' })}>EXPIRED SESSION</button>
+                </div>
+              </details>
               <div className="cf-form-actions">
                 <a href="/" className="cf-text-link">BACK TO RECEIPT</a>
                 <ActionButton disabled={state.draft.task.trim().length < 3} onClick={() => {
@@ -421,19 +527,23 @@ export default function CarryForwardApp() {
               <StatusBanner title="Source boundary">
                 The source is sent once to the server compiler with API storage disabled. This app never writes raw source text to browser storage.
               </StatusBanner>
+              <details className="cf-data-details">
+                <summary>DATA DETAILS</summary>
+                <p>Assisted planning sends the task and any source you provide to OpenAI only after you compile. OpenAI API data controls may retain content temporarily for abuse monitoring unless additional retention controls are enabled. Nothing is added to receipt history, FIELD records, or analytics.</p>
+              </details>
               <InputField
                 id="carry-source"
-                label="SOURCE TEXT"
-                hint="Paste a notice, email, letter, or notes. Remove details the task does not need."
+                label="SOURCE TEXT · OPTIONAL"
+                hint="Paste a notice, email, letter, or notes—or continue without one. Remove details the task does not need."
                 value={state.draft.source}
                 onChange={(value) => dispatch({ type: 'UPDATE_SOURCE', value })}
                 multiline
-                maxLength={6000}
+                maxLength={TASK_PLAN_LIMITS.source}
                 placeholder="Paste the exact source text here…"
               />
               <div className="cf-form-actions">
                 <ActionButton variant="quiet" onClick={() => dispatch({ type: 'BACK_INPUT' })}>BACK</ActionButton>
-                <ActionButton disabled={state.draft.source.trim().length < 1} onClick={() => dispatch({ type: 'OPEN_BUDGET' })}>SET INTERACTION BUDGET</ActionButton>
+                <ActionButton onClick={() => dispatch({ type: 'OPEN_BUDGET' })}>SET INTERACTION BUDGET</ActionButton>
               </div>
             </>
           )}
@@ -465,7 +575,7 @@ export default function CarryForwardApp() {
               <h1 ref={headingRef} tabIndex={-1}>Ready to compile one plan.</h1>
               <dl className="cf-preview-list">
                 <div><dt>TASK</dt><dd>{state.draft.task}</dd></div>
-                <div><dt>SOURCE</dt><dd>{state.draft.source.length} characters · not stored by this app</dd></div>
+                <div><dt>SOURCE</dt><dd>{state.draft.source.length > 0 ? `${state.draft.source.length} characters · not stored by this app` : 'No source provided · extracted facts will be omitted'}</dd></div>
                 <div><dt>PLAN LIMIT</dt><dd>1–5 required steps · 5 known step kinds</dd></div>
                 <div><dt>EXPIRES</dt><dd>{new Date(state.budget.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</dd></div>
               </dl>
@@ -514,16 +624,44 @@ export default function CarryForwardApp() {
                 ))}
                 {state.manualItems.length < 5 && <button type="button" className="cf-inline-action" onClick={() => dispatch({ type: 'ADD_MANUAL_ITEM' })}>+ ADD STEP</button>}
               </fieldset>
+              <div className="cf-compose cf-manual-draft">
+                <label htmlFor="manual-draft">WORKING DRAFT · OPTIONAL</label>
+                <textarea
+                  id="manual-draft"
+                  rows={8}
+                  maxLength={TASK_PLAN_LIMITS.composeDraft}
+                  value={state.manualDraft}
+                  onChange={(event) => dispatch({ type: 'UPDATE_MANUAL_DRAFT', value: event.target.value })}
+                  placeholder="Keep a note or draft here while you work…"
+                />
+              </div>
               <div className="cf-form-actions cf-form-actions--wrap">
-                <ActionButton variant="quiet" onClick={() => dispatch({ type: 'EDIT_AFTER_FAILURE' })}>EDIT SOURCE</ActionButton>
+                <ActionButton variant="quiet" onClick={() => {
+                  clearCarryForwardSession(window.localStorage)
+                  dispatch({ type: 'EDIT_AFTER_FAILURE' })
+                }}>EDIT SOURCE</ActionButton>
                 <ActionButton variant="secondary" onClick={() => {
-                  const text = state.manualItems.filter((item) => item.trim()).map((item, index) => `${index + 1}. ${item.trim()}`).join('\n')
-                  void navigator.clipboard.writeText(text).then(() => setOutputMessage('MANUAL PLAN COPIED'))
-                }} disabled={!state.manualItems.some((item) => item.trim())}>COPY MANUAL PLAN</ActionButton>
+                  const steps = state.manualItems.filter((item) => item.trim()).map((item, index) => `${index + 1}. ${item.trim()}`).join('\n')
+                  const text = `${state.draft.task}\n\n${steps}${state.manualDraft.trim() ? `\n\nDRAFT\n${state.manualDraft.trim()}` : ''}`
+                  void navigator.clipboard.writeText(text)
+                    .then(() => setOutputMessage('MANUAL WORK COPIED'))
+                    .catch(() => setOutputMessage('COPY FAILED · DOWNLOAD IS STILL AVAILABLE'))
+                }} disabled={!state.manualItems.some((item) => item.trim()) && !state.manualDraft.trim()}>COPY MANUAL WORK</ActionButton>
+                <ActionButton variant="secondary" onClick={() => {
+                  const steps = state.manualItems.filter((item) => item.trim()).map((item, index) => `${index + 1}. ${item.trim()}`).join('\n')
+                  const text = `${state.draft.task}\n\n${steps}${state.manualDraft.trim() ? `\n\nDRAFT\n${state.manualDraft.trim()}` : ''}`
+                  const href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
+                  const anchor = document.createElement('a')
+                  anchor.href = href
+                  anchor.download = 'manual-carry-forward.txt'
+                  anchor.click()
+                  URL.revokeObjectURL(href)
+                  setOutputMessage('MANUAL WORK DOWNLOADED')
+                }} disabled={!state.manualItems.some((item) => item.trim()) && !state.manualDraft.trim()}>DOWNLOAD</ActionButton>
                 <ActionButton onClick={() => {
                   compileStartedAtRef.current = performance.now()
                   dispatch({ type: 'RETRY_COMPILE' })
-                }}>RETRY COMPILER</ActionButton>
+                }} disabled={!state.budget}>RETRY COMPILER</ActionButton>
               </div>
               <p className="cf-output-message" role="status">{outputMessage}</p>
             </>
@@ -569,9 +707,12 @@ function CompleteScreen({
         <span>PLAN COMPLETE · M12</span>
       </header>
       <article className="cf-completion-slip">
-        <span className="cf-eyebrow">CARRY FORWARD · COMPLETE</span>
+        <span className="cf-eyebrow">ONE THING CLOSED · CARRY FORWARD COMPLETE</span>
         <h1 ref={headingRef} tabIndex={-1}>{plan.title}</h1>
         <p>{plan.summary}</p>
+        <StatusBanner tone="success" title="Nothing was sent automatically">
+          Temporary task context expires at {new Date(state.budget.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} unless you clear it now.
+        </StatusBanner>
         <ol>{plan.steps.map((step) => <li key={step.id}><span>✓</span><strong>{step.title}</strong></li>)}</ol>
         {plan.later.length > 0 && (
           <section className="cf-later">
@@ -580,7 +721,8 @@ function CompleteScreen({
           </section>
         )}
         <footer>
-          <ActionButton variant="quiet" onClick={() => dispatch({ type: 'OPEN_WHY' })}>COMPLETE PLAN & WHY</ActionButton>
+          <ActionButton variant="quiet" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'why' })}>WHY THIS VIEW</ActionButton>
+          <ActionButton variant="quiet" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'plan' })}>SHOW COMPLETE PLAN</ActionButton>
           <ActionButton variant="secondary" onClick={() => {
             void copyPlanOutput(plan, state.session).then(() => setOutputMessage('PLAN COPIED')).catch(() => setOutputMessage('COPY FAILED · DOWNLOAD IS STILL AVAILABLE'))
           }}>COPY PLAN</ActionButton>
@@ -588,7 +730,11 @@ function CompleteScreen({
         </footer>
         <p className="cf-output-message" role="status">{outputMessage}</p>
       </article>
-      <button type="button" className="cf-start-another" onClick={onReset}>START ANOTHER TASK</button>
+      <div className="cf-complete-exits">
+        <a href="/">RETURN TO RECEIPT</a>
+        <button type="button" onClick={onReset}>CLEAR TASK DATA</button>
+        <button type="button" onClick={onReset}>START ANOTHER TASK</button>
+      </div>
     </main>
   )
 }
