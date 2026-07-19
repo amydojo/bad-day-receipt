@@ -4,7 +4,7 @@
 
 > **Document what the day cost. Carry one thing forward.**
 
-**Status:** Build Week implementation specification. This document defines the intended behavior and engineering boundaries. It does not claim that unchecked work is already present in the application.
+**Status:** Implemented Build Week vertical slice. Unchecked submission and research work remains future work; the production contract below is enforced by the current branch.
 
 ---
 
@@ -638,7 +638,7 @@ The seed must not contain raw emotional narrative or task context.
 Recommended key:
 
 ```text
-bad-day-receipt-carry-forward-v1
+bad-day-receipt:carry-forward:v1
 ```
 
 The separate store contains only:
@@ -881,7 +881,7 @@ Do not overgeneralize from a small study.
 
 ### Reference task
 
-> **Prepare a response to a difficult insurance email.**
+> **Prepare and submit an insurance denial appeal.**
 
 The task is concrete, consequential, relatable, and demonstrates reading, deciding, composing, preserving progress, reviewing, and copying.
 

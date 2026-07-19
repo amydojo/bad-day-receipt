@@ -78,62 +78,62 @@ Update this list only when the corresponding behavior is working and testable.
 
 ### Product flow
 
-* [ ] Carry Forward action on the finished receipt
-* [ ] Direct entry from the main machine
-* [ ] One-task input
-* [ ] Optional source-context input
-* [ ] Four user-declared interaction policies
-* [ ] Adaptation preview
-* [ ] One Thing Mode completion state
+* [x] Carry Forward action on the finished receipt
+* [x] Direct entry from the main machine
+* [x] One-task input
+* [x] Source-context input
+* [x] Four user-declared interaction policies
+* [x] Adaptation preview
+* [x] One Thing Mode completion state
 * [ ] Receipt annotation after completion
 
 ### OpenAI integration
 
-* [ ] Server-side OpenAI API route
-* [ ] GPT-5.6 model call
-* [ ] Responses API
-* [ ] Structured `TaskPlan` output
-* [ ] Refusal handling
-* [ ] Incomplete-output handling
-* [ ] Request timeout
-* [ ] Input and output limits
-* [ ] `store: false`
-* [ ] No model tools
-* [ ] Generic client-facing server errors
+* [x] Server-side OpenAI API route
+* [x] GPT-5.6 model call
+* [x] Responses API
+* [x] Structured `TaskPlan` output
+* [x] Refusal handling
+* [x] Incomplete-output handling
+* [x] Request timeout
+* [x] Input and output limits
+* [x] `store: false`
+* [x] No model tools
+* [x] Generic client-facing server errors
 
 ### Runtime and validation
 
-* [ ] Strict task-plan schema
-* [ ] One to five allowed steps
-* [ ] Five typed step components
-* [ ] Maximum three choices per choice step
-* [ ] No executable markup
-* [ ] No side-effect action types
-* [ ] Exact evidence substring verification
-* [ ] Full-plan access outside model control
-* [ ] Stable layout during the task
-* [ ] One validation retry at most
-* [ ] Manual fallback after failure
+* [x] Strict task-plan schema
+* [x] One to five allowed steps
+* [x] Five typed step components
+* [x] Maximum three choices per choice step
+* [x] No executable markup
+* [x] No side-effect action types
+* [x] Exact evidence substring verification
+* [x] Full-plan access outside model control
+* [x] Stable layout during the task
+* [x] One validation retry at most
+* [x] Manual fallback after failure
 
 ### Persistence and privacy
 
-* [ ] Separate Carry Forward storage key
-* [ ] Four-hour default expiry
-* [ ] Immediate clear action
-* [ ] Refresh recovery
-* [ ] Raw source excluded from receipt history
-* [ ] Raw source excluded from analytics and telemetry
-* [ ] Raw request bodies excluded from logs
-* [ ] Full source discarded after successful compilation
-* [ ] Minimum evidence excerpts retained only until expiry
+* [x] Separate Carry Forward storage key
+* [x] Four-hour default expiry
+* [x] Immediate clear action
+* [x] Refresh recovery
+* [x] Raw source excluded from receipt history
+* [x] Raw source excluded from analytics and telemetry
+* [x] Raw request bodies excluded from logs
+* [x] Full source discarded after successful compilation
+* [x] Minimum evidence excerpts retained only until expiry
 
 ### Testing and evaluation
 
-* [ ] Unit tests for the Interaction Budget
-* [ ] Unit tests for task-plan validation
-* [ ] Unit tests for expiring storage
-* [ ] End-to-end reference task
-* [ ] Manual fallback browser test
+* [x] Unit tests for the Interaction Budget
+* [x] Unit tests for task-plan validation
+* [x] Unit tests for expiring storage
+* [x] End-to-end reference task
+* [x] Manual fallback browser test
 * [ ] Keyboard completion test
 * [ ] Screen-reader status announcements
 * [ ] Reduced-motion coverage
@@ -176,7 +176,7 @@ Update this list only when the corresponding behavior is working and testable.
 * [ ] If public, confirm the MIT license is present
 * [ ] If private, share access with both required judging addresses
 * [ ] Confirm the live demo requires no login
-* [ ] Confirm sample data is built into the demo
+* [x] Confirm sample data is built into the demo
 
 ### Demo video
 
@@ -206,7 +206,7 @@ Recommended sequence:
 1. Open the live application.
 2. Select **Skip to completed receipt**, or create a receipt manually.
 3. Select **Carry One Thing Forward**.
-4. Select **Load insurance email fixture**.
+4. Select **Load insurance denial demo**.
 5. Enable **Fewer decisions** and **Protect my progress**.
 6. Preview the adaptation.
 7. Begin One Thing Mode.

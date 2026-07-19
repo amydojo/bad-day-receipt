@@ -4,7 +4,7 @@
 
 Bad Day Receipt is an emotional documentation machine for days that required more than the visible record shows.
 
-The shipped receipt machine turns invisible effort into a physical-feeling artifact. **Carry Forward**, the OpenAI Build Week extension now in development, gives that artifact a practical consequence: the user chooses one remaining obligation and opens **One Thing Mode**, a temporary interface containing only the steps and decisions required to finish it.
+The shipped receipt machine turns invisible effort into a physical-feeling artifact. **Carry Forward**, the OpenAI Build Week extension implemented on this branch, gives that artifact a practical consequence: the user chooses one remaining obligation and opens **One Thing Mode**, a temporary interface containing only the steps and decisions required to finish it.
 
 Software usually asks people to continue as though nothing happened.
 
@@ -19,7 +19,7 @@ Carry Forward lets the next task respond.
 </p>
 
 > **Project status**  
-> The receipt machine is live. Carry Forward is the Build Week extension being implemented with Codex and GPT-5.6. Shipped behavior and planned behavior are separated below so every claim remains verifiable.
+> The receipt machine is live. The Carry Forward vertical slice is implemented and testable on this branch with Codex and GPT-5.6. Hosted availability still depends on deploying the branch with a funded OpenAI project key.
 
 ---
 
@@ -317,21 +317,21 @@ AI failure must not become product failure.
 
 ### Carry Forward
 
-* [ ] Carry Forward entry points
-* [ ] Task and optional source-context input
-* [ ] Four user-declared policies
-* [ ] Adaptation preview
-* [ ] GPT-5.6 Responses API compiler
-* [ ] Strict `TaskPlan` schema
-* [ ] Application validator
-* [ ] Typed task-step renderer
-* [ ] One Thing Mode runtime
-* [ ] Why This View inspector
-* [ ] Separate expiring task storage
-* [ ] Refresh recovery
-* [ ] Manual fallback
-* [ ] Evaluation fixtures
-* [ ] Complete reference-task browser test
+* [x] Carry Forward entry points
+* [x] Task and source-context input
+* [x] Four user-declared policies
+* [x] Adaptation preview
+* [x] GPT-5.6 Responses API compiler
+* [x] Strict `TaskPlan` schema
+* [x] Application validator
+* [x] Typed task-step renderer
+* [x] One Thing Mode runtime
+* [x] Complete Plan & Why inspector
+* [x] Separate expiring task storage
+* [x] Refresh recovery
+* [x] Manual fallback
+* [x] Insurance-denial fixture
+* [x] Complete reference-task browser test
 
 Competition claims should match the checked state at submission time.
 
@@ -387,7 +387,7 @@ The accurate claim is:
 * Full source context is discarded after successful compilation
 * The user can clear the task immediately
 
-The planned request uses `store: false`. The interface will not describe this as a universal zero-retention guarantee.
+The server request uses `store: false`. The interface does not describe this as a universal zero-retention guarantee.
 
 ---
 
@@ -479,9 +479,16 @@ npm run test:accessibility
 npm run test:viewports
 npm run test:visual
 npm run analyze
+npm run release:carry-forward
 ```
 
-The repository does not yet include the OpenAI SDK or require `OPENAI_API_KEY`. Environment setup will be documented when the Carry Forward API route lands.
+Create an ignored `.env.local` file for the server-only compiler key:
+
+```bash
+OPENAI_API_KEY=your_project_key
+```
+
+The browser never receives this value. `api/compile-task.ts` is the only OpenAI call boundary.
 
 ---
 
@@ -491,7 +498,7 @@ The repository does not yet include the OpenAI SDK or require `OPENAI_API_KEY`. 
 
 React 19, TypeScript, Vite 8, Vitest, Playwright, axe-core, Canvas-based artifact export, progressive web app service worker, Vercel Analytics, and Supabase edge-function telemetry for the field experiment.
 
-### Carry Forward target additions
+### Carry Forward additions
 
 OpenAI JavaScript SDK, GPT-5.6, Responses API, Structured Outputs, runtime schema validation, typed task-step rendering, and a product evaluation harness.
 
@@ -499,9 +506,9 @@ OpenAI JavaScript SDK, GPT-5.6, Responses API, Structured Outputs, runtime schem
 
 ## Scope and limitations
 
-The Build Week submission will prove one complete vertical slice:
+The Build Week submission implements one complete vertical slice:
 
-> **Prepare a response to a difficult insurance email.**
+> **Prepare and submit an insurance denial appeal.**
 
 It will not include connected accounts, automatic submission, browser extensions, biometrics, sentiment scoring, permanent user profiles, cross-application preference exchange, multiple agents, or model-generated HTML.
 

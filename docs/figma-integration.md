@@ -2,7 +2,7 @@
 
 > **Figma defines the interaction rights. TypeScript encodes them. The validator enforces them. GPT-5.6 operates only inside them.**
 
-**Status:** Build Week implementation contract. This document links the approved Carry Forward Figma system to production architecture, component ownership, responsive behavior, motion, accessibility, and release evidence. It does not claim that unimplemented components already exist.
+**Status:** Implemented Build Week contract. The current branch maps the approved Figma interaction rights into the reducer, strict plan boundary, responsive runtime, inspector, and focused release gates described below.
 
 ## Canonical design source
 
