@@ -72,5 +72,5 @@ describe('live GPT-5.6 compiler smoke test', () => {
     expect(envelope.meta?.model).toMatch(/^gpt-5\.6/)
     expect(typeof envelope.meta?.repaired).toBe('boolean')
     expect(parseValidatedTaskPlan(envelope.plan).success).toBe(true)
-  }, 30_000)
+  }, 60_000)
 })

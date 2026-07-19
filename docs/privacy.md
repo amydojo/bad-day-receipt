@@ -23,6 +23,8 @@ The app does not claim Zero Data Retention. OpenAI API data controls may retain 
 
 Carry Forward telemetry accepts only allowlisted event names, keys, and enum values: workflow state, known step kind and index, safe error code, counts, durations, repair outcome, copy/download outcome, manual-work boolean, and the four policy booleans. Step completion, plan completion, output success/failure, and user-ended sessions are recorded without user-authored or model-authored text.
 
+Server compiler timing logs are restricted to the event name, attempt number, elapsed milliseconds, safe result code, and whether repair was used. They never include credentials, task or source text, model output, evidence, or other user-authored content.
+
 ## Credential boundary
 
 `OPENAI_API_KEY` is read only by `api/compile-task.ts`. It is stored in ignored `.env.local` for local development and must be configured as a server-side environment variable in deployment.

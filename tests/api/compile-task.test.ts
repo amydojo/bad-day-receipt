@@ -5,6 +5,7 @@ import {
   INSURANCE_DENIAL_TASK,
 } from '../../src/carry-forward/fixtures'
 import { createInteractionBudget, DEFAULT_INTERACTION_POLICIES } from '../../src/carry-forward/interactionBudget'
+import { CARRY_FORWARD_COMPILER_LIMITS } from '../../src/carry-forward/taskPlanLimits'
 
 const openaiMocks = vi.hoisted(() => ({ create: vi.fn() }))
 
@@ -67,13 +68,27 @@ function captureResponse() {
   }
 }
 
+function timingEvents() {
+  return vi.mocked(console.info).mock.calls.map(([message]) => JSON.parse(String(message)) as {
+    event: string
+    attempt: number
+    elapsedMs: number
+    result: string
+    repaired: boolean
+  })
+}
+
 describe('server-only Carry Forward compiler', () => {
   beforeEach(() => {
     process.env.OPENAI_API_KEY = 'test-key-never-sent-to-browser'
     openaiMocks.create.mockReset()
+    vi.spyOn(console, 'info').mockImplementation(() => {})
   })
 
-  afterEach(() => vi.useRealTimers())
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
 
   it('uses the bounded GPT-5.6 Responses request contract', async () => {
     openaiMocks.create.mockResolvedValueOnce(modelResponse(INSURANCE_DENIAL_CANDIDATE))
@@ -130,6 +145,33 @@ describe('server-only Carry Forward compiler', () => {
     await handler(request('failed-repair-test'), response)
     expect(capture).toMatchObject({ status: 422, body: { error: { code: 'plan_validation_failed' } } })
     expect(openaiMocks.create).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives both model attempts an independent full 25-second budget', async () => {
+    vi.useFakeTimers()
+    const invalid = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    invalid.extractedFacts[0].evidenceQuote = 'A quote that does not exist.'
+    openaiMocks.create
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        setTimeout(() => resolve(modelResponse(invalid)), 24_999)
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        setTimeout(() => resolve(modelResponse(INSURANCE_DENIAL_CANDIDATE)), 24_999)
+      }))
+
+    const { capture, response } = captureResponse()
+    const pending = handler(request('independent-timeout-test'), response)
+    await vi.advanceTimersByTimeAsync(24_999)
+    expect(openaiMocks.create).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(24_999)
+    await pending
+
+    expect(CARRY_FORWARD_COMPILER_LIMITS).toMatchObject({ attemptTimeoutMs: 25_000, maxAttempts: 2 })
+    expect(capture.status).toBe(200)
+    expect(timingEvents().filter((event) => event.event === 'carry_forward_compiler_attempt')).toEqual([
+      { event: 'carry_forward_compiler_attempt', attempt: 1, elapsedMs: 24_999, result: 'success', repaired: false },
+      { event: 'carry_forward_compiler_attempt', attempt: 2, elapsedMs: 24_999, result: 'success', repaired: true },
+    ])
   })
 
   it('accepts a task without source context and requires no extracted facts', async () => {
@@ -259,10 +301,40 @@ describe('server-only Carry Forward compiler', () => {
     }))
     const { capture, response } = captureResponse()
     const pending = handler(request('timeout-test'), response)
-    await vi.advanceTimersByTimeAsync(12_000)
+    await vi.advanceTimersByTimeAsync(25_000)
     await pending
     expect(capture).toMatchObject({ status: 504, body: { error: { code: 'compiler_timeout' } } })
     expect(JSON.stringify(capture.body)).not.toContain('sensitive timeout detail')
+    expect(timingEvents()).toEqual([
+      { event: 'carry_forward_compiler_attempt', attempt: 1, elapsedMs: 25_000, result: 'compiler_timeout', repaired: false },
+      { event: 'carry_forward_compiler_request', attempt: 1, elapsedMs: 25_000, result: 'compiler_timeout', repaired: false },
+    ])
+  })
+
+  it('logs only privacy-safe timing fields', async () => {
+    process.env.OPENAI_API_KEY = 'SENSITIVE_KEY_SENTINEL'
+    const privateRequest = request('private-timing-log-test')
+    privateRequest.body.task = 'SENSITIVE_TASK_SENTINEL prepare my appeal'
+    privateRequest.body.sources[0].text += '\nSENSITIVE_SOURCE_SENTINEL'
+    const privateCandidate = structuredClone(INSURANCE_DENIAL_CANDIDATE)
+    privateCandidate.title = 'SENSITIVE_MODEL_OUTPUT_SENTINEL'
+    openaiMocks.create.mockResolvedValueOnce(modelResponse(privateCandidate))
+
+    const { capture, response } = captureResponse()
+    await handler(privateRequest, response)
+    expect(capture.status).toBe(200)
+
+    const events = timingEvents()
+    const serializedLogs = JSON.stringify(vi.mocked(console.info).mock.calls)
+    expect(events).toHaveLength(2)
+    for (const event of events) {
+      expect(Object.keys(event).sort()).toEqual(['attempt', 'elapsedMs', 'event', 'repaired', 'result'])
+    }
+    expect(serializedLogs).not.toContain('SENSITIVE_KEY_SENTINEL')
+    expect(serializedLogs).not.toContain('SENSITIVE_TASK_SENTINEL')
+    expect(serializedLogs).not.toContain('SENSITIVE_SOURCE_SENTINEL')
+    expect(serializedLogs).not.toContain('SENSITIVE_MODEL_OUTPUT_SENTINEL')
+    expect(serializedLogs).not.toContain(privateCandidate.extractedFacts[0].evidenceQuote)
   })
 
   it('distinguishes refusal and incomplete outcomes without returning model content', async () => {

@@ -20,6 +20,7 @@ import {
   copyPlanOutput,
   downloadPlanOutput,
 } from './carryForwardEffects'
+import { startCarryForwardCompileRun } from './carryForwardCompileRun'
 import {
   createInteractionBudget,
   DEFAULT_INTERACTION_POLICIES,
@@ -42,7 +43,7 @@ import {
 } from './carryForwardTelemetry'
 import type { ValidatedTaskPlan } from './taskPlanSchema'
 import { INSURANCE_DENIAL_SOURCE, INSURANCE_DENIAL_TASK } from './fixtures'
-import { CARRY_FORWARD_COMPILER_LIMITS, TASK_PLAN_LIMITS } from './taskPlanLimits'
+import { TASK_PLAN_LIMITS } from './taskPlanLimits'
 import { hasConcreteTask } from './taskAmbiguity'
 
 const COMPILE_PHASES = [
@@ -354,12 +355,16 @@ export default function CarryForwardApp() {
   useEffect(() => {
     if (state.kind !== 'compiling') return
     const snapshot = state
-    const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), CARRY_FORWARD_COMPILER_LIMITS.clientTimeoutMs)
     const phaseFrame = window.requestAnimationFrame(() => dispatch({ type: 'COMPILE_PHASE', phase: 'awaiting-plan' }))
 
-    void compileCarryForwardTask({ draft: snapshot.draft, budget: snapshot.budget, signal: controller.signal })
-      .then((result) => {
+    const handleFailure = (error: unknown) => {
+      const reason = error instanceof CarryForwardCompileError ? error.reason : 'server_error'
+      emitCarryForwardTelemetry('carry_forward_compile_failed', { state: 'fallback', errorCode: reason })
+      dispatch({ type: 'COMPILE_FAILURE', reason })
+    }
+    const run = startCarryForwardCompileRun({
+      execute: (signal) => compileCarryForwardTask({ draft: snapshot.draft, budget: snapshot.budget, signal }),
+      onSuccess: (result) => {
         dispatch({ type: 'COMPILE_PHASE', phase: 'validating-plan' })
         const startedAt = new Date().toISOString()
         const session = initialSession(result.plan, startedAt)
@@ -381,18 +386,15 @@ export default function CarryForwardApp() {
           durationMs: Math.max(0, performance.now() - compileStartedAtRef.current),
         })
         dispatch({ type: 'COMPILE_SUCCESS', plan: result.plan, startedAt })
-      })
-      .catch((error: unknown) => {
-        const reason = error instanceof CarryForwardCompileError ? error.reason : 'server_error'
-        emitCarryForwardTelemetry('carry_forward_compile_failed', { state: 'fallback', errorCode: reason })
-        dispatch({ type: 'COMPILE_FAILURE', reason })
-      })
-      .finally(() => window.clearTimeout(timeout))
+      },
+      onFailure: handleFailure,
+      onTimeout: () => handleFailure(new CarryForwardCompileError('timeout')),
+    })
+    void run.promise
 
     return () => {
       window.cancelAnimationFrame(phaseFrame)
-      window.clearTimeout(timeout)
-      controller.abort()
+      run.cancel()
     }
   }, [state.kind])
 

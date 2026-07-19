@@ -54,6 +54,57 @@ const inFlightRequestIds = new Set<string>()
 
 class CompilerTimeoutError extends Error {}
 
+type CompilerAttemptNumber = 1 | 2
+type SafeCompilerResult =
+  | 'success'
+  | 'compiler_timeout'
+  | 'compilation_refused'
+  | 'compilation_incomplete'
+  | 'plan_validation_failed'
+  | 'openai_quota_exhausted'
+  | 'openai_rate_limited'
+  | 'compiler_not_authorized'
+  | 'compiler_contract_rejected'
+  | 'compiler_failed'
+
+function classifyCompilerError(error: unknown): { status: number; code: SafeCompilerResult } {
+  if (error instanceof CompilerTimeoutError) return { status: 504, code: 'compiler_timeout' }
+  if (!(error instanceof OpenAI.APIError)) return { status: 502, code: 'compiler_failed' }
+
+  const upstreamStatus = error.status
+  if (upstreamStatus === 429 && error.code === 'insufficient_quota') {
+    return { status: 429, code: 'openai_quota_exhausted' }
+  }
+  if (upstreamStatus === 429) return { status: 429, code: 'openai_rate_limited' }
+  if (upstreamStatus === 401 || upstreamStatus === 403) {
+    return { status: 503, code: 'compiler_not_authorized' }
+  }
+  if (upstreamStatus === 400) return { status: 502, code: 'compiler_contract_rejected' }
+  return { status: 502, code: 'compiler_failed' }
+}
+
+function logCompilerTiming({
+  event,
+  attempt,
+  startedAt,
+  result,
+  repaired,
+}: {
+  event: 'carry_forward_compiler_attempt' | 'carry_forward_compiler_request'
+  attempt: CompilerAttemptNumber
+  startedAt: number
+  result: SafeCompilerResult
+  repaired: boolean
+}) {
+  console.info(JSON.stringify({
+    event,
+    attempt,
+    elapsedMs: Math.max(0, Date.now() - startedAt),
+    result,
+    repaired,
+  }))
+}
+
 function getAddress(request: ApiRequest) {
   const forwarded = request.headers['x-forwarded-for']
   const first = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0]
@@ -121,13 +172,18 @@ async function requestCandidate({
   sources,
   budget,
   issues,
+  attempt,
+  repaired,
 }: {
   openai: OpenAI
   task: string
   sources: CompilerSource[]
   budget: z.infer<typeof InteractionBudgetSchema>
   issues: Array<Pick<TaskPlanValidationIssue, 'code' | 'path'>> | null
+  attempt: CompilerAttemptNumber
+  repaired: boolean
 }) {
+  const startedAt = Date.now()
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), CARRY_FORWARD_COMPILER_LIMITS.attemptTimeoutMs)
   let response: OpenAIResponse
@@ -154,14 +210,25 @@ async function requestCandidate({
       text: { format: zodTextFormat(TaskPlanCandidateSchema, 'carry_forward_task_plan') },
     }, { signal: controller.signal })
   } catch (error) {
-    if (controller.signal.aborted) throw new CompilerTimeoutError()
-    throw error
+    const classifiedError = controller.signal.aborted ? new CompilerTimeoutError() : error
+    logCompilerTiming({
+      event: 'carry_forward_compiler_attempt',
+      attempt,
+      startedAt,
+      result: classifyCompilerError(classifiedError).code,
+      repaired,
+    })
+    throw classifiedError
   } finally {
     clearTimeout(timeout)
   }
 
-  if (includesRefusal(response)) return { ok: false as const, code: 'compilation_refused' as const }
+  if (includesRefusal(response)) {
+    logCompilerTiming({ event: 'carry_forward_compiler_attempt', attempt, startedAt, result: 'compilation_refused', repaired })
+    return { ok: false as const, code: 'compilation_refused' as const }
+  }
   if (response.status !== 'completed' || response.incomplete_details) {
+    logCompilerTiming({ event: 'carry_forward_compiler_attempt', attempt, startedAt, result: 'compilation_incomplete', repaired })
     return { ok: false as const, code: 'compilation_incomplete' as const }
   }
   let candidate: unknown = null
@@ -170,6 +237,7 @@ async function requestCandidate({
   } catch {
     // Null intentionally enters application validation and the single repair path.
   }
+  logCompilerTiming({ event: 'carry_forward_compiler_attempt', attempt, startedAt, result: 'success', repaired })
   return { ok: true as const, response, candidate }
 }
 
@@ -212,6 +280,10 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   }
   inFlightRequestIds.add(input.data.requestId)
   const openai = new OpenAI({ apiKey: key, maxRetries: 0 })
+  const requestStartedAt = Date.now()
+  let finalAttempt: CompilerAttemptNumber = 1
+  let repairUsed = false
+  let finalResult: SafeCompilerResult = 'compiler_failed'
 
   try {
     const first = await requestCandidate({
@@ -220,14 +292,18 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       sources: input.data.sources,
       budget: input.data.budget,
       issues: null,
+      attempt: 1,
+      repaired: false,
     })
     if (!first.ok) {
+      finalResult = first.code
       safeError(response, 409, first.code)
       return
     }
 
     const firstValidation = validateTaskPlan(first.candidate, input.data.sources)
     if ('plan' in firstValidation) {
+      finalResult = 'success'
       response.status(200).json({
         plan: firstValidation.plan,
         meta: { model: first.response.model, repaired: false },
@@ -239,9 +315,18 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       .filter((issue) => issue.repairable)
       .map(({ code, path }) => ({ code, path }))
     if (repairIssues.length === 0) {
+      finalResult = 'plan_validation_failed'
       safeError(response, 422, 'plan_validation_failed')
       return
     }
+
+    if (CARRY_FORWARD_COMPILER_LIMITS.maxAttempts < 2) {
+      finalResult = 'plan_validation_failed'
+      safeError(response, 422, 'plan_validation_failed')
+      return
+    }
+    finalAttempt = 2
+    repairUsed = true
 
     const repair = await requestCandidate({
       openai,
@@ -249,40 +334,39 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       sources: input.data.sources,
       budget: input.data.budget,
       issues: repairIssues,
+      attempt: 2,
+      repaired: true,
     })
     if (!repair.ok) {
+      finalResult = repair.code
       safeError(response, 409, repair.code)
       return
     }
 
     const repairedValidation = validateTaskPlan(repair.candidate, input.data.sources)
     if (!('plan' in repairedValidation)) {
+      finalResult = 'plan_validation_failed'
       safeError(response, 422, 'plan_validation_failed')
       return
     }
 
+    finalResult = 'success'
     response.status(200).json({
       plan: repairedValidation.plan,
       meta: { model: repair.response.model, repaired: true },
     })
   } catch (error) {
-    if (error instanceof CompilerTimeoutError) safeError(response, 504, 'compiler_timeout')
-    else if (error instanceof OpenAI.APIError) {
-      const upstreamStatus = error.status
-      const quotaExhausted = upstreamStatus === 429 && error.code === 'insufficient_quota'
-      const status = upstreamStatus === 429 ? 429 : upstreamStatus === 401 || upstreamStatus === 403 ? 503 : 502
-      const code = quotaExhausted
-        ? 'openai_quota_exhausted'
-        : upstreamStatus === 429
-          ? 'openai_rate_limited'
-          : upstreamStatus === 401 || upstreamStatus === 403
-            ? 'compiler_not_authorized'
-            : upstreamStatus === 400
-              ? 'compiler_contract_rejected'
-              : 'compiler_failed'
-      safeError(response, status, code)
-    } else safeError(response, 502, 'compiler_failed')
+    const classification = classifyCompilerError(error)
+    finalResult = classification.code
+    safeError(response, classification.status, classification.code)
   } finally {
+    logCompilerTiming({
+      event: 'carry_forward_compiler_request',
+      attempt: finalAttempt,
+      startedAt: requestStartedAt,
+      result: finalResult,
+      repaired: repairUsed,
+    })
     inFlightRequestIds.delete(input.data.requestId)
   }
 }
