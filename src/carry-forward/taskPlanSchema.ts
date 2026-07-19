@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { TASK_PLAN_LIMITS } from './taskPlanLimits'
+import { TASK_PLAN_LIMITS } from './taskPlanLimits.js'
 
 const SAFE_ID = /^[a-z0-9][a-z0-9_-]{0,63}$/
 const PROHIBITED_TEXT = /(?:https?:\/\/|www\.|<\/?[a-z][^>]*>|javascript:|mailto:|function_call|tool_call|open_url)/i

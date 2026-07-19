@@ -4,7 +4,7 @@ import {
   type TaskPlanCandidate,
   type TaskPlanValidationIssue,
   type TaskPlanValidationResult,
-} from './taskPlanSchema'
+} from './taskPlanSchema.js'
 
 export type CompilerSource = {
   id: string
