@@ -66,6 +66,28 @@ body.field-access-scroll-locked #root {
   touch-action: manipulation;
 }
 
+/* Presented-state copy must either remain readable or leave the visual and
+   accessibility trees immediately instead of fading through low contrast. */
+.field-access-one-shot[data-phase="presented"] .field-access-one-shot__lead,
+.field-access-one-shot[data-phase="captured"] .field-access-one-shot__lead,
+.field-access-one-shot[data-phase="reading"] .field-access-one-shot__lead,
+.field-access-one-shot[data-phase="accepted"] .field-access-one-shot__lead,
+.field-access-one-shot[data-phase="unlocked"] .field-access-one-shot__lead {
+  visibility: hidden;
+}
+
+.field-access-one-shot[data-phase="presented"] .field-access-one-shot__metadata,
+.field-access-one-shot[data-phase="captured"] .field-access-one-shot__metadata,
+.field-access-one-shot[data-phase="reading"] .field-access-one-shot__metadata {
+  color: var(--field-ink);
+  opacity: 1;
+}
+
+.field-access-one-shot__gesture,
+.field-access-one-shot__fallback {
+  color: #5d5a54;
+}
+
 /* The recognized screen already explains the next action in the lead copy.
    Suppress the duplicated live status line that previously sat behind the CTA. */
 .field-access-one-shot[data-phase="recognized"] .field-access-one-shot__gesture {

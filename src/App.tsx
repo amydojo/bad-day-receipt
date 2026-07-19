@@ -105,6 +105,7 @@ function App() {
   const [offlineReady, setOfflineReady] = useState(false)
   const mainRef = useRef<HTMLElement | null>(null)
   const machineRef = useRef<ReceiptMachineHandle | null>(null)
+  const sheetTriggerRef = useRef<HTMLElement | null>(null)
 
   const theme = getTheme(themeId)
   const charges = useMemo(
@@ -291,19 +292,31 @@ function App() {
             </header>
 
             <nav className="mobile-machine-tools" aria-label="Machine drawers">
-              <button type="button" disabled={editingLocked} onClick={() => setActiveSheet('paper')}>
+              <button type="button" disabled={editingLocked} onClick={(event) => {
+                sheetTriggerRef.current = event.currentTarget
+                setActiveSheet('paper')
+              }}>
                 <span>PAPER</span><strong>{theme.shortName}</strong>
               </button>
-              <button type="button" onClick={() => setActiveSheet('history')}>
+              <button type="button" onClick={(event) => {
+                sheetTriggerRef.current = event.currentTarget
+                setActiveSheet('history')
+              }}>
                 <span>HISTORY</span><strong>{history.length}</strong>
               </button>
-              <button type="button" onClick={() => setActiveSheet('settings')}>
+              <button type="button" onClick={(event) => {
+                sheetTriggerRef.current = event.currentTarget
+                setActiveSheet('settings')
+              }}>
                 <span>SETTINGS</span><strong>{soundEnabled ? 'SOUND ON' : 'QUIET'}</strong>
               </button>
               <button
                 type="button"
                 disabled={!machineState.isComplete}
-                onClick={() => setActiveSheet('export')}
+                onClick={(event) => {
+                  sheetTriggerRef.current = event.currentTarget
+                  setActiveSheet('export')
+                }}
               >
                 <span>EXPORT</span><strong>{machineState.isComplete ? 'READY' : 'AFTER PRINT'}</strong>
               </button>
@@ -403,6 +416,7 @@ function App() {
           description={activeSheet === 'history' ? 'Last five receipts stored only on this device.' : undefined}
           onClose={() => setActiveSheet(null)}
           isolateRef={mainRef}
+          returnFocusRef={sheetTriggerRef}
         >
           {activeSheet === 'paper' && (
             <PaperStockSheet

@@ -87,13 +87,14 @@ test.describe('FIELD–001 opening sequence matrix', () => {
 
       const qr = page.locator(`.field-card--${fieldObject.edition} .field-card__qr`)
       await expect(qr).toBeVisible()
-      await expect(page.getByText('QR VERIFIED', { exact: true })).toBeVisible({ timeout: 3000 })
       await expect.poll(async () => qr.evaluate((node) => (
         getComputedStyle(node, '::before').opacity
       ))).not.toBe('0')
 
       const begin = page.getByRole('button', { name: 'BEGIN OPERATION' })
-      await expect(begin).toBeVisible({ timeout: 3000 })
+      await expect(page.locator('.field-access-one-shot')).toHaveAttribute('data-phase', 'unlocked', { timeout: 6000 })
+      await expect(begin).toBeVisible()
+      await expect(page.getByText('QR VERIFIED', { exact: true })).toBeVisible()
       const launchGeometry = await begin.evaluate((node) => {
         const box = node.getBoundingClientRect()
         return {

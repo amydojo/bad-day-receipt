@@ -16,7 +16,9 @@ const expected = [
 
 describe('field access edition registry', () => {
   it('registers all ten FIELD–001 editions to canonical LD–001', () => {
-    expect(Object.keys(fieldAccessConfigs)).toEqual(expected.map(([edition]) => edition))
+    expect(Object.keys(fieldAccessConfigs).sort()).toEqual(
+      expected.map(([edition]) => edition).sort(),
+    )
     for (const [edition, objectName, objectType, objectClass] of expected) {
       const config = getFieldAccessConfig(edition)
       expect(config).toMatchObject({

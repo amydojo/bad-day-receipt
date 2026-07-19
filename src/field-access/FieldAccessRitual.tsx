@@ -359,7 +359,10 @@ export function FieldAccessRitual({
                     <span>{config.machineLabel} / SOFT MACHINE</span>
                     <strong>BAD DAY<br />RECEIPT</strong>
                     <p>Documents difficult days<br />before they leak everywhere.</p>
-                    <small>UNLOCKED BY LD–{config.edition} / {token}</small>
+                    <small>
+                      <span>QR VERIFIED</span>
+                      <span>UNLOCKED BY LD–{config.edition} / {token}</span>
+                    </small>
                     <button
                       ref={beginButtonRef}
                       type="button"
