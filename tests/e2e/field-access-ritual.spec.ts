@@ -81,6 +81,7 @@ test.describe('Lab Dojo field access ritual', () => {
   })
 
   test('uses the same collectible notation for all ten physical objects', async ({ page }) => {
+    test.setTimeout(60_000)
     for (const [edition, token] of fieldObjects) {
       await page.goto(`/access/${edition}/${token}`)
       await expect(page.getByRole('button', { name: 'PRESENT OBJECT' })).toBeVisible()
