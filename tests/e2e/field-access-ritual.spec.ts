@@ -114,6 +114,13 @@ test.describe('Lab Dojo field access ritual', () => {
     const begin = page.getByRole('button', { name: 'BEGIN OPERATION' })
     await expect(page.locator('.field-access-one-shot')).toHaveAttribute('data-phase', 'unlocked', { timeout: 6000 })
     await expect(begin).toBeVisible()
+    await expect.poll(async () => begin.evaluate((node) => {
+      const rect = node.getBoundingClientRect()
+      return rect.top >= 0 && rect.bottom <= window.innerHeight
+    }), {
+      message: 'The launch control should settle fully inside the viewport after the unlock transition.',
+      timeout: 8_000,
+    }).toBe(true)
     const geometry = await begin.evaluate((node) => {
       const rect = node.getBoundingClientRect()
       const slot = node.closest<HTMLElement>('.field-machine-slot')?.getBoundingClientRect()
