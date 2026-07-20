@@ -41,6 +41,7 @@ import './field-access/iconic-field-release.css'
 import './analytics/analytics.css'
 import './analytics/iconic-metrics.css'
 import './carry-forward/carry-forward.css'
+import './carry-forward/carry-forward-accessibility.css'
 
 const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const route = normalizedPath === '/carry-forward' ? <CarryForwardApp /> : <App />
