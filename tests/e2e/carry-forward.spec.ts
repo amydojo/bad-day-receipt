@@ -141,9 +141,15 @@ test.describe('Carry Forward authored parity', () => {
 
   test('compile cancellation returns to M05 and ignores a late response', async ({ page }) => {
     await page.unroute('**/api/compile-task')
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => { release = resolve })
     await page.route('**/api/compile-task', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 700))
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ plan: createInsuranceDenialPlan(), meta: { model: 'gpt-5.6-sol-test', repaired: false } }) })
+      await gate
+      try {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ plan: createInsuranceDenialPlan(), meta: { model: 'gpt-5.6-sol-test', repaired: false } }) })
+      } catch {
+        // The browser may close the cancelled request before the late fixture is released.
+      }
     })
     await openCarryForwardPreview(page)
     await page.getByRole('button', { name: /BEGIN ONE THING MODE/ }).click()
@@ -152,7 +158,8 @@ test.describe('Carry Forward authored parity', () => {
     await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M05')
     await expect(page.getByRole('heading', { name: 'One Thing Mode will…' })).toBeFocused()
     await expect(page.getByText('Show one active step')).toBeVisible()
-    await page.waitForTimeout(900)
+    release()
+    await page.waitForTimeout(100)
     await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M05')
     expect(await page.evaluate((key) => window.localStorage.getItem(key), storageKey)).toBeNull()
   })
