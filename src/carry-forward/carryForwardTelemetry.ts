@@ -14,7 +14,7 @@ export const CARRY_FORWARD_EVENT_NAMES = [
 
 export type CarryForwardEventName = typeof CARRY_FORWARD_EVENT_NAMES[number]
 export type CarryForwardTelemetryProperties = Partial<{
-  state: 'input' | 'budget' | 'preview' | 'compiling' | 'active' | 'complete' | 'fallback' | 'expired'
+  state: 'bridge' | 'input' | 'recovery' | 'budget' | 'preview' | 'compiling' | 'active' | 'complete' | 'fallback' | 'expired'
   stepKind: 'read' | 'choice' | 'compose' | 'checklist' | 'review'
   errorCode: 'offline' | 'timeout' | 'rate_limited' | 'refusal' | 'invalid_plan' | 'server_error'
   stepCount: number
@@ -30,7 +30,7 @@ export type CarryForwardTelemetryProperties = Partial<{
   deferOptionalWork: boolean
 }>
 
-const STATE_VALUES = new Set(['input', 'budget', 'preview', 'compiling', 'active', 'complete', 'fallback', 'expired'])
+const STATE_VALUES = new Set(['bridge', 'input', 'recovery', 'budget', 'preview', 'compiling', 'active', 'complete', 'fallback', 'expired'])
 const STEP_KIND_VALUES = new Set(['read', 'choice', 'compose', 'checklist', 'review'])
 const ERROR_CODE_VALUES = new Set(['offline', 'timeout', 'rate_limited', 'refusal', 'invalid_plan', 'server_error'])
 const OUTPUT_KIND_VALUES = new Set(['copy', 'download'])
