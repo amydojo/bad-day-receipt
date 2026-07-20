@@ -10,7 +10,7 @@ export function ReceiptEndingBoundary({
   persistenceStatus,
 }: {
   state: ReceiptEndingState
-  headingRef?: Ref<HTMLElement>
+  headingRef?: Ref<HTMLHeadingElement>
   persistenceStatus: ReceiptEndingPersistenceStatus
 }) {
   return (
