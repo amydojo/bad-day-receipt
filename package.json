@@ -12,6 +12,7 @@
     "test:carry-forward": "vitest run src/carry-forward tests/api/compile-task.test.ts tests/api/compile-task.diagnostic.test.ts",
     "diagnose:carry-forward": "vitest run tests/api/compile-task.diagnostic.test.ts --reporter=verbose",
     "test:receipt-regression": "vitest run src/receipt.test.ts src/draftReceipt.test.ts src/printer/printerMachine.test.ts src/soft-machine/persistence.test.ts src/mobile-instrument/deriveMobileScene.test.ts",
+    "test:three-endings-foundation": "VITE_THREE_ENDINGS=true playwright test tests/e2e/three-endings-foundation.spec.ts --project=chromium-desktop",
     "evals:carry-forward": "vitest run evals/carry-forward",
     "release:carry-forward": "npm run typecheck && npm run test:carry-forward && npm run evals:carry-forward && npm run test:receipt-regression && npm run build && playwright test tests/e2e/carry-forward.spec.ts tests/e2e/carry-forward-accessibility.spec.ts tests/e2e/carry-forward-viewports.spec.ts --project=chromium-desktop",
     "analyze": "npm run build && node scripts/analyze-build.mjs",
