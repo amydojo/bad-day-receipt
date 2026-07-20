@@ -61,6 +61,39 @@ function renderOneShot(context: AudioContext, event: OneShotEvent): AudioBuffer 
         const paper = deterministicNoise(index, 29) * 0.24
         return (body + paper) * envelope
       })
+    case 'receipt-cut':
+      return createBuffer(context, 0.052, (_time, index, length) => {
+        const envelope = decayEnvelope(index, length, 5)
+        return deterministicNoise(index, 113) * envelope * 0.34
+      })
+    case 'archive-align':
+      return createBuffer(context, 0.038, (time, index, length) => {
+        const envelope = decayEnvelope(index, length, 5)
+        return (
+          Math.sin(2 * Math.PI * 230 * time) * 0.2
+          + deterministicNoise(index, 127) * 0.12
+        ) * envelope
+      })
+    case 'sleeve-receive':
+      return createBuffer(context, 0.12, (_time, index, length) => {
+        const progress = index / Math.max(1, length - 1)
+        const envelope = Math.pow(Math.sin(Math.PI * progress), 1.6)
+        return deterministicNoise(index, 149) * envelope * 0.12
+      })
+    case 'archive-label':
+      return createBuffer(context, 0.09, (time, index, length) => {
+        const envelope = decayEnvelope(index, length, 2.4)
+        const roller = Math.sin(2 * Math.PI * 138 * time) * 0.08
+        const rasp = deterministicNoise(index, 173) * 0.16
+        return (roller + rasp) * envelope
+      })
+    case 'archive-close':
+      return createBuffer(context, 0.11, (time, index, length) => {
+        const envelope = decayEnvelope(index, length, 3.4)
+        const body = Math.sin(2 * Math.PI * 66 * time) * 0.32
+        const contact = deterministicNoise(index, 191) * 0.18
+        return (body + contact) * envelope
+      })
     case 'cvs-printer-restart':
       return createBuffer(context, 0.16, (time, index, length) => {
         const first = time < 0.045
