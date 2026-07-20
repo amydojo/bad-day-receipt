@@ -1,3 +1,15 @@
+import {
+  parsePendingReceipt,
+  parsePendingRelease,
+  sanitizePrivateArchive,
+  sanitizeReceiptDispositions,
+} from '../receipt-ending/receiptEndingPersistence'
+import type {
+  ArchivedReceipt,
+  PendingRelease,
+  ReceiptDisposition,
+} from '../receipt-ending/receiptEndingTypes'
+import type { CompletedReceiptSnapshot } from '../receipt-ending/completedReceipt'
 import { themes, type ReceiptThemeId } from '../themes'
 import type { ReceiptItem } from '../types'
 import {
@@ -7,7 +19,7 @@ import {
 } from '../v2'
 
 export const MACHINE_STORAGE_KEY = 'bad-day-receipt-machine-v1'
-export const MACHINE_STORAGE_VERSION = 1
+export const MACHINE_STORAGE_VERSION = 2
 
 export interface PersistedEnvelope<T> {
   version: number
@@ -34,12 +46,26 @@ export interface PersistedMachineData {
     receiptNumber: string
     completedAt: string
   } | null
+  pendingReceipt: CompletedReceiptSnapshot | null
+  pendingRelease: PendingRelease | null
+  privateArchive: ArchivedReceipt[]
+  receiptDispositions: ReceiptDisposition[]
 }
 
 export interface StorageAdapter {
   getItem: (key: string) => string | null
   setItem: (key: string, value: string) => void
   removeItem: (key: string) => void
+}
+
+export type MachinePersistenceResult =
+  | { status: 'saved' }
+  | { status: 'unavailable' }
+  | { status: 'failed'; reason: 'read-failed' | 'write-failed' }
+
+export interface MachineLoadResult {
+  data: PersistedMachineData
+  status: 'loaded' | 'defaulted' | 'unavailable' | 'recovered'
 }
 
 const themeIds = new Set(themes.map((theme) => theme.id))
@@ -55,6 +81,10 @@ export function createDefaultMachineData(draft: ReceiptItem[]): PersistedMachine
     },
     pendingCommit: null,
     lastCompleted: null,
+    pendingReceipt: null,
+    pendingRelease: null,
+    privateArchive: [],
+    receiptDispositions: [],
   }
 }
 
@@ -62,25 +92,41 @@ export function loadMachineData(
   defaults: PersistedMachineData,
   storage: StorageAdapter | null = browserStorage(),
 ): PersistedMachineData {
-  if (!storage) return defaults
+  return loadMachineDataResult(defaults, storage).data
+}
+
+export function loadMachineDataResult(
+  defaults: PersistedMachineData,
+  storage: StorageAdapter | null = browserStorage(),
+): MachineLoadResult {
+  if (!storage) return { data: defaults, status: 'unavailable' }
 
   try {
     const raw = storage.getItem(MACHINE_STORAGE_KEY)
-    if (!raw) return migrateLegacyHistory(defaults, storage)
+    if (!raw) {
+      return { data: migrateLegacyHistory(defaults, storage), status: 'defaulted' }
+    }
+
     const parsed: unknown = JSON.parse(raw)
     const envelope = parseEnvelope(parsed)
-    if (!envelope) return migrateLegacyHistory(defaults, storage)
-    return recoverInterruptedPrint(envelope.data)
+    if (!envelope) {
+      return { data: migrateLegacyHistory(defaults, storage), status: 'recovered' }
+    }
+
+    return {
+      data: recoverInterruptedPrint(envelope.data),
+      status: envelope.version === MACHINE_STORAGE_VERSION ? 'loaded' : 'recovered',
+    }
   } catch {
-    return migrateLegacyHistory(defaults, storage)
+    return { data: migrateLegacyHistory(defaults, storage), status: 'recovered' }
   }
 }
 
-export function saveMachineData(
+export function persistMachineData(
   data: PersistedMachineData,
   storage: StorageAdapter | null = browserStorage(),
-): boolean {
-  if (!storage) return false
+): MachinePersistenceResult {
+  if (!storage) return { status: 'unavailable' }
   try {
     const envelope: PersistedEnvelope<PersistedMachineData> = {
       version: MACHINE_STORAGE_VERSION,
@@ -88,10 +134,17 @@ export function saveMachineData(
       data: sanitizeMachineData(data),
     }
     storage.setItem(MACHINE_STORAGE_KEY, JSON.stringify(envelope))
-    return true
+    return { status: 'saved' }
   } catch {
-    return false
+    return { status: 'failed', reason: 'write-failed' }
   }
+}
+
+export function saveMachineData(
+  data: PersistedMachineData,
+  storage: StorageAdapter | null = browserStorage(),
+): boolean {
+  return persistMachineData(data, storage).status === 'saved'
 }
 
 export function resetMachineData(storage: StorageAdapter | null = browserStorage()): boolean {
@@ -134,12 +187,12 @@ export function sanitizeHistory(value: unknown): SavedTransaction[] {
 
 function parseEnvelope(value: unknown): PersistedEnvelope<PersistedMachineData> | null {
   if (!isRecord(value)) return null
-  if (value.version !== MACHINE_STORAGE_VERSION) return null
+  if (value.version !== 1 && value.version !== MACHINE_STORAGE_VERSION) return null
   if (typeof value.writtenAt !== 'string') return null
   const data = parseMachineData(value.data)
   if (!data) return null
   return {
-    version: MACHINE_STORAGE_VERSION,
+    version: value.version,
     writtenAt: value.writtenAt,
     data,
   }
@@ -164,6 +217,10 @@ function parseMachineData(value: unknown): PersistedMachineData | null {
     preferences,
     pendingCommit: parsePendingCommit(value.pendingCommit),
     lastCompleted: parseLastCompleted(value.lastCompleted),
+    pendingReceipt: parsePendingReceipt(value.pendingReceipt),
+    pendingRelease: parsePendingRelease(value.pendingRelease),
+    privateArchive: sanitizePrivateArchive(value.privateArchive),
+    receiptDispositions: sanitizeReceiptDispositions(value.receiptDispositions),
   }
 }
 
@@ -178,6 +235,10 @@ function sanitizeMachineData(data: PersistedMachineData): PersistedMachineData {
     },
     pendingCommit: parsePendingCommit(data.pendingCommit),
     lastCompleted: parseLastCompleted(data.lastCompleted),
+    pendingReceipt: parsePendingReceipt(data.pendingReceipt),
+    pendingRelease: parsePendingRelease(data.pendingRelease),
+    privateArchive: sanitizePrivateArchive(data.privateArchive),
+    receiptDispositions: sanitizeReceiptDispositions(data.receiptDispositions),
   }
 }
 
