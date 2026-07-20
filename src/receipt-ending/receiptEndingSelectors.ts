@@ -1,13 +1,22 @@
-import type { ReceiptEndingState } from './receiptEndingTypes'
+import type {
+  ReceiptEndingMachineState,
+  ReceiptEndingState,
+} from './receiptEndingTypes'
 
 export function getReceiptEndingReceipt(state: ReceiptEndingState) {
   return state.receipt
 }
 
-export function isReceiptDispositionPending(state: ReceiptEndingState): boolean {
-  return state.kind === 'documented' || state.kind === 'end-choice'
+export function isReceiptEndingSettling(state: ReceiptEndingMachineState): boolean {
+  return state?.kind === 'settling'
 }
 
-export function isReceiptEndingRecovery(state: ReceiptEndingState): boolean {
-  return state.kind === 'recovery'
+export function isReceiptDispositionPending(state: ReceiptEndingState): boolean {
+  return state.kind === 'settling'
+    || state.kind === 'documented'
+    || state.kind === 'end-choice'
+}
+
+export function isReceiptEndingRecovery(state: ReceiptEndingMachineState): boolean {
+  return state?.kind === 'recovery'
 }

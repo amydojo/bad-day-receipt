@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { getTheme } from '../themes'
 import { createCompletedReceiptSnapshot } from './completedReceipt'
 import { receiptEndingReducer } from './receiptEndingReducer'
-import type { ReceiptEndingState } from './receiptEndingTypes'
+import type {
+  ReceiptEndingMachineState,
+  ReceiptEndingState,
+} from './receiptEndingTypes'
 
 const receipt = createCompletedReceiptSnapshot({
   receiptNumber: 'BD-20-0002',
@@ -20,42 +23,87 @@ function documented(): ReceiptEndingState {
   return { kind: 'documented', receipt }
 }
 
-describe('receiptEndingReducer', () => {
-  it('moves through the legal ending selections without replacing receipt identity', () => {
-    const endChoice = receiptEndingReducer(documented(), { type: 'OPEN_END_CHOICE' })
-    const keep = receiptEndingReducer(endChoice, { type: 'SELECT_KEEP' })
+function settling(): ReceiptEndingState {
+  return { kind: 'settling', receipt }
+}
 
-    expect(endChoice.kind).toBe('end-choice')
-    expect(keep.kind).toBe('keep-selected')
-    expect(keep.receipt).toBe(receipt)
+function reduce(state: ReceiptEndingMachineState, event: Parameters<typeof receiptEndingReducer>[1]) {
+  return receiptEndingReducer(state, event)
+}
+
+describe('receiptEndingReducer', () => {
+  it('starts a newly printed receipt in settling', () => {
+    expect(reduce(null, { type: 'START_NEW_RECEIPT', receipt })).toEqual({
+      kind: 'settling',
+      receipt,
+    })
+  })
+
+  it('restores a persisted receipt directly to documented', () => {
+    expect(reduce(null, { type: 'RESTORE_RECEIPT', receipt })).toEqual({
+      kind: 'documented',
+      receipt,
+    })
+  })
+
+  it('settles exactly once and ignores choices before settling', () => {
+    const state = settling()
+    expect(reduce(state, { type: 'SELECT_END_HERE' })).toBe(state)
+    expect(reduce(state, { type: 'SELECT_CARRY_FORWARD' })).toBe(state)
+
+    const complete = reduce(state, { type: 'PRINT_COMPLETION_SETTLED' })
+    expect(complete).toEqual({ kind: 'documented', receipt })
+    expect(reduce(complete, { type: 'PRINT_COMPLETION_SETTLED' })).toBe(complete)
+  })
+
+  it('moves through all legal shared choices without replacing receipt identity', () => {
+    const endChoice = reduce(documented(), { type: 'SELECT_END_HERE' })
+    const keep = reduce(endChoice, { type: 'SELECT_KEEP' })
+    const release = reduce(endChoice, { type: 'SELECT_RELEASE' })
+    const carry = reduce(documented(), { type: 'SELECT_CARRY_FORWARD' })
+
+    expect(endChoice?.kind).toBe('end-choice')
+    expect(keep?.kind).toBe('keep-selected')
+    expect(release?.kind).toBe('release-selected')
+    expect(carry?.kind).toBe('carry-selected')
+    expect(keep?.receipt).toBe(receipt)
+    expect(release?.receipt).toBe(receipt)
+    expect(carry?.receipt).toBe(receipt)
+  })
+
+  it('returns each branch to the correct shared decision without replaying settling', () => {
+    const endChoice = reduce(documented(), { type: 'SELECT_END_HERE' })
+    const keep = reduce(endChoice, { type: 'SELECT_KEEP' })
+    const release = reduce(endChoice, { type: 'SELECT_RELEASE' })
+    const carry = reduce(documented(), { type: 'SELECT_CARRY_FORWARD' })
+
+    expect(reduce(keep, { type: 'BACK_TO_DISPOSITION' })?.kind).toBe('end-choice')
+    expect(reduce(release, { type: 'BACK_TO_DISPOSITION' })?.kind).toBe('end-choice')
+    expect(reduce(carry, { type: 'BACK_TO_DOCUMENTED' })?.kind).toBe('documented')
+    expect(reduce(endChoice, { type: 'BACK_TO_DOCUMENTED' })?.kind).toBe('documented')
   })
 
   it('ignores impossible and duplicate events deterministically', () => {
     const state = documented()
-    expect(receiptEndingReducer(state, { type: 'SELECT_KEEP' })).toBe(state)
-    expect(receiptEndingReducer(state, { type: 'BACK' })).toBe(state)
+    expect(reduce(state, { type: 'SELECT_KEEP' })).toBe(state)
+    expect(reduce(state, { type: 'BACK_TO_DISPOSITION' })).toBe(state)
+    expect(reduce(state, { type: 'RESTORE_RECEIPT', receipt })).toBe(state)
   })
 
   it('recovers to the same documented receipt', () => {
-    const failed = receiptEndingReducer(documented(), {
+    const failed = reduce(documented(), {
       type: 'FAIL',
       reason: 'persistence-unavailable',
     })
-    const recovered = receiptEndingReducer(failed, { type: 'RECOVER' })
+    const recovered = reduce(failed, { type: 'RECOVER' })
 
-    expect(failed.kind).toBe('recovery')
+    expect(failed?.kind).toBe('recovery')
     expect(recovered).toEqual({ kind: 'documented', receipt })
-    expect(recovered.receipt).toBe(receipt)
+    expect(recovered?.receipt).toBe(receipt)
   })
 
-  it('returns Carry Forward to documented and Keep or Release to end choice', () => {
-    const carry = receiptEndingReducer(documented(), { type: 'SELECT_CARRY' })
-    const keep = receiptEndingReducer(
-      { kind: 'end-choice', receipt },
-      { type: 'SELECT_KEEP' },
-    )
-
-    expect(receiptEndingReducer(carry, { type: 'BACK' }).kind).toBe('documented')
-    expect(receiptEndingReducer(keep, { type: 'BACK' }).kind).toBe('end-choice')
+  it('clears the complete ending domain explicitly', () => {
+    expect(reduce(documented(), { type: 'CLEAR_RECEIPT_ENDING' })).toBeNull()
+    expect(reduce(null, { type: 'SELECT_END_HERE' })).toBeNull()
   })
 })

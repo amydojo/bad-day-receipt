@@ -6,6 +6,7 @@ export type ReceiptEndingFailure =
   | 'unknown'
 
 export type ReceiptEndingState =
+  | { kind: 'settling'; receipt: CompletedReceiptSnapshot }
   | { kind: 'documented'; receipt: CompletedReceiptSnapshot }
   | { kind: 'end-choice'; receipt: CompletedReceiptSnapshot }
   | { kind: 'keep-selected'; receipt: CompletedReceiptSnapshot }
@@ -17,12 +18,19 @@ export type ReceiptEndingState =
       reason: ReceiptEndingFailure
     }
 
+export type ReceiptEndingMachineState = ReceiptEndingState | null
+
 export type ReceiptEndingEvent =
-  | { type: 'OPEN_END_CHOICE' }
+  | { type: 'START_NEW_RECEIPT'; receipt: CompletedReceiptSnapshot }
+  | { type: 'RESTORE_RECEIPT'; receipt: CompletedReceiptSnapshot }
+  | { type: 'CLEAR_RECEIPT_ENDING' }
+  | { type: 'PRINT_COMPLETION_SETTLED' }
+  | { type: 'SELECT_END_HERE' }
+  | { type: 'SELECT_CARRY_FORWARD' }
   | { type: 'SELECT_KEEP' }
   | { type: 'SELECT_RELEASE' }
-  | { type: 'SELECT_CARRY' }
-  | { type: 'BACK' }
+  | { type: 'BACK_TO_DOCUMENTED' }
+  | { type: 'BACK_TO_DISPOSITION' }
   | { type: 'FAIL'; reason: ReceiptEndingFailure }
   | { type: 'RECOVER' }
 
