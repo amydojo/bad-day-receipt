@@ -24,10 +24,12 @@ import {
   type ReceiptEndingPersistenceStatus,
   type ReceiptEndingState,
 } from '../receipt-ending'
+import { ArchivalSleeve } from '../receipt-ending/keep/ArchivalSleeve'
+import type { KeepArchiveCommitResult } from '../receipt-ending/keep/KeepReceiptRitual'
 import { getTheme, type ReceiptTheme } from '../themes'
 import type { ReceiptItem } from '../types'
 import type { ExportFormat } from '../v2'
-import { PrinterShell } from './PrinterShell'
+import { PrinterShell, type PrinterArchiveState } from './PrinterShell'
 import { ReceiptViewport } from './ReceiptViewport'
 import { RegisterTerminal, shouldRenderIssuedReceipt } from './RegisterTerminal'
 import { RingItUpButton } from './RingItUpButton'
@@ -60,6 +62,12 @@ interface ReceiptMachineProps {
   createExport: (format: ExportFormat) => Promise<ArtifactExport>
   onTransactionComplete: (receiptNumber: string) => void
   onReceiptComplete: (snapshot: CompletedReceiptSnapshot) => void
+  onCommitKeepArchive: (
+    receipt: CompletedReceiptSnapshot,
+    archivedAt: string,
+  ) => Promise<KeepArchiveCommitResult> | KeepArchiveCommitResult
+  onExportLocalCopy: (receipt: CompletedReceiptSnapshot) => Promise<boolean>
+  onCloseKeepCompletion: () => void
   onMakeAnother: () => void
   onClear: () => void
   onStateChange?: (snapshot: ReceiptMachineStateSnapshot) => void
@@ -83,6 +91,9 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     createExport,
     onTransactionComplete,
     onReceiptComplete,
+    onCommitKeepArchive,
+    onExportLocalCopy,
+    onCloseKeepCompletion,
     onMakeAnother,
     onClear,
     onStateChange,
@@ -205,6 +216,11 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           'complete',
         ].includes(state.phase)
     const showReceipt = endingReceipt ? true : shouldRenderIssuedReceipt(state.phase)
+    const keepPhase = receiptEndingState?.kind === 'keep-ritual'
+      ? receiptEndingState.phase
+      : undefined
+    const keepRecovery = receiptEndingState?.kind === 'keep-recovery'
+    const printerPresentation = getPrinterPresentation(receiptEndingState)
 
     const resetForNew = () => {
       commitGuard.current = false
@@ -250,6 +266,13 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         paperProgress={endingReceipt ? 1 : state.paperProgress}
         couponProgress={couponProgress}
         couponCount={displayCouponCount}
+        keepPhase={keepPhase}
+        materialLayer={(
+          <ArchivalSleeve
+            phase={keepPhase}
+            recovery={keepRecovery}
+          />
+        )}
       >
         <ReceiptArtifact
           items={displayItems}
@@ -263,6 +286,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           anomaly={displayAnomaly}
           printedAt={endingReceipt?.completedAt}
           endingState={receiptEndingState?.kind}
+          keepPhase={keepPhase}
         />
       </ReceiptViewport>
     ) : null
@@ -273,11 +297,16 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         <PrinterShell
           phase={displayPhase}
           theme={displayTheme}
-          statusOverride={endingReceipt ? 'DAY DOCUMENTED' : undefined}
+          statusOverride={endingReceipt ? printerPresentation.status : undefined}
+          mode={printerPresentation.mode}
+          archiveState={printerPresentation.archiveState}
         />
         {receipt}
       </div>
     )
+
+    const keepBusy = receiptEndingState?.kind === 'keep-ritual'
+      && receiptEndingState.phase !== 'complete'
 
     return (
       <section
@@ -285,8 +314,9 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         data-phase={displayPhase}
         data-theme={displayTheme.id}
         data-receipt-ending-state={receiptEndingState?.kind}
+        data-keep-phase={keepPhase}
         aria-label="Emotional point of sale terminal and thermal printer"
-        aria-busy={isBusy && !endingReceipt}
+        aria-busy={(isBusy && !endingReceipt) || keepBusy}
       >
         {displayIsComplete && !threeEndingsEnabled ? (
           <EvidenceViewer
@@ -310,6 +340,11 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
                 dispatch={onReceiptEndingEvent}
                 headingRef={completionRef}
                 persistenceStatus={receiptEndingPersistenceStatus}
+                reducedMotion={reducedMotion}
+                sensory={sensory}
+                onCommitKeepArchive={onCommitKeepArchive}
+                onExportLocalCopy={onExportLocalCopy}
+                onCloseKeepCompletion={onCloseKeepCompletion}
               />
             )}
 
@@ -363,6 +398,70 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     )
   },
 )
+
+function getPrinterPresentation(state: ReceiptEndingState | null): {
+  status: string
+  mode: 'receipt' | 'archive'
+  archiveState: PrinterArchiveState
+} {
+  if (state?.kind === 'keep-recovery') {
+    return {
+      status: 'RECORD CLOSED',
+      mode: 'archive',
+      archiveState: 'recovery',
+    }
+  }
+
+  if (state?.kind !== 'keep-ritual') {
+    return {
+      status: 'DAY DOCUMENTED',
+      mode: 'receipt',
+      archiveState: 'closed',
+    }
+  }
+
+  switch (state.phase) {
+    case 'cut':
+    case 'align':
+    case 'sleeve-rising':
+    case 'sleeve-receiving':
+      return {
+        status: 'RECORD CLOSED',
+        mode: 'receipt',
+        archiveState: 'closed',
+      }
+    case 'label-registering':
+      return {
+        status: 'PRIVATE ARCHIVE',
+        mode: 'archive',
+        archiveState: 'closed',
+      }
+    case 'archive-opening':
+      return {
+        status: 'PRIVATE ARCHIVE',
+        mode: 'archive',
+        archiveState: 'opening',
+      }
+    case 'archiving':
+      return {
+        status: 'PRIVATE ARCHIVE',
+        mode: 'archive',
+        archiveState: 'receiving',
+      }
+    case 'archive-closing':
+      return {
+        status: 'PRIVATE ARCHIVE',
+        mode: 'archive',
+        archiveState: state.archivedAt ? 'stored' : 'closing',
+      }
+    case 'complete':
+      return {
+        status: 'PRIVATE ARCHIVE',
+        mode: 'archive',
+        archiveState: 'stored',
+      }
+  }
+}
 
 function usePrefersReducedMotion(): boolean {
   const [reducedMotion, setReducedMotion] = useState(() => (
