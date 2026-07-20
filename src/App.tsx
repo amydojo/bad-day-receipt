@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useReducer,
@@ -43,6 +44,8 @@ import {
   type ReceiptDisposition,
   type ReceiptEndingPersistenceStatus,
 } from './receipt-ending'
+import { createKeepArchiveProjection } from './receipt-ending/keep/keepArchivePersistence'
+import type { KeepArchiveCommitResult } from './receipt-ending/keep/KeepReceiptRitual'
 import {
   createBrowserArtifactPlatform,
   saveArtifact,
@@ -115,8 +118,10 @@ function App() {
     initialPersisted.pendingReceipt,
   )
   const [pendingRelease] = useState<PendingRelease | null>(initialPersisted.pendingRelease)
-  const [privateArchive] = useState<ArchivedReceipt[]>(initialPersisted.privateArchive)
-  const [receiptDispositions] = useState<ReceiptDisposition[]>(initialPersisted.receiptDispositions)
+  const [privateArchive, setPrivateArchive] = useState<ArchivedReceipt[]>(initialPersisted.privateArchive)
+  const [receiptDispositions, setReceiptDispositions] = useState<ReceiptDisposition[]>(
+    initialPersisted.receiptDispositions,
+  )
   const [receiptEndingState, dispatchReceiptEnding] = useReducer(
     receiptEndingReducer,
     THREE_ENDINGS_ENABLED && initialPersisted.pendingReceipt
@@ -133,6 +138,7 @@ function App() {
   const mainRef = useRef<HTMLElement | null>(null)
   const machineRef = useRef<ReceiptMachineHandle | null>(null)
   const sheetTriggerRef = useRef<HTMLElement | null>(null)
+  const machineDataRef = useRef<PersistedMachineData>(initialPersisted)
 
   const theme = getTheme(themeId)
   const receiptEndingActive = THREE_ENDINGS_ENABLED && receiptEndingState !== null
@@ -149,6 +155,20 @@ function App() {
   const editingLocked = receiptEndingActive || isReceiptEditingLocked(machineState.phase)
   const focusedMode = isFocusedMachinePhase(presentationPhase)
 
+  const currentMachineData: PersistedMachineData = {
+    draft: items,
+    themeId,
+    history,
+    preferences: { soundEnabled, hapticsEnabled },
+    pendingCommit,
+    lastCompleted,
+    pendingReceipt,
+    pendingRelease,
+    privateArchive,
+    receiptDispositions,
+  }
+  machineDataRef.current = currentMachineData
+
   useEffect(() => {
     void registerPwa({
       onUpdateAvailable: setPwaUpdate,
@@ -157,18 +177,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const result = persistMachineData({
-      draft: items,
-      themeId,
-      history,
-      preferences: { soundEnabled, hapticsEnabled },
-      pendingCommit,
-      lastCompleted,
-      pendingReceipt,
-      pendingRelease,
-      privateArchive,
-      receiptDispositions,
-    })
+    const result = persistMachineData(currentMachineData)
     setReceiptEndingPersistenceStatus(
       result.status === 'saved'
         ? 'saved'
@@ -285,6 +294,50 @@ function App() {
     })
   }
 
+  const commitKeepArchive = useCallback((
+    receipt: CompletedReceiptSnapshot,
+    archivedAt: string,
+  ): KeepArchiveCommitResult => {
+    const current = machineDataRef.current
+    const projection = createKeepArchiveProjection({
+      currentArchive: current.privateArchive,
+      currentDispositions: current.receiptDispositions,
+      pendingReceipt: current.pendingReceipt,
+      receipt,
+      archivedAt,
+    })
+
+    if (!projection) {
+      setReceiptEndingPersistenceStatus('failed')
+      return { status: 'failed', reason: 'archive-validation-failed' }
+    }
+
+    const nextData: PersistedMachineData = {
+      ...current,
+      privateArchive: projection.privateArchive,
+      receiptDispositions: projection.receiptDispositions,
+      pendingReceipt: projection.pendingReceipt,
+    }
+    const result = persistMachineData(nextData)
+
+    if (result.status === 'saved') {
+      machineDataRef.current = nextData
+      setPrivateArchive(nextData.privateArchive)
+      setReceiptDispositions(nextData.receiptDispositions)
+      setPendingReceipt(null)
+      setReceiptEndingPersistenceStatus('saved')
+      return { status: 'saved' }
+    }
+
+    if (result.status === 'unavailable') {
+      setReceiptEndingPersistenceStatus('unavailable')
+      return { status: 'unavailable' }
+    }
+
+    setReceiptEndingPersistenceStatus('failed')
+    return { status: 'failed', reason: 'storage-write-failed' }
+  }, [])
+
   const createExport = async (format: ExportFormat): Promise<ArtifactExport> => {
     const { createReceiptArtifactExport } = await import('./export/renderReceiptExport')
     return createReceiptArtifactExport({
@@ -293,6 +346,55 @@ function App() {
       theme,
       format,
       shareText: shareCopy,
+    })
+  }
+
+  const createArchiveExport = useCallback(async (
+    receipt: CompletedReceiptSnapshot,
+    format: ExportFormat,
+  ): Promise<ArtifactExport> => {
+    const { createExportForCompletedReceipt } = await import('./export/renderReceiptExport')
+    return createExportForCompletedReceipt(receipt, format)
+  }, [])
+
+  const exportLocalReceiptCopy = useCallback(async (
+    receipt: CompletedReceiptSnapshot,
+  ): Promise<boolean> => {
+    try {
+      const artifact = await createArchiveExport(receipt, 'full')
+      return saveArtifact(artifact, browserArtifactPlatform).status === 'saved'
+    } catch {
+      return false
+    }
+  }, [browserArtifactPlatform, createArchiveExport])
+
+  const closeKeepCompletion = () => {
+    dispatchReceiptEnding({ type: 'CLOSE_KEEP_COMPLETION' })
+    machineRef.current?.reset()
+    setMachineState(initialMachineState)
+    setPendingCommit(null)
+    setReceiptNumber(makeReceiptNumber())
+    setActiveSheet(null)
+    focusFirstComposeControl()
+  }
+
+  const reprintArchivedReceipt = (receipt: CompletedReceiptSnapshot) => {
+    machineRef.current?.reset()
+    dispatchReceiptEnding({ type: 'CLEAR_RECEIPT_ENDING' })
+    setPendingReceipt(null)
+    setItems(receipt.items.map((item) => ({ ...item })))
+    setThemeId(receipt.themeId)
+    setReceiptNumber(makeReceiptNumber())
+    setPendingCommit({
+      items: receipt.items.map((item) => ({ ...item })),
+      themeId: receipt.themeId,
+      startedAt: new Date().toISOString(),
+    })
+    setMachineState(initialMachineState)
+    setActiveSheet(null)
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => machineRef.current?.ringItUp())
     })
   }
 
@@ -374,7 +476,7 @@ function App() {
                 sheetTriggerRef.current = event.currentTarget
                 setActiveSheet('history')
               }}>
-                <span>HISTORY</span><strong>{history.length}</strong>
+                <span>RECORDS</span><strong>{history.length + privateArchive.length}</strong>
               </button>
               <button type="button" onClick={(event) => {
                 sheetTriggerRef.current = event.currentTarget
@@ -456,6 +558,9 @@ function App() {
                   createExport={createExport}
                   onTransactionComplete={recordTransaction}
                   onReceiptComplete={recordCompletedReceipt}
+                  onCommitKeepArchive={commitKeepArchive}
+                  onExportLocalCopy={exportLocalReceiptCopy}
+                  onCloseKeepCompletion={closeKeepCompletion}
                   onMakeAnother={makeAnother}
                   onClear={clearReceipt}
                   onStateChange={setMachineState}
@@ -469,7 +574,7 @@ function App() {
             activeWhen="compose"
             className="mobile-instrument__tail"
           >
-            <TransactionDrawer history={history} />
+            <TransactionDrawer history={history} archiveCount={privateArchive.length} />
 
             <footer>
               <span>made for tired little humans</span>
@@ -490,7 +595,9 @@ function App() {
         <MachineBottomSheet
           open={activeSheet !== null}
           title={activeSheet ? getMachineSheetTitle(activeSheet) : 'Machine drawer'}
-          description={activeSheet === 'history' ? 'Last five receipts stored only on this device.' : undefined}
+          description={activeSheet === 'history'
+            ? 'Private archive and recent receipts stored only on this device.'
+            : undefined}
           onClose={() => setActiveSheet(null)}
           isolateRef={mainRef}
           returnFocusRef={sheetTriggerRef}
@@ -505,7 +612,14 @@ function App() {
               }}
             />
           )}
-          {activeSheet === 'history' && <TransactionHistorySheet history={history} />}
+          {activeSheet === 'history' && (
+            <TransactionHistorySheet
+              history={history}
+              privateArchive={privateArchive}
+              onCreateArchiveExport={createArchiveExport}
+              onReprintArchived={reprintArchivedReceipt}
+            />
+          )}
           {activeSheet === 'settings' && (
             <MachineSettingsSheet
               soundEnabled={soundEnabled}
@@ -564,13 +678,20 @@ function ThemePicker({
   )
 }
 
-function TransactionDrawer({ history }: { history: SavedTransaction[] }) {
+function TransactionDrawer({
+  history,
+  archiveCount,
+}: {
+  history: SavedTransaction[]
+  archiveCount: number
+}) {
   return (
     <section className="transaction-drawer" aria-labelledby="drawer-heading">
       <div className="section-heading">
         <span>05</span>
-        <h2 id="drawer-heading">Local transaction drawer</h2>
+        <h2 id="drawer-heading">Local records drawer</h2>
       </div>
+      <p className="drawer-empty">PRIVATE ARCHIVE · {archiveCount}/5</p>
       {history.length === 0 ? (
         <p className="drawer-empty">NO PRIOR EVIDENCE ON THIS DEVICE</p>
       ) : (
