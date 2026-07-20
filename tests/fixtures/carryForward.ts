@@ -22,7 +22,7 @@ export async function openCarryForwardPreview(page: Page) {
   await page.goto('/carry-forward')
   await page.getByLabel('WHAT STILL NEEDS DOING?').fill(INSURANCE_DENIAL_TASK)
   await page.getByRole('button', { name: /ADD TASK CONTEXT/ }).click()
-  await page.getByLabel(/SOURCE TEXT/).fill(INSURANCE_DENIAL_SOURCE)
+  await page.getByLabel(/OPTIONAL SOURCE CONTEXT/).fill(INSURANCE_DENIAL_SOURCE)
   await page.getByRole('button', { name: /DECLARE INTERACTION BUDGET/ }).click()
   await page.getByRole('button', { name: /PREVIEW CHANGES/ }).click()
 }
