@@ -41,4 +41,20 @@ jobs:
       - name: Verify Vercel-compatible TypeScript compiler
         run: node -e "const ts=require('typescript'); if(ts.version!=='5.9.3'||!ts.sys?.readFile) process.exit(1); console.log(ts.version, true)"
       - run: npx playwright install --with-deps chromium
-      - run: npm run release:carry-forward
+      - name: Run release gate with failure diagnostics
+        id: release
+        continue-on-error: true
+        run: npm run release:carry-forward > release.log 2>&1
+      - name: Upload release diagnostics
+        if: steps.release.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: carry-forward-release-diagnostics
+          path: |
+            release.log
+            test-results
+            playwright-report
+          retention-days: 1
+      - name: Fail when release gate failed
+        if: steps.release.outcome == 'failure'
+        run: exit 1
