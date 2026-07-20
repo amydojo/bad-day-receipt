@@ -35,7 +35,7 @@ export type CompletedReceiptSnapshot = z.infer<typeof CompletedReceiptSnapshotSc
 
 export interface CreateCompletedReceiptSnapshotInput {
   receiptNumber: string
-  completedAt?: string
+  completedAt: string
   theme: Pick<ReceiptTheme, 'id' | 'name'>
   items: ReceiptItem[]
   total: number
@@ -50,7 +50,7 @@ export function createCompletedReceiptSnapshot(
 ): CompletedReceiptSnapshot {
   const parsed = CompletedReceiptSnapshotSchema.parse({
     receiptNumber: input.receiptNumber,
-    completedAt: input.completedAt ?? new Date().toISOString(),
+    completedAt: input.completedAt,
     themeId: input.theme.id,
     themeName: input.theme.name,
     items: input.items.map((item) => ({ ...item })),
