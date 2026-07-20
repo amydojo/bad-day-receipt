@@ -1,0 +1,96 @@
+name: apply-compile-cancel-fix
+
+on:
+  push:
+    branches:
+      - codex/carry-forward-vertical-slice
+    paths:
+      - '.github/workflows/apply-compile-cancel-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/carry-forward-vertical-slice
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply exact compile lifecycle patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/carry-forward/CarryForwardApp.tsx')
+          content = path.read_text()
+          replacements = [
+              (
+                  """  const compileStartedAtRef = useRef(0)
+            const openedRef = useRef(false)
+          """,
+                  """  const compileStartedAtRef = useRef(0)
+            const compileCancelRef = useRef<(() => void) | null>(null)
+            const openedRef = useRef(false)
+          """,
+              ),
+              (
+                  """    void run.promise
+              return () => {
+                window.cancelAnimationFrame(phaseFrame)
+                run.cancel()
+              }
+          """,
+                  """    compileCancelRef.current = run.cancel
+              void run.promise
+              return () => {
+                window.cancelAnimationFrame(phaseFrame)
+                if (compileCancelRef.current === run.cancel) compileCancelRef.current = null
+                run.cancel()
+              }
+          """,
+              ),
+              (
+                  """    const receiptId = compiling || state.kind === 'preview' || state.kind === 'budget'
+          """,
+                  """    if (compiling) {
+                compileCancelRef.current?.()
+                compileCancelRef.current = null
+              }
+              const receiptId = compiling || state.kind === 'preview' || state.kind === 'budget'
+          """,
+              ),
+              (
+                  """<ActionButton variant="quiet" onClick={() => dispatch({ type: 'CANCEL_COMPILE' })}>CANCEL</ActionButton>""",
+                  """<ActionButton variant="quiet" onClick={() => { compileCancelRef.current?.(); compileCancelRef.current = null; dispatch({ type: 'CANCEL_COMPILE' }) }}>CANCEL</ActionButton>""",
+              ),
+          ]
+
+          for old, new in replacements:
+              count = content.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected one exact patch target, found {count}: {old[:80]!r}')
+              content = content.replace(old, new)
+
+          path.write_text(content)
+          PY
+          git diff --check
+          git diff -- src/carry-forward/CarryForwardApp.tsx
+      - run: npm ci
+      - run: npx playwright install --with-deps webkit
+      - name: Verify the two failing WebKit journeys
+        run: npx playwright test tests/e2e/carry-forward.spec.ts --project=webkit-desktop --project=webkit-mobile --grep 'End Mode during compilation'
+      - name: Commit focused fix
+        shell: bash
+        run: |
+          git config user.name 'amydojo'
+          git config user.email 'amycdo98@gmail.com'
+          git add src/carry-forward/CarryForwardApp.tsx
+          git commit -m 'fix: cancel compilation before ending temporary mode'
+          git push origin HEAD:codex/carry-forward-vertical-slice
