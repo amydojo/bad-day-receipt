@@ -30,32 +30,62 @@ concurrency:
 jobs:
   release-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - name: Verify Vercel-compatible TypeScript compiler
-        run: node -e "const ts=require('typescript'); if(ts.version!=='5.9.3'||!ts.sys?.readFile) process.exit(1); console.log(ts.version, true)"
-      - run: npx playwright install --with-deps chromium
-      - name: Run release gate with failure diagnostics
+      - name: Run complete release verification
         id: release
         continue-on-error: true
-        run: npm run release:carry-forward > release.log 2>&1
-      - name: Upload release diagnostics
-        if: steps.release.outcome == 'failure'
+        shell: bash
+        run: |
+          set +e
+          : > full-release.log
+          failed=0
+          run_command() {
+            echo >> full-release.log
+            printf '$' >> full-release.log
+            printf ' %q' "$@" >> full-release.log
+            echo >> full-release.log
+            "$@" 2>&1 | tee -a full-release.log
+            command_status=${PIPESTATUS[0]}
+            echo "[exit ${command_status}]" | tee -a full-release.log
+            if [ "${command_status}" -ne 0 ]; then failed=1; fi
+          }
+
+          run_command npm ci
+          run_command npx playwright install --with-deps chromium webkit
+          run_command node -e "const ts=require('typescript'); console.log(ts.version, Boolean(ts.sys?.readFile))"
+          run_command npm test
+          run_command npm run typecheck
+          run_command npx tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --esModuleInterop --skipLibCheck --types node api/compile-task.ts
+          run_command npm run test:carry-forward
+          run_command npm run evals:carry-forward
+          run_command npm run test:receipt-regression
+          run_command npm run release:carry-forward
+          run_command npm run build
+          run_command npm run test:e2e
+          run_command npm run test:accessibility
+          run_command npm run test:viewports
+          run_command npm run analyze
+          run_command npm audit --omit=dev
+          run_command npm audit
+          run_command git diff --check
+          exit "${failed}"
+      - name: Upload complete release evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: carry-forward-release-diagnostics
+          name: carry-forward-full-release-evidence
           path: |
-            release.log
+            full-release.log
             test-results
             playwright-report
           if-no-files-found: warn
           retention-days: 1
-      - name: Fail when release gate failed
+      - name: Fail when verification failed
         if: steps.release.outcome == 'failure'
         run: exit 1
