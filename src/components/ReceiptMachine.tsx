@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
 } from 'react'
 import { getDraftSummary, snapshotDraft } from '../draftReceipt'
 import type { ArtifactExport } from '../export/exportTypes'
@@ -16,8 +17,10 @@ import { getRingButtonLabel } from '../printer/printerMachine'
 import type { PrinterPhase } from '../printer/printerTypes'
 import {
   createCompletedReceiptSnapshot,
-  ReceiptEndingBoundary,
+  ReceiptArtifact,
+  ReceiptEndingExperience,
   type CompletedReceiptSnapshot,
+  type ReceiptEndingEvent,
   type ReceiptEndingPersistenceStatus,
   type ReceiptEndingState,
 } from '../receipt-ending'
@@ -25,7 +28,6 @@ import { getTheme, type ReceiptTheme } from '../themes'
 import type { ReceiptItem } from '../types'
 import type { ExportFormat } from '../v2'
 import { PrinterShell } from './PrinterShell'
-import { Receipt } from './Receipt'
 import { ReceiptViewport } from './ReceiptViewport'
 import { RegisterTerminal, shouldRenderIssuedReceipt } from './RegisterTerminal'
 import { RingItUpButton } from './RingItUpButton'
@@ -52,6 +54,7 @@ interface ReceiptMachineProps {
   threeEndingsEnabled: boolean
   receiptEndingState: ReceiptEndingState | null
   receiptEndingPersistenceStatus: ReceiptEndingPersistenceStatus
+  onReceiptEndingEvent: Dispatch<ReceiptEndingEvent>
   onSoundChange: (enabled: boolean) => void
   onReceiptNumberChange: (receiptNumber: string) => void
   createExport: (format: ExportFormat) => Promise<ArtifactExport>
@@ -74,6 +77,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     threeEndingsEnabled,
     receiptEndingState,
     receiptEndingPersistenceStatus,
+    onReceiptEndingEvent,
     onSoundChange,
     onReceiptNumberChange,
     createExport,
@@ -151,17 +155,17 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         }))
       } else {
         onTransactionComplete(state.receiptNumber)
-      }
 
-      if (completionFrame.current !== null) {
-        window.cancelAnimationFrame(completionFrame.current)
-      }
-      completionFrame.current = window.requestAnimationFrame(() => {
+        if (completionFrame.current !== null) {
+          window.cancelAnimationFrame(completionFrame.current)
+        }
         completionFrame.current = window.requestAnimationFrame(() => {
-          completionRef.current?.focus({ preventScroll: true })
-          completionFrame.current = null
+          completionFrame.current = window.requestAnimationFrame(() => {
+            completionRef.current?.focus({ preventScroll: true })
+            completionFrame.current = null
+          })
         })
-      })
+      }
     }, [
       anomaly,
       committedItems,
@@ -247,7 +251,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         couponProgress={couponProgress}
         couponCount={displayCouponCount}
       >
-        <Receipt
+        <ReceiptArtifact
           items={displayItems}
           receiptNumber={displayReceiptNumber}
           theme={displayTheme}
@@ -258,6 +262,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           couponProgress={couponProgress}
           anomaly={displayAnomaly}
           printedAt={endingReceipt?.completedAt}
+          endingState={receiptEndingState?.kind}
         />
       </ReceiptViewport>
     ) : null
@@ -265,7 +270,11 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     const appliance = (
       <div className="pos-appliance">
         <RegisterTerminal items={displayItems} theme={displayTheme} phase={displayPhase} />
-        <PrinterShell phase={displayPhase} theme={displayTheme} />
+        <PrinterShell
+          phase={displayPhase}
+          theme={displayTheme}
+          statusOverride={endingReceipt ? 'DAY DOCUMENTED' : undefined}
+        />
         {receipt}
       </div>
     )
@@ -275,6 +284,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         className="receipt-machine"
         data-phase={displayPhase}
         data-theme={displayTheme.id}
+        data-receipt-ending-state={receiptEndingState?.kind}
         aria-label="Emotional point of sale terminal and thermal printer"
         aria-busy={isBusy && !endingReceipt}
       >
@@ -295,8 +305,9 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
             {appliance}
 
             {displayIsComplete && threeEndingsEnabled && receiptEndingState && (
-              <ReceiptEndingBoundary
+              <ReceiptEndingExperience
                 state={receiptEndingState}
+                dispatch={onReceiptEndingEvent}
                 headingRef={completionRef}
                 persistenceStatus={receiptEndingPersistenceStatus}
               />
