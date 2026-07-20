@@ -252,6 +252,7 @@ export default function CarryForwardApp() {
   const [state, dispatch] = useReducer(carryForwardReducer, undefined, () => createInitialCarryForwardState())
   const [outputMessage, setOutputMessage] = useState('')
   const compileStartedAtRef = useRef(0)
+  const compileCancelRef = useRef<(() => void) | null>(null)
   const openedRef = useRef(false)
   const taskFieldRef = useRef<HTMLInputElement | null>(null)
 
@@ -344,9 +345,11 @@ export default function CarryForwardApp() {
       onFailure: handleFailure,
       onTimeout: () => handleFailure(new CarryForwardCompileError('timeout')),
     })
+    compileCancelRef.current = run.cancel
     void run.promise
     return () => {
       window.cancelAnimationFrame(phaseFrame)
+      if (compileCancelRef.current === run.cancel) compileCancelRef.current = null
       run.cancel()
     }
   }, [state.kind])
@@ -366,6 +369,10 @@ export default function CarryForwardApp() {
         stepCount: state.session.completedStepIds.length,
         durationMs: Math.max(0, Date.now() - new Date(state.session.startedAt).getTime()),
       })
+    }
+    if (compiling) {
+      compileCancelRef.current?.()
+      compileCancelRef.current = null
     }
     const receiptId = compiling || state.kind === 'preview' || state.kind === 'budget'
       ? state.draft.receiptId
@@ -453,7 +460,7 @@ export default function CarryForwardApp() {
                 ? (
                   <>
                     <div className="cf-authored-content" aria-live="polite"><span className="cf-eyebrow">COMPILING A BOUNDED PLAN</span><h1 tabIndex={-1} data-screen-heading>Preparing the minimum necessary interface…</h1><ol className="cf-compile-stages"><li data-complete><span>01</span><strong>REQUEST ACCEPTED</strong></li><li data-active={state.phase === 'awaiting-plan' || undefined} data-complete={state.phase === 'validating-plan' || undefined}><span>02</span><strong>AWAITING A COMPLETE PLAN</strong></li><li data-active={state.phase === 'validating-plan' || undefined}><span>03</span><strong>VALIDATING BEFORE RENDER</strong></li></ol><div className="cf-invariant"><strong>NO SIDE EFFECTS</strong><p>The compiler has no tools. It cannot send, submit, purchase, delete, browse, or access an account.</p></div></div>
-                    <div className="cf-authored-dock"><ActionButton variant="quiet" onClick={() => dispatch({ type: 'CANCEL_COMPILE' })}>CANCEL</ActionButton><ActionButton variant="quiet" onClick={endMode}>END MODE</ActionButton></div>
+                    <div className="cf-authored-dock"><ActionButton variant="quiet" onClick={() => { compileCancelRef.current?.(); compileCancelRef.current = null; dispatch({ type: 'CANCEL_COMPILE' }) }}>CANCEL</ActionButton><ActionButton variant="quiet" onClick={endMode}>END MODE</ActionButton></div>
                   </>
                 )
                 : state.kind === 'fallback'
