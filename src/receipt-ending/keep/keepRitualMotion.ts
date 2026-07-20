@@ -32,9 +32,11 @@ export function getKeepPhaseAdvance(
   reducedMotion: boolean,
   now: () => string = () => new Date().toISOString(),
 ): KeepPhaseAdvance | null {
-  const duration = (standard: number, reduced = 100) => (
-    reducedMotion ? Math.min(standard, reduced) : standard
-  )
+  const testHold = readTestPhaseHold()
+  const duration = (standard: number, reduced = 100) => {
+    if (testHold !== null) return testHold
+    return reducedMotion ? Math.min(standard, reduced) : standard
+  }
 
   switch (phase) {
     case 'cut':
@@ -80,4 +82,11 @@ export function getKeepPhaseAdvance(
     case 'complete':
       return null
   }
+}
+
+function readTestPhaseHold(): number | null {
+  const raw = import.meta.env.VITE_KEEP_RITUAL_TEST_HOLD_MS
+  if (!raw) return null
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed >= 50 ? parsed : null
 }
