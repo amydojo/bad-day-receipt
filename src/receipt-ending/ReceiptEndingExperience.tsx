@@ -2,6 +2,7 @@ import {
   useEffect,
   useRef,
   type Dispatch,
+  type ReactNode,
   type Ref,
 } from 'react'
 import { EndDispositionChoice } from './EndDispositionChoice'
@@ -71,7 +72,7 @@ export function ReceiptEndingExperience({
     )
   }
 
-  let surface
+  let surface: ReactNode
 
   switch (state.kind) {
     case 'documented':
