@@ -19,7 +19,7 @@ test.describe('Three Endings deterministic visual evidence', () => {
     await mockPlatformApis(page)
   })
 
-  test('captures stillness, documented, disposition, and handoff states', async ({ page }, testInfo) => {
+  test('captures stillness, documented, disposition, Release, and Carry states', async ({ page }, testInfo) => {
     await openMachine(page)
     await commitTransaction(page)
 
@@ -32,10 +32,6 @@ test.describe('Three Endings deterministic visual evidence', () => {
 
     await page.getByRole('button', { name: /END THE DAY HERE/ }).click()
     await attachExperience(page, testInfo, 'keep-or-release')
-
-    await page.getByRole('button', { name: /KEEP RECEIPT/ }).click()
-    await attachExperience(page, testInfo, 'keep-handoff')
-    await page.getByRole('button', { name: 'BACK', exact: true }).click()
 
     await page.getByRole('button', { name: /LET IT GO/ }).click()
     await attachExperience(page, testInfo, 'release-handoff')

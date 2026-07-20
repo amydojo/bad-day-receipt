@@ -41,7 +41,7 @@ test.describe('Three Endings shared decision', () => {
     await expect(page.locator('.cf-machine-entry')).not.toBeVisible()
   })
 
-  test('all shared choices preserve the exact receipt root', async ({ page }) => {
+  test('shared Release and Carry choices preserve the exact receipt root', async ({ page }) => {
     await openMachine(page)
     await commitTransaction(page)
     await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })
@@ -57,11 +57,6 @@ test.describe('Three Endings shared decision', () => {
     await page.getByRole('button', { name: /END THE DAY HERE/ }).click()
     await expect(page.getByRole('heading', { name: 'How should the receipt leave your hands?' })).toBeFocused()
     expect(await sameReceiptIsMounted()).toBe(true)
-
-    await page.getByRole('button', { name: /KEEP RECEIPT/ }).click()
-    await expect(page.getByRole('heading', { name: 'The receipt is ready to be kept.' })).toBeFocused()
-    expect(await sameReceiptIsMounted()).toBe(true)
-    await page.getByRole('button', { name: 'BACK', exact: true }).click()
 
     await page.getByRole('button', { name: /LET IT GO/ }).click()
     await expect(page.getByRole('heading', { name: 'The receipt is ready to be released.' })).toBeFocused()
@@ -79,7 +74,22 @@ test.describe('Three Endings shared decision', () => {
     expect(await sameReceiptIsMounted()).toBe(true)
   })
 
-  test('refresh restores the exact receipt directly to documented', async ({ page }) => {
+  test('Keep selection begins the automatic ritual without another confirmation surface', async ({ page }) => {
+    await openMachine(page)
+    await commitTransaction(page)
+    await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })
+
+    await page.getByRole('button', { name: /END THE DAY HERE/ }).click()
+    await page.getByRole('button', { name: /KEEP RECEIPT/ }).click()
+
+    await expect(page.locator('.receipt-machine')).toHaveAttribute('data-receipt-ending-state', 'keep-ritual')
+    await expect(page.locator('.receipt-machine')).toHaveAttribute('data-keep-phase', 'cut')
+    await expect(page.getByText('PRESERVING THE RECORD', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'BACK', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'CONTINUE', exact: true })).toHaveCount(0)
+  })
+
+  test('refresh restores the exact pending receipt directly to documented', async ({ page }) => {
     await openMachine(page)
     await commitTransaction(page)
     await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })

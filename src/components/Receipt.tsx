@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { fieldReleaseStamp } from '../field-access/fieldRelease'
 import { getCurrentFieldAccess } from '../field-access/fieldAccessStorage'
 import { currency, summarizeReceipt } from '../receipt'
+import type { KeepRitualPhase } from '../receipt-ending/receiptEndingTypes'
 import type { PrinterPhase } from '../printer/printerTypes'
 import {
   getThemeItemLabel,
@@ -15,7 +16,8 @@ export type ReceiptArtifactState =
   | 'settling'
   | 'documented'
   | 'end-choice'
-  | 'keep-selected'
+  | 'keep-ritual'
+  | 'keep-recovery'
   | 'release-selected'
   | 'carry-selected'
   | 'recovery'
@@ -32,6 +34,8 @@ export interface ReceiptProps {
   anomaly?: string | null
   printedAt?: string
   artifactState?: ReceiptArtifactState
+  keepPhase?: KeepRitualPhase
+  artifactId?: string
 }
 
 export function Receipt({
@@ -46,6 +50,8 @@ export function Receipt({
   anomaly,
   printedAt,
   artifactState = 'printing',
+  keepPhase,
+  artifactId = 'receipt',
 }: ReceiptProps) {
   const summary = summarizeReceipt(items)
   const fieldAccess = typeof window !== 'undefined' && window.location.pathname.startsWith('/access/')
@@ -73,15 +79,19 @@ export function Receipt({
   const headerPrinted = phase !== 'arming'
   const bodyPrinted = ['scanning', 'calculating', 'feeding', 'stamping', 'falseComplete', 'printingCoupons', 'complete'].includes(phase)
   const couponTailMounted = ['printingCoupons', 'complete'].includes(phase)
+  const archiveLabelActive = keepPhase
+    ? ['label-registering', 'archive-opening', 'archiving', 'archive-closing', 'complete'].includes(keepPhase)
+    : false
 
   return (
     <article
       className="receipt"
-      id="receipt"
+      id={artifactId}
       data-receipt-artifact
       data-receipt-number={receiptNumber}
       data-receipt-region="paper"
       data-receipt-ending-state={artifactState}
+      data-keep-phase={keepPhase}
       data-theme={theme.id}
       data-phase={phase}
       data-blank-tip={phase === 'arming'}
@@ -212,6 +222,7 @@ export function Receipt({
       <div
         className="receipt-future-layer receipt-future-layer--perforation"
         data-receipt-region="perforation"
+        data-active={keepPhase === 'cut'}
         aria-hidden="true"
       />
       <div
@@ -227,8 +238,12 @@ export function Receipt({
       <div
         className="receipt-future-layer receipt-future-layer--archive-label"
         data-receipt-region="archive-label"
+        data-active={archiveLabelActive}
         aria-hidden="true"
-      />
+      >
+        <span>BAD DAY RECEIPT · {receiptNumber}</span>
+        <span>PRIVATE ARCHIVE</span>
+      </div>
 
       <div className="barcode" aria-hidden="true" data-printed={showVerdict}>
         {Array.from({ length: 42 }, (_, index) => <i key={index} />)}

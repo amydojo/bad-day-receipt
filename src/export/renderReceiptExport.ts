@@ -1,7 +1,8 @@
 import { applyFieldAccessProvenance } from '../field-access/fieldAccessExport'
 import { getCurrentFieldAccess } from '../field-access/fieldAccessStorage'
+import type { CompletedReceiptSnapshot } from '../receipt-ending/completedReceipt'
 import { renderExportCanvas } from '../socialExports'
-import type { ReceiptTheme } from '../themes'
+import { getTheme, type ReceiptTheme } from '../themes'
 import type { ReceiptItem } from '../types'
 import type { ExportFormat } from '../v2'
 import type { ArtifactExport } from './exportTypes'
@@ -63,4 +64,19 @@ export async function createReceiptArtifactExport({
     shareText,
     format,
   }
+}
+
+export function createExportForCompletedReceipt(
+  receipt: CompletedReceiptSnapshot,
+  format: ExportFormat,
+): Promise<ArtifactExport> {
+  const completedDate = new Date(receipt.completedAt)
+  return createReceiptArtifactExport({
+    items: receipt.items.map((item) => ({ ...item })),
+    receiptNumber: receipt.receiptNumber,
+    theme: getTheme(receipt.themeId),
+    format,
+    shareText: receipt.shareCopy,
+    date: Number.isNaN(completedDate.getTime()) ? undefined : completedDate,
+  })
 }

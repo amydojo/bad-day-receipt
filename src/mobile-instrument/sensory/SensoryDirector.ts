@@ -15,6 +15,11 @@ const ONCE_PER_TRANSACTION = new Set<MachineSensoryEvent>([
   'cvs-printer-restart',
   'machine-complete',
   'machine-error',
+  'receipt-cut',
+  'archive-align',
+  'sleeve-receive',
+  'archive-label',
+  'archive-close',
 ])
 
 export interface SensoryDirectorDependencies {

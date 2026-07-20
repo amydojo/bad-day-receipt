@@ -11,7 +11,7 @@ describe('machine sheet contracts', () => {
 
   it('provides stable accessible titles', () => {
     expect(getMachineSheetTitle('paper')).toBe('Choose paper stock')
-    expect(getMachineSheetTitle('history')).toBe('Local transaction drawer')
+    expect(getMachineSheetTitle('history')).toBe('Local records')
     expect(getMachineSheetTitle('settings')).toBe('Machine settings')
     expect(getMachineSheetTitle('export')).toBe('Save receipt formats')
   })

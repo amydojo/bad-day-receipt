@@ -13,6 +13,11 @@ const HAPTIC_PATTERNS: Partial<Record<MachineSensoryEvent, number | number[]>> =
   'verdict-impact': 13,
   'cvs-printer-restart': [5, 42, 6],
   'machine-error': [18, 45, 18],
+  'receipt-cut': 7,
+  'archive-align': 4,
+  'sleeve-receive': 6,
+  'archive-label': 5,
+  'archive-close': 11,
 }
 
 export class HapticDirector implements HapticOutput {
