@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { snapshotDraft } from '../draftReceipt'
+import { getDraftSummary, snapshotDraft } from '../draftReceipt'
 import type { ArtifactExport } from '../export/exportTypes'
 import { useReceiptPrinter } from '../hooks/useReceiptPrinter'
 import { getConciseMachineAnnouncement } from '../machinePresentation'
@@ -14,7 +14,14 @@ import { EvidenceViewer } from '../mobile-instrument/artifact/EvidenceViewer'
 import { createSensoryDirector } from '../mobile-instrument/sensory/SensoryDirector'
 import { getRingButtonLabel } from '../printer/printerMachine'
 import type { PrinterPhase } from '../printer/printerTypes'
-import type { ReceiptTheme } from '../themes'
+import {
+  createCompletedReceiptSnapshot,
+  ReceiptEndingBoundary,
+  type CompletedReceiptSnapshot,
+  type ReceiptEndingPersistenceStatus,
+  type ReceiptEndingState,
+} from '../receipt-ending'
+import { getTheme, type ReceiptTheme } from '../themes'
 import type { ReceiptItem } from '../types'
 import type { ExportFormat } from '../v2'
 import { PrinterShell } from './PrinterShell'
@@ -42,10 +49,14 @@ interface ReceiptMachineProps {
   shareCopy: string
   soundEnabled: boolean
   hapticsEnabled: boolean
+  threeEndingsEnabled: boolean
+  receiptEndingState: ReceiptEndingState | null
+  receiptEndingPersistenceStatus: ReceiptEndingPersistenceStatus
   onSoundChange: (enabled: boolean) => void
   onReceiptNumberChange: (receiptNumber: string) => void
   createExport: (format: ExportFormat) => Promise<ArtifactExport>
   onTransactionComplete: (receiptNumber: string) => void
+  onReceiptComplete: (snapshot: CompletedReceiptSnapshot) => void
   onMakeAnother: () => void
   onClear: () => void
   onStateChange?: (snapshot: ReceiptMachineStateSnapshot) => void
@@ -60,10 +71,14 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     shareCopy,
     soundEnabled,
     hapticsEnabled,
+    threeEndingsEnabled,
+    receiptEndingState,
+    receiptEndingPersistenceStatus,
     onSoundChange,
     onReceiptNumberChange,
     createExport,
     onTransactionComplete,
+    onReceiptComplete,
     onMakeAnother,
     onClear,
     onStateChange,
@@ -120,7 +135,22 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       if (!isComplete || !state.receiptNumber) return
       if (recordedReceipt.current === state.receiptNumber) return
       recordedReceipt.current = state.receiptNumber
-      onTransactionComplete(state.receiptNumber)
+
+      if (threeEndingsEnabled) {
+        const summary = getDraftSummary(committedItems)
+        onReceiptComplete(createCompletedReceiptSnapshot({
+          receiptNumber: state.receiptNumber,
+          theme,
+          items: committedItems,
+          total: summary.total,
+          itemCount: summary.itemCount,
+          status: summary.status,
+          anomaly: anomaly ?? null,
+          shareCopy,
+        }))
+      } else {
+        onTransactionComplete(state.receiptNumber)
+      }
 
       if (completionFrame.current !== null) {
         window.cancelAnimationFrame(completionFrame.current)
@@ -131,7 +161,17 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           completionFrame.current = null
         })
       })
-    }, [isComplete, onTransactionComplete, state.receiptNumber])
+    }, [
+      anomaly,
+      committedItems,
+      isComplete,
+      onReceiptComplete,
+      onTransactionComplete,
+      shareCopy,
+      state.receiptNumber,
+      theme,
+      threeEndingsEnabled,
+    ])
 
     useEffect(() => () => {
       commitGuard.current = false
@@ -139,14 +179,27 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
       if (completionFrame.current !== null) window.cancelAnimationFrame(completionFrame.current)
     }, [sensory])
 
-    const couponProgress = state.couponProgress
-    const showVerdict = [
-      'stamping',
-      'falseComplete',
-      'printingCoupons',
-      'complete',
-    ].includes(state.phase)
-    const showReceipt = shouldRenderIssuedReceipt(state.phase)
+    const endingReceipt = threeEndingsEnabled ? receiptEndingState?.receipt ?? null : null
+    const displayTheme = endingReceipt ? getTheme(endingReceipt.themeId) : theme
+    const displayItems = endingReceipt?.items ?? issuedItems
+    const displayReceiptNumber = endingReceipt?.receiptNumber
+      ?? state.receiptNumber
+      ?? receiptNumber
+    const displayAnomaly = endingReceipt?.anomaly ?? anomaly
+    const displayShareCopy = endingReceipt?.shareCopy ?? shareCopy
+    const displayPhase: PrinterPhase = endingReceipt ? 'complete' : state.phase
+    const displayIsComplete = Boolean(endingReceipt) || isComplete
+    const displayCouponCount = displayTheme.coupons?.length ?? 0
+    const couponProgress = endingReceipt ? 1 : state.couponProgress
+    const showVerdict = endingReceipt
+      ? true
+      : [
+          'stamping',
+          'falseComplete',
+          'printingCoupons',
+          'complete',
+        ].includes(state.phase)
+    const showReceipt = endingReceipt ? true : shouldRenderIssuedReceipt(state.phase)
 
     const resetForNew = () => {
       commitGuard.current = false
@@ -188,54 +241,66 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
 
     const receipt = showReceipt ? (
       <ReceiptViewport
-        phase={state.phase}
-        paperProgress={state.paperProgress}
+        phase={displayPhase}
+        paperProgress={endingReceipt ? 1 : state.paperProgress}
         couponProgress={couponProgress}
-        couponCount={couponCount}
+        couponCount={displayCouponCount}
       >
         <Receipt
-          items={issuedItems}
-          receiptNumber={receiptNumber}
-          theme={theme}
-          phase={state.phase}
-          visibleLineCount={state.visibleLineCount}
-          visibleTotalRows={state.visibleTotalRows}
+          items={displayItems}
+          receiptNumber={displayReceiptNumber}
+          theme={displayTheme}
+          phase={displayPhase}
+          visibleLineCount={endingReceipt ? displayItems.length : state.visibleLineCount}
+          visibleTotalRows={endingReceipt ? 4 : state.visibleTotalRows}
           showVerdict={showVerdict}
           couponProgress={couponProgress}
-          anomaly={anomaly}
+          anomaly={displayAnomaly}
         />
       </ReceiptViewport>
     ) : null
 
+    const appliance = (
+      <div className="pos-appliance">
+        <RegisterTerminal items={displayItems} theme={displayTheme} phase={displayPhase} />
+        <PrinterShell phase={displayPhase} theme={displayTheme} />
+        {receipt}
+      </div>
+    )
+
     return (
       <section
         className="receipt-machine"
-        data-phase={state.phase}
-        data-theme={theme.id}
+        data-phase={displayPhase}
+        data-theme={displayTheme.id}
         aria-label="Emotional point of sale terminal and thermal printer"
-        aria-busy={isBusy}
+        aria-busy={isBusy && !endingReceipt}
       >
-        {isComplete ? (
+        {displayIsComplete && !threeEndingsEnabled ? (
           <EvidenceViewer
-            paperName={theme.shortName}
-            receiptNumber={state.receiptNumber || receiptNumber}
+            paperName={displayTheme.shortName}
+            receiptNumber={displayReceiptNumber}
             headingRef={completionRef}
-            printerHead={<PrinterShell phase={state.phase} theme={theme} />}
+            printerHead={<PrinterShell phase={displayPhase} theme={displayTheme} />}
             receipt={receipt}
-            shareText={shareCopy}
+            shareText={displayShareCopy}
             createExport={createExport}
             onNew={makeAnother}
             onReprint={printAgain}
           />
         ) : (
           <>
-            <div className="pos-appliance">
-              <RegisterTerminal items={issuedItems} theme={theme} phase={state.phase} />
-              <PrinterShell phase={state.phase} theme={theme} />
-              {receipt}
-            </div>
+            {appliance}
 
-            {state.phase === 'error' && (
+            {displayIsComplete && threeEndingsEnabled && receiptEndingState && (
+              <ReceiptEndingBoundary
+                state={receiptEndingState}
+                headingRef={completionRef}
+                persistenceStatus={receiptEndingPersistenceStatus}
+              />
+            )}
+
+            {!displayIsComplete && state.phase === 'error' && (
               <div className="printer-error" role="alert">
                 <strong>REGISTER JAMMED</strong>
                 <span>{state.errorMessage}</span>
@@ -243,39 +308,43 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
               </div>
             )}
 
-            <div className="receipt-actions">
-              <RingItUpButton
-                label={getRingButtonLabel(state.phase, theme.id)}
-                disabled={items.length === 0 || isBusy}
-                onClick={printAgain}
-              />
-              <button
-                className="text-button"
-                type="button"
-                onClick={clear}
-                disabled={isBusy}
-              >
-                clear transaction
-              </button>
-            </div>
+            {!displayIsComplete && (
+              <>
+                <div className="receipt-actions">
+                  <RingItUpButton
+                    label={getRingButtonLabel(state.phase, theme.id)}
+                    disabled={items.length === 0 || isBusy}
+                    onClick={printAgain}
+                  />
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={clear}
+                    disabled={isBusy}
+                  >
+                    clear transaction
+                  </button>
+                </div>
 
-            <button
-              className="sound-toggle"
-              type="button"
-              aria-pressed={soundEnabled}
-              onClick={toggleSound}
-            >
-              SOUND: {soundEnabled ? 'LOW' : 'OFF'}
-            </button>
+                <button
+                  className="sound-toggle"
+                  type="button"
+                  aria-pressed={soundEnabled}
+                  onClick={toggleSound}
+                >
+                  SOUND: {soundEnabled ? 'LOW' : 'OFF'}
+                </button>
 
-            <p className="privacy-note">
-              Nothing leaves your browser. Your bad day remains locally sourced.
-            </p>
+                <p className="privacy-note">
+                  Nothing leaves your browser. Your bad day remains locally sourced.
+                </p>
+              </>
+            )}
           </>
         )}
 
         <p className="sr-only" aria-live="polite">
-          {getConciseMachineAnnouncement(state.phase)}
+          {getConciseMachineAnnouncement(displayPhase)}
         </p>
       </section>
     )
