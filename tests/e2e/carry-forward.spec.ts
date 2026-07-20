@@ -184,6 +184,24 @@ test.describe('Carry Forward authored parity', () => {
     expect(await page.evaluate((key) => window.localStorage.getItem(key), storageKey)).toBeNull()
   })
 
+  test('receipt-origin fallback End Mode returns to the receipt', async ({ page }) => {
+    await page.unroute('**/api/compile-task')
+    await page.route('**/api/compile-task', async (route) => route.abort())
+    await seedReceipt(page, 'BDR-FALLBACK-END-001')
+    await page.goto('/carry-forward')
+    await page.getByRole('button', { name: /CARRY ONE THING FORWARD/ }).click()
+    await page.getByLabel('WHAT STILL NEEDS DOING?').fill('Prepare and submit my insurance denial appeal')
+    await page.getByRole('button', { name: /ADD TASK CONTEXT/ }).click()
+    await page.getByLabel(/OPTIONAL SOURCE CONTEXT/).fill(INSURANCE_DENIAL_SOURCE)
+    await page.getByRole('button', { name: /DECLARE INTERACTION BUDGET/ }).click()
+    await page.getByRole('button', { name: /PREVIEW CHANGES/ }).click()
+    await page.getByRole('button', { name: /BEGIN ONE THING MODE/ }).click()
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M14')
+    await page.getByRole('button', { name: 'END MODE' }).click()
+    await expect(page).toHaveURL(/\/$/)
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), storageKey)).toBeNull()
+  })
+
   test('restores M12 after refresh without duplicate completion telemetry', async ({ page }) => {
     await page.addInitScript(() => {
       const existing = Number(window.sessionStorage.getItem('cf-completed-events') ?? '0')
