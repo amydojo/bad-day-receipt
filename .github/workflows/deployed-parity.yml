@@ -22,6 +22,7 @@ concurrency:
   group: deployed-parity-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Protected previews stay protected. Browser/API automation is enabled only by a repository secret.
 jobs:
   exact-deployment:
     runs-on: ubuntu-latest
