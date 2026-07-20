@@ -218,12 +218,23 @@ export function InspectorSheet({
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog || !open) return
-    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+
+    const activeElement = document.activeElement
+    if (activeElement instanceof HTMLElement && !dialog.contains(activeElement)) {
+      returnFocusRef.current = activeElement
+    }
+
     if (!dialog.open) dialog.showModal()
     dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus()
+
     return () => {
+      const returnTarget = returnFocusRef.current
       if (dialog.open) dialog.close()
-      returnFocusRef.current?.focus()
+      requestAnimationFrame(() => {
+        if (dialogRef.current?.open) return
+        if (returnTarget?.isConnected) returnTarget.focus()
+        returnFocusRef.current = null
+      })
     }
   }, [open])
 
