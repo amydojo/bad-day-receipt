@@ -10,7 +10,17 @@ import {
 } from '../themes'
 import type { ReceiptItem } from '../types'
 
-interface ReceiptProps {
+export type ReceiptArtifactState =
+  | 'printing'
+  | 'settling'
+  | 'documented'
+  | 'end-choice'
+  | 'keep-selected'
+  | 'release-selected'
+  | 'carry-selected'
+  | 'recovery'
+
+export interface ReceiptProps {
   items: ReceiptItem[]
   receiptNumber: string
   theme: ReceiptTheme
@@ -21,6 +31,7 @@ interface ReceiptProps {
   couponProgress: number
   anomaly?: string | null
   printedAt?: string
+  artifactState?: ReceiptArtifactState
 }
 
 export function Receipt({
@@ -34,6 +45,7 @@ export function Receipt({
   couponProgress,
   anomaly,
   printedAt,
+  artifactState = 'printing',
 }: ReceiptProps) {
   const summary = summarizeReceipt(items)
   const fieldAccess = typeof window !== 'undefined' && window.location.pathname.startsWith('/access/')
@@ -66,6 +78,10 @@ export function Receipt({
     <article
       className="receipt"
       id="receipt"
+      data-receipt-artifact
+      data-receipt-number={receiptNumber}
+      data-receipt-region="paper"
+      data-receipt-ending-state={artifactState}
       data-theme={theme.id}
       data-phase={phase}
       data-blank-tip={phase === 'arming'}
@@ -74,21 +90,27 @@ export function Receipt({
       <div className="receipt-registration" aria-hidden="true" data-printed={headerPrinted} />
       <div className="theme-mark" aria-hidden="true" data-printed={headerPrinted}>{theme.mark}</div>
 
-      <div className="receipt-header" data-printed={headerPrinted}>
-        <p>{theme.eyebrow}</p>
-        <h2>{theme.title}</h2>
-        <p>{theme.department}</p>
+      <div className="receipt-region receipt-region--header" data-receipt-region="header">
+        <div className="receipt-header" data-printed={headerPrinted}>
+          <p>{theme.eyebrow}</p>
+          <h2>{theme.title}</h2>
+          <p>{theme.department}</p>
+        </div>
+
+        <div className="receipt-meta" data-printed={headerPrinted}>
+          <span>{date}</span>
+          <span>{receiptNumber}</span>
+          <span>{theme.servedBy}</span>
+        </div>
+
+        <div className="receipt-rule" data-printed={headerPrinted} />
       </div>
 
-      <div className="receipt-meta" data-printed={headerPrinted}>
-        <span>{date}</span>
-        <span>{receiptNumber}</span>
-        <span>{theme.servedBy}</span>
-      </div>
-
-      <div className="receipt-rule" data-printed={headerPrinted} />
-
-      <div className="receipt-lines" data-printed={bodyPrinted}>
+      <div
+        className="receipt-lines"
+        data-receipt-region="line-items"
+        data-printed={bodyPrinted}
+      >
         {items.length === 0 ? (
           <div className="empty-receipt">
             {theme.emptyState[0]}<br />{theme.emptyState[1]}
@@ -107,7 +129,11 @@ export function Receipt({
 
       <div className="receipt-rule dashed" data-printed={visibleLineCount >= items.length && items.length > 0} />
 
-      <div className="totals" data-printed={visibleTotalRows > 0}>
+      <div
+        className="totals"
+        data-receipt-region="total"
+        data-printed={visibleTotalRows > 0}
+      >
         {totalRows.map(([label, amount, isGrandTotal], index) => (
           <div
             className={isGrandTotal ? 'grand-total' : undefined}
@@ -134,6 +160,23 @@ export function Receipt({
       <div className="receipt-note" data-printed={showVerdict}>
         {theme.notes.map((note) => <p key={note}>{note}</p>)}
       </div>
+
+      <div
+        className="receipt-acknowledgment"
+        data-receipt-region="acknowledgment"
+        data-printed={showVerdict}
+      >
+        <span>THIS DAY REQUIRED MORE</span>
+        <span>THAN THE RECORD SHOWS.</span>
+      </div>
+
+      <p
+        className="receipt-closing-mark"
+        data-receipt-region="closing-mark"
+        data-printed={showVerdict}
+      >
+        DAY DOCUMENTED
+      </p>
 
       {fieldAccess && (
         <div
@@ -165,6 +208,27 @@ export function Receipt({
           })}
         </div>
       )}
+
+      <div
+        className="receipt-future-layer receipt-future-layer--perforation"
+        data-receipt-region="perforation"
+        aria-hidden="true"
+      />
+      <div
+        className="receipt-future-layer receipt-future-layer--carry-stub"
+        data-receipt-region="carry-stub"
+        aria-hidden="true"
+      />
+      <div
+        className="receipt-future-layer receipt-future-layer--transfer"
+        data-receipt-region="transfer-layer"
+        aria-hidden="true"
+      />
+      <div
+        className="receipt-future-layer receipt-future-layer--archive-label"
+        data-receipt-region="archive-label"
+        aria-hidden="true"
+      />
 
       <div className="barcode" aria-hidden="true" data-printed={showVerdict}>
         {Array.from({ length: 42 }, (_, index) => <i key={index} />)}
