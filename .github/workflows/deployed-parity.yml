@@ -1,0 +1,80 @@
+name: deployed-parity
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/deployed-parity.yml'
+      - 'scripts/verify-carry-forward-deployment.mjs'
+      - 'scripts/verify-carry-forward-api.mjs'
+  workflow_dispatch:
+    inputs:
+      run_live_compiler:
+        description: Run the single paid GPT-5.6 synthetic compiler request
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  deployments: read
+
+concurrency:
+  group: deployed-parity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-deployment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Resolve exact-SHA Vercel preview
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            echo 'VERCEL_AUTOMATION_BYPASS_SECRET is required for protected preview verification.' >&2
+            exit 1
+          fi
+          for attempt in $(seq 1 60); do
+            while read -r deployment_id; do
+              [ -n "$deployment_id" ] || continue
+              url=$(gh api "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses?per_page=100" \
+                --jq '[.[] | select(.state == "success") | (.environment_url // .target_url // empty) | select(contains("vercel.app"))][0] // empty')
+              if [ -n "$url" ]; then
+                echo "DEPLOYED_BASE=${url%/}" >> "$GITHUB_ENV"
+                echo "Resolved protected Vercel preview for ${HEAD_SHA}."
+                exit 0
+              fi
+            done < <(gh api "repos/${GITHUB_REPOSITORY}/deployments?sha=${HEAD_SHA}&per_page=100" --jq '.[].id')
+            sleep 10
+          done
+          echo "No successful Vercel deployment found for ${HEAD_SHA}." >&2
+          exit 1
+      - name: Verify deployed M01–M13 journeys
+        run: node scripts/verify-carry-forward-deployment.mjs
+      - name: Verify sanitized invalid request
+        run: node scripts/verify-carry-forward-api.mjs
+      - name: Run one authorized synthetic GPT-5.6 request
+        if: github.event_name == 'pull_request' || inputs.run_live_compiler == true
+        env:
+          RUN_OPENAI_LIVE: '1'
+        run: node scripts/verify-carry-forward-api.mjs
+      - name: Upload deployed evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carry-forward-deployed-evidence
+          path: deployed-evidence
+          if-no-files-found: warn
+          retention-days: 7
