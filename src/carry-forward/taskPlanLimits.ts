@@ -17,7 +17,11 @@ export const TASK_PLAN_LIMITS = {
 export const CARRY_FORWARD_COMPILER_LIMITS = {
   requestBytes: 12_000,
   outputTokens: 5_000,
+  initialAttemptTimeoutMs: 42_000,
   attemptTimeoutMs: 25_000,
+  minimumRepairBudgetMs: 5_000,
+  totalServerDeadlineMs: 52_000,
+  serverOverheadMs: 1_500,
   maxAttempts: 2,
-  clientTimeoutMs: 58_000,
+  clientTimeoutMs: 57_000,
 } as const
