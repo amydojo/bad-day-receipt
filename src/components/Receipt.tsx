@@ -20,6 +20,7 @@ interface ReceiptProps {
   showVerdict: boolean
   couponProgress: number
   anomaly?: string | null
+  printedAt?: string
 }
 
 export function Receipt({
@@ -32,18 +33,22 @@ export function Receipt({
   showVerdict,
   couponProgress,
   anomaly,
+  printedAt,
 }: ReceiptProps) {
   const summary = summarizeReceipt(items)
   const fieldAccess = typeof window !== 'undefined' && window.location.pathname.startsWith('/access/')
     ? getCurrentFieldAccess()
     : null
+  const printedDate = printedAt && !Number.isNaN(Date.parse(printedAt))
+    ? new Date(printedAt)
+    : new Date()
   const date = new Intl.DateTimeFormat('en-US', {
     month: '2-digit',
     day: '2-digit',
     year: '2-digit',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date())
+  }).format(printedDate)
 
   const totalRows: Array<[string, string, boolean]> = [
     ['DAMAGE SUBTOTAL', currency(summary.charges), false],
