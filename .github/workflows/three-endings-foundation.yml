@@ -8,6 +8,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'src/App.tsx'
+      - 'src/components/Receipt.tsx'
       - 'src/components/ReceiptMachine.tsx'
       - 'src/main.tsx'
       - 'src/receipt-ending/**'
@@ -40,4 +41,15 @@ jobs:
       - run: npm run test:carry-forward
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:three-endings-foundation
+      - name: Run focused Three Endings browser tests
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/three-endings-results.json
+        run: VITE_THREE_ENDINGS=true npx playwright test tests/e2e/three-endings-foundation.spec.ts --project=chromium-desktop --reporter=json
+      - name: Upload focused browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: three-endings-foundation-browser-evidence
+          path: test-results
+          if-no-files-found: warn
+          retention-days: 7
