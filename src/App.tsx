@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   type CSSProperties,
@@ -33,14 +34,14 @@ import {
 import { applyPwaUpdate, registerPwa } from './pwa'
 import { catalog, currency, makeReceiptNumber } from './receipt'
 import {
-  adoptCompletedReceipt,
+  createRestoredReceiptEndingState,
+  receiptEndingReducer,
   THREE_ENDINGS_ENABLED,
   type ArchivedReceipt,
   type CompletedReceiptSnapshot,
   type PendingRelease,
   type ReceiptDisposition,
   type ReceiptEndingPersistenceStatus,
-  type ReceiptEndingState,
 } from './receipt-ending'
 import {
   createBrowserArtifactPlatform,
@@ -116,11 +117,12 @@ function App() {
   const [pendingRelease] = useState<PendingRelease | null>(initialPersisted.pendingRelease)
   const [privateArchive] = useState<ArchivedReceipt[]>(initialPersisted.privateArchive)
   const [receiptDispositions] = useState<ReceiptDisposition[]>(initialPersisted.receiptDispositions)
-  const [receiptEndingState, setReceiptEndingState] = useState<ReceiptEndingState | null>(() => (
+  const [receiptEndingState, dispatchReceiptEnding] = useReducer(
+    receiptEndingReducer,
     THREE_ENDINGS_ENABLED && initialPersisted.pendingReceipt
-      ? { kind: 'documented', receipt: initialPersisted.pendingReceipt }
-      : null
-  ))
+      ? createRestoredReceiptEndingState(initialPersisted.pendingReceipt)
+      : null,
+  )
   const [receiptEndingPersistenceStatus, setReceiptEndingPersistenceStatus] = useState<ReceiptEndingPersistenceStatus>(
     initialLoad.status === 'unavailable' ? 'unavailable' : 'saved',
   )
@@ -214,7 +216,7 @@ function App() {
 
   const resetReceiptEnding = () => {
     setPendingReceipt(null)
-    setReceiptEndingState(null)
+    dispatchReceiptEnding({ type: 'CLEAR_RECEIPT_ENDING' })
   }
 
   const clearReceipt = () => {
@@ -275,7 +277,7 @@ function App() {
     setPendingReceipt((current) => (
       current?.receiptNumber === snapshot.receiptNumber ? current : snapshot
     ))
-    setReceiptEndingState((current) => adoptCompletedReceipt(current, snapshot))
+    dispatchReceiptEnding({ type: 'START_NEW_RECEIPT', receipt: snapshot })
     setPendingCommit(null)
     setLastCompleted({
       receiptNumber: snapshot.receiptNumber,
@@ -448,6 +450,7 @@ function App() {
                   threeEndingsEnabled={THREE_ENDINGS_ENABLED}
                   receiptEndingState={receiptEndingState}
                   receiptEndingPersistenceStatus={receiptEndingPersistenceStatus}
+                  onReceiptEndingEvent={dispatchReceiptEnding}
                   onSoundChange={setSoundEnabled}
                   onReceiptNumberChange={setReceiptNumber}
                   createExport={createExport}
