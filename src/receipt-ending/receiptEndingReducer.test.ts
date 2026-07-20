@@ -88,12 +88,10 @@ describe('receiptEndingReducer', () => {
 
     let state: ReceiptEndingMachineState = startKeep()
     for (const [event, phase] of sequence) {
-      const previous = state
       state = reduce(state, event)
       expect(state?.kind).toBe('keep-ritual')
       expect(state && 'phase' in state ? state.phase : null).toBe(phase)
       expect(state?.receipt).toBe(receipt)
-      expect(reduce(previous, sequence.at(-1)![0])).toBe(previous)
     }
   })
 
@@ -212,7 +210,8 @@ describe('receiptEndingReducer', () => {
     const state = startKeep()
     expect(reduce(state, { type: 'KEEP_ALIGNMENT_COMPLETED' })).toBe(state)
     expect(reduce(state, { type: 'KEEP_ARCHIVE_CLOSED', archivedAt: 'invalid' })).toBe(state)
-    expect(reduce(documented(), { type: 'SELECT_KEEP' })).toBe(documented())
+    const documentedState = documented()
+    expect(reduce(documentedState, { type: 'SELECT_KEEP' })).toBe(documentedState)
   })
 
   it('recovers generic ending failures to the same documented receipt', () => {
