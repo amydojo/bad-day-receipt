@@ -140,6 +140,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         const summary = getDraftSummary(committedItems)
         onReceiptComplete(createCompletedReceiptSnapshot({
           receiptNumber: state.receiptNumber,
+          completedAt: new Date().toISOString(),
           theme,
           items: committedItems,
           total: summary.total,
