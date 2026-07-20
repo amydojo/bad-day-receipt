@@ -3,17 +3,37 @@ import { getLedStatus, getPrinterStatus } from '../printer/printerMachine'
 import type { PrinterPhase } from '../printer/printerTypes'
 import type { ReceiptTheme } from '../themes'
 
+export type PrinterArchiveState =
+  | 'closed'
+  | 'opening'
+  | 'open'
+  | 'receiving'
+  | 'closing'
+  | 'stored'
+  | 'recovery'
+
 interface PrinterShellProps {
   phase: PrinterPhase
   theme: ReceiptTheme
   statusOverride?: string
+  mode?: 'receipt' | 'archive'
+  archiveState?: PrinterArchiveState
 }
 
-export function PrinterShell({ phase, theme, statusOverride }: PrinterShellProps) {
+export function PrinterShell({
+  phase,
+  theme,
+  statusOverride,
+  mode = 'receipt',
+  archiveState = 'closed',
+}: PrinterShellProps) {
   return (
     <div
       className="printer-shell"
       style={{ '--printer-accent': theme.palette.accent } as CSSProperties}
+      data-printer-shell
+      data-printer-mode={mode}
+      data-archive-state={archiveState}
     >
       <div className="printer-shell__top">
         <div>
@@ -32,6 +52,19 @@ export function PrinterShell({ phase, theme, statusOverride }: PrinterShellProps
         <div className="printer-slot__lip" />
       </div>
       <div className="tear-bar" aria-hidden="true" />
+
+      <div
+        className="printer-archive-bay"
+        data-printer-region="archive-bay"
+        aria-hidden="true"
+      >
+        <div className="printer-archive-bay__recess" />
+        <div className="printer-archive-bay__drawer">
+          <span>PRIVATE ARCHIVE</span>
+          <i />
+        </div>
+        <div className="printer-archive-bay__occlusion" />
+      </div>
     </div>
   )
 }
