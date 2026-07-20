@@ -27,7 +27,9 @@ jobs:
         run: npm test > test.log 2>&1
       - name: Package failure diagnostics
         if: steps.tests.outcome == 'failure'
-        run: tar --exclude=.git --exclude=node_modules -czf repository-source.tgz .
+        run: |
+          tar --exclude=.git --exclude=node_modules --exclude=repository-source.tgz -czf /tmp/repository-source.tgz .
+          cp /tmp/repository-source.tgz repository-source.tgz
       - name: Upload failure diagnostics
         if: steps.tests.outcome == 'failure'
         uses: actions/upload-artifact@v4
