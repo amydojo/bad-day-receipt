@@ -40,7 +40,13 @@ export function ReceiptViewport({
       >
         <div className="receipt-paper-neck">
           <div className="receipt-material-stack" data-keep-phase={keepPhase}>
-            {materialLayer}
+            <div
+              className="receipt-material-stack__sleeve"
+              style={{ position: 'absolute', inset: 0, zIndex: 1 }}
+              aria-hidden="true"
+            >
+              {materialLayer}
+            </div>
             {children}
           </div>
         </div>
