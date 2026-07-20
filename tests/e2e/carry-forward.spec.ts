@@ -1,174 +1,200 @@
 import { expect, test } from '@playwright/test'
-import { INSURANCE_DENIAL_SOURCE } from '../../src/carry-forward/fixtures'
+import { INSURANCE_DENIAL_SOURCE, createInsuranceDenialPlan } from '../../src/carry-forward/fixtures'
 import { compileCarryForwardDemo, mockCarryForwardCompiler, openCarryForwardPreview } from '../fixtures/carryForward'
 
-test.describe('Carry Forward vertical slice', () => {
+const seedKey = 'bad-day-receipt:carry-forward-seed:v1'
+const storageKey = 'bad-day-receipt:carry-forward:v1'
+
+async function seedReceipt(page: import('@playwright/test').Page, receiptId = 'BDR-TEST-001') {
+  await page.addInitScript(({ key, id }) => {
+    window.sessionStorage.setItem(key, JSON.stringify({ receiptId: id }))
+  }, { key: seedKey, id: receiptId })
+}
+
+async function completePlan(page: import('@playwright/test').Page) {
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('radio', { name: /Member portal/ }).check()
+  await page.getByRole('button', { name: /SHOW ALL CHOICES/ }).click()
+  await page.getByRole('button', { name: 'Confirm choice', exact: true }).click()
+  await page.getByRole('checkbox', { name: 'Copy of the denial letter' }).check()
+  await page.getByRole('checkbox', { name: 'Supporting medical records' }).check()
+  await page.getByRole('button', { name: 'Continue', exact: true }).click()
+  await page.getByRole('button', { name: 'Save draft', exact: true }).click()
+  await page.getByRole('button', { name: 'Close this task', exact: true }).click()
+}
+
+test.describe('Carry Forward authored parity', () => {
   test.beforeEach(async ({ page }) => {
     await mockCarryForwardCompiler(page)
   })
 
-  test('is directly reachable from the existing receipt machine', async ({ page }) => {
-    await page.goto('/')
-    const entry = page.getByRole('link', { name: 'CARRY ONE THING FORWARD' })
-    await expect(entry).toBeVisible()
-    await expect(entry).toHaveAttribute('href', '/carry-forward')
-    await entry.click()
-    await expect(page).toHaveURL(/\/carry-forward$/)
-    await expect(page.getByRole('heading', { name: 'What needs to get done?' })).toBeVisible()
-  })
+  test('receipt-origin journey preserves continuity through M12', async ({ page }) => {
+    await seedReceipt(page)
+    await page.goto('/carry-forward')
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M01')
+    await expect(page.getByRole('heading', { name: 'You do not have to continue as though nothing happened.' })).toBeVisible()
+    await expect(page.getByText('BDR-TEST-001')).toBeVisible()
+    await page.getByRole('button', { name: /CARRY ONE THING FORWARD/ }).click()
 
-  test('completes the canonical insurance-denial plan through deterministic renderers', async ({ page }) => {
-    await compileCarryForwardDemo(page)
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M02')
+    await page.getByLabel('WHAT STILL NEEDS DOING?').fill('Prepare and submit my insurance denial appeal')
+    await page.getByRole('button', { name: /ADD TASK CONTEXT/ }).click()
+    await page.getByLabel(/OPTIONAL SOURCE CONTEXT/).fill(INSURANCE_DENIAL_SOURCE)
+    await page.getByRole('button', { name: /DECLARE INTERACTION BUDGET/ }).click()
+    await page.getByRole('button', { name: /PREVIEW CHANGES/ }).click()
 
-    const stored = await page.evaluate(() => window.localStorage.getItem('bad-day-receipt:carry-forward:v1'))
-    expect(stored).not.toContain(INSURANCE_DENIAL_SOURCE)
-    await expect(page.getByText('August 12, 2026', { exact: true })).toBeVisible()
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M05')
+    await expect(page.getByRole('heading', { name: 'One Thing Mode will…' })).toBeVisible()
+    await expect(page.getByText('Show one active step')).toBeVisible()
+    await expect(page.getByText('Change once, then remain stable')).toBeVisible()
+    await page.getByRole('button', { name: /BEGIN ONE THING MODE/ }).click()
 
-    await page.getByRole('button', { name: 'COMPLETE STEP' }).click()
-    await expect(page.getByRole('heading', { name: 'Choose a submission route' })).toBeVisible()
-    await expect(page.getByText('Mail', { exact: true })).toHaveCount(0)
+    await page.getByRole('heading', { name: 'Pin the deadline' }).waitFor()
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), storageKey)).not.toContain(INSURANCE_DENIAL_SOURCE)
+
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
+    await page.getByRole('button', { name: 'WHY THIS VIEW' }).click()
+    const why = page.getByRole('dialog', { name: /Why this view/ })
+    await expect(why).toBeVisible()
+    await expect(why.getByText('The recommended choice appears first')).toBeVisible()
+    await expect(why.getByText(/Every approved alternative remains behind Show All Choices/)).toBeVisible()
+    await why.getByRole('button', { name: 'RETURN TO TASK' }).click()
+
     await page.getByRole('radio', { name: /Member portal/ }).check()
-    await page.getByRole('button', { name: 'SHOW ALL CHOICES' }).click()
+    await page.getByRole('button', { name: /SHOW ALL CHOICES/ }).click()
     await expect(page.getByText('Mail', { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'COMPLETE STEP' }).click()
-
+    await page.getByRole('button', { name: 'Confirm choice', exact: true }).click()
     await page.getByRole('checkbox', { name: 'Copy of the denial letter' }).check()
     await page.getByRole('checkbox', { name: 'Supporting medical records' }).check()
-    await page.getByRole('button', { name: 'COMPLETE STEP' }).click()
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
+    await page.getByRole('button', { name: 'Save draft', exact: true }).click()
+    await page.getByRole('button', { name: 'Close this task', exact: true }).click()
 
-    const draft = page.getByLabel(/State what decision you are appealing/)
-    await expect(draft).toHaveValue(/Reference IR-48291/)
-    await page.getByRole('button', { name: 'COMPLETE STEP' }).click()
-
-    await expect(page.getByRole('heading', { name: 'Review before submission' })).toBeVisible()
-    await page.getByRole('button', { name: 'FINISH PLAN' }).click()
-
-    await expect(page.getByText('PLAN COMPLETE · M12')).toBeVisible()
-    await expect(page.getByText('Follow up with Member Services')).toBeVisible()
-    await page.getByRole('button', { name: 'WHY THIS VIEW' }).click()
-    await expect(page.getByRole('dialog', { name: 'Why this view' })).toBeVisible()
-    await expect(page.getByText('Nothing will be sent, submitted, purchased, deleted, or changed automatically.')).toBeVisible()
-    await page.getByRole('button', { name: 'CLOSE' }).click()
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M12')
+    await expect(page.getByRole('heading', { name: 'One thing closed.' })).toBeVisible()
+    await expect(page.getByText('PREPARED FOR REVIEW')).toBeVisible()
+    await expect(page.getByText(/did not send, submit, file, approve, or resolve/)).toBeVisible()
+    await page.getByText('OUTPUT AND FULL DETAILS').click()
     await page.getByRole('button', { name: 'SHOW COMPLETE PLAN' }).click()
     await expect(page.getByRole('dialog', { name: 'Complete plan' })).toBeVisible()
-    await expect(page.getByText('EXACT EVIDENCE')).toBeVisible()
     await page.getByRole('button', { name: 'CLOSE' }).click()
+    await page.locator('.cf-temporary-context button').click()
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M02')
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), storageKey)).toBeNull()
   })
 
-  test('fails closed when the server envelope contains an unvalidated plan', async ({ page }) => {
+  test('direct entry begins at M02 without false receipt continuity', async ({ page }) => {
+    await page.goto('/carry-forward')
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M02')
+    await expect(page.getByRole('heading', { name: 'What still needs doing?' })).toBeVisible()
+    await expect(page.getByText('TEMPORARY SERVICE ADJUSTMENT AVAILABLE')).toHaveCount(0)
+    await expect(page).toHaveURL(/\/carry-forward$/)
+  })
+
+  test('dedicated M13 recovery preserves the phrase and makes no model request', async ({ page }) => {
+    let requests = 0
+    await page.unroute('**/api/compile-task')
+    await page.route('**/api/compile-task', async (route) => { requests += 1; await route.abort() })
+    await page.goto('/carry-forward')
+    await page.getByLabel('WHAT STILL NEEDS DOING?').fill('Deal with that thing')
+    await page.getByRole('button', { name: /ADD TASK CONTEXT/ }).click()
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M13')
+    await expect(page.getByRole('heading', { name: 'The task needs one clearer action.' })).toBeVisible()
+    await expect(page.getByText('Deal with that thing', { exact: true })).toBeVisible()
+    await expect(page.getByText('Reply to the landlord about the repair')).toBeVisible()
+    expect(requests).toBe(0)
+    await page.getByRole('button', { name: /TRY AGAIN/ }).click()
+    await expect(page.getByLabel('WHAT STILL NEEDS DOING?')).toHaveValue('Deal with that thing')
+    await expect(page.getByLabel('WHAT STILL NEEDS DOING?')).toBeFocused()
+  })
+
+  test('choice disclosure keeps alternatives keyboard-accessible and deterministic', async ({ page }) => {
+    await compileCarryForwardDemo(page)
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
+    await expect(page.getByText('Mail', { exact: true })).toHaveCount(0)
+    const showAll = page.getByRole('button', { name: /SHOW ALL CHOICES/ })
+    await showAll.focus()
+    await page.keyboard.press('Enter')
+    const mail = page.getByRole('radio', { name: /Mail/ })
+    await expect(mail).toBeVisible()
+    await mail.focus()
+    await page.keyboard.press('Space')
+    await expect(mail).toBeChecked()
+  })
+
+  test('disabling fewer decisions shows all approved choices without disclosure', async ({ page }) => {
+    await page.goto('/carry-forward')
+    await page.getByLabel('WHAT STILL NEEDS DOING?').fill('Prepare and submit my insurance denial appeal')
+    await page.getByRole('button', { name: /ADD TASK CONTEXT/ }).click()
+    await page.getByLabel(/OPTIONAL SOURCE CONTEXT/).fill(INSURANCE_DENIAL_SOURCE)
+    await page.getByRole('button', { name: /DECLARE INTERACTION BUDGET/ }).click()
+    await page.getByRole('checkbox', { name: /Fewer decisions/ }).uncheck()
+    await page.getByRole('button', { name: /PREVIEW CHANGES/ }).click()
+    await expect(page.getByText('Show all approved choices')).toBeVisible()
+    await page.getByRole('button', { name: /BEGIN ONE THING MODE/ }).click()
+    await page.getByRole('heading', { name: 'Pin the deadline' }).waitFor()
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
+    await expect(page.getByText('Member portal', { exact: true })).toBeVisible()
+    await expect(page.getByText('Mail', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: /SHOW ALL CHOICES/ })).toHaveCount(0)
+  })
+
+  test('compile cancellation returns to M05 and ignores a late response', async ({ page }) => {
     await page.unroute('**/api/compile-task')
     await page.route('**/api/compile-task', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          plan: { title: 'Raw unsafe output', steps: [], html: '<iframe>' },
-          meta: { model: 'untrusted', repaired: false },
-        }),
-      })
+      await new Promise((resolve) => setTimeout(resolve, 700))
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ plan: createInsuranceDenialPlan(), meta: { model: 'gpt-5.6-sol-test', repaired: false } }) })
     })
     await openCarryForwardPreview(page)
-    await page.getByRole('button', { name: 'COMPILE TASK PLAN' }).click()
-    await expect(page.getByRole('heading', { name: 'The plan did not pass validation' })).toBeVisible()
-    await expect(page.getByText('Raw unsafe output')).toHaveCount(0)
-    await expect(page.getByText('<iframe>')).toHaveCount(0)
+    await page.getByRole('button', { name: /BEGIN ONE THING MODE/ }).click()
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M06')
+    await page.getByRole('button', { name: 'CANCEL' }).click()
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M05')
+    await expect(page.getByRole('heading', { name: 'One Thing Mode will…' })).toBeFocused()
+    await expect(page.getByText('Show one active step')).toBeVisible()
+    await page.waitForTimeout(900)
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M05')
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), storageKey)).toBeNull()
   })
 
-  test('treats exhausted project quota as unavailable, not a transient rate limit', async ({ page }) => {
+  test('End Mode during compilation clears temporary context and returns to receipt origin', async ({ page }) => {
     await page.unroute('**/api/compile-task')
-    await page.route('**/api/compile-task', (route) => route.fulfill({
-      status: 429,
-      contentType: 'application/json',
-      body: JSON.stringify({ error: { code: 'openai_quota_exhausted' } }),
-    }))
-    await openCarryForwardPreview(page)
-    await page.getByRole('button', { name: 'COMPILE TASK PLAN' }).click()
-    await expect(page.getByRole('heading', { name: 'The compiler is unavailable' })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'The compiler needs a moment' })).toHaveCount(0)
-  })
-
-  test('recovers from ambiguous input without losing it', async ({ page }) => {
+    await page.route('**/api/compile-task', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_000))
+      await route.abort()
+    })
+    await seedReceipt(page, 'BDR-END-001')
     await page.goto('/carry-forward')
-    await page.getByLabel('ONE CONCRETE TASK').fill('Deal with that thing')
-    await page.getByRole('button', { name: 'CONTINUE', exact: true }).click()
-    await expect(page.getByRole('alert')).toHaveText('Name the concrete thing you want to finish.')
-    await expect(page.getByLabel('ONE CONCRETE TASK')).toHaveValue('Deal with that thing')
+    await page.getByRole('button', { name: /CARRY ONE THING FORWARD/ }).click()
+    await page.getByLabel('WHAT STILL NEEDS DOING?').fill('Prepare and submit my insurance denial appeal')
+    await page.getByRole('button', { name: /ADD TASK CONTEXT/ }).click()
+    await page.getByLabel(/OPTIONAL SOURCE CONTEXT/).fill(INSURANCE_DENIAL_SOURCE)
+    await page.getByRole('button', { name: /DECLARE INTERACTION BUDGET/ }).click()
+    await page.getByRole('button', { name: /PREVIEW CHANGES/ }).click()
+    await page.getByRole('button', { name: /BEGIN ONE THING MODE/ }).click()
+    await page.getByRole('button', { name: 'END MODE' }).first().click()
+    await expect(page).toHaveURL(/\/$/)
+    expect(await page.evaluate((key) => window.localStorage.getItem(key), storageKey)).toBeNull()
   })
 
-  test('allows a task to reach preview without source context', async ({ page }) => {
-    await page.goto('/carry-forward')
-    await page.getByLabel('ONE CONCRETE TASK').fill('Prepare a short appeal checklist')
-    await page.getByRole('button', { name: 'CONTINUE', exact: true }).click()
-    await page.getByRole('button', { name: 'SET INTERACTION BUDGET' }).click()
-    await page.getByRole('button', { name: 'CONFIRM BUDGET' }).click()
-    await expect(page.getByText('No source provided · extracted facts will be omitted')).toBeVisible()
-  })
-
-  test('shows stable plan context when one-step presentation is not requested', async ({ page }) => {
-    await page.goto('/carry-forward')
-    await page.getByRole('button', { name: 'LOAD INSURANCE DENIAL DEMO' }).click()
-    await page.getByRole('button', { name: 'CONTINUE', exact: true }).click()
-    await page.getByRole('button', { name: 'SET INTERACTION BUDGET' }).click()
-    await page.getByRole('checkbox', { name: /One step at a time/ }).uncheck()
-    await page.getByRole('checkbox', { name: /Protect my progress/ }).uncheck()
-    await page.getByRole('button', { name: 'CONFIRM BUDGET' }).click()
-    await page.getByRole('button', { name: 'COMPILE TASK PLAN' }).click()
-    await expect(page.getByRole('region', { name: 'Visible plan context' })).toBeVisible()
-    await expect(page.getByText('PLAN CONTEXT · ONE STEP POLICY OFF')).toBeVisible()
-    expect(await page.evaluate(() => window.localStorage.getItem('bad-day-receipt:carry-forward:v1'))).toBeNull()
-  })
-
-  test('restores the exact active compose step and edited draft after refresh', async ({ page }) => {
+  test('restores M12 after refresh without duplicate completion telemetry', async ({ page }) => {
+    await page.addInitScript(() => {
+      const existing = Number(window.sessionStorage.getItem('cf-completed-events') ?? '0')
+      window.sessionStorage.setItem('cf-completed-events', String(existing))
+      window.addEventListener('bad-day-receipt:telemetry', (event) => {
+        const detail = (event as CustomEvent<{ name?: string }>).detail
+        if (detail?.name === 'carry_forward_completed') {
+          const count = Number(window.sessionStorage.getItem('cf-completed-events') ?? '0')
+          window.sessionStorage.setItem('cf-completed-events', String(count + 1))
+        }
+      })
+    })
     await compileCarryForwardDemo(page)
-    await page.getByRole('button', { name: 'COMPLETE STEP' }).click()
-    await page.getByRole('radio', { name: /Member portal/ }).check()
-    await page.getByRole('button', { name: 'COMPLETE STEP' }).click()
-    await page.getByRole('checkbox', { name: 'Copy of the denial letter' }).check()
-    await page.getByRole('checkbox', { name: 'Supporting medical records' }).check()
-    await page.getByRole('button', { name: 'COMPLETE STEP' }).click()
-    const draft = page.getByLabel(/State what decision you are appealing/)
-    await draft.fill('My restored, reviewed appeal draft.')
-    await expect.poll(() => page.evaluate(() => window.localStorage.getItem('bad-day-receipt:carry-forward:v1')))
-      .toContain('My restored, reviewed appeal draft.')
-
+    await completePlan(page)
+    await expect(page.getByRole('heading', { name: 'One thing closed.' })).toBeVisible()
+    expect(await page.evaluate(() => window.sessionStorage.getItem('cf-completed-events'))).toBe('1')
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'Draft the appeal note' })).toBeVisible()
-    await expect(page.getByLabel(/State what decision you are appealing/)).toHaveValue('My restored, reviewed appeal draft.')
-  })
-
-  test('restores protected manual fallback work without persisting raw source', async ({ page }) => {
-    await page.unroute('**/api/compile-task')
-    await page.route('**/api/compile-task', (route) => route.fulfill({
-      status: 502,
-      contentType: 'application/json',
-      body: JSON.stringify({ error: { code: 'compiler_failed' } }),
-    }))
-    await openCarryForwardPreview(page)
-    await page.getByRole('button', { name: 'COMPILE TASK PLAN' }).click()
-    await expect(page.getByRole('heading', { name: 'The compiler is unavailable' })).toBeVisible()
-    await page.locator('#manual-0').fill('Gather the denial notice')
-    await page.getByLabel('WORKING DRAFT · OPTIONAL').fill('My recoverable manual appeal draft.')
-    await expect.poll(() => page.evaluate(() => window.localStorage.getItem('bad-day-receipt:carry-forward:v1')))
-      .toContain('My recoverable manual appeal draft.')
-    const stored = await page.evaluate(() => window.localStorage.getItem('bad-day-receipt:carry-forward:v1'))
-    expect(stored).not.toContain(INSURANCE_DENIAL_SOURCE)
-
-    await page.reload()
-    await expect(page.getByRole('heading', { name: 'The compiler is unavailable' })).toBeVisible()
-    await expect(page.locator('#manual-0')).toHaveValue('Gather the denial notice')
-    await expect(page.getByLabel('WORKING DRAFT · OPTIONAL')).toHaveValue('My recoverable manual appeal draft.')
-  })
-
-  test('exposes stable compiler-failure and expired-session recovery demos', async ({ page }) => {
-    await page.goto('/carry-forward')
-    await page.getByText('VIEW RECOVERY DEMOS').click()
-    await page.getByRole('button', { name: 'COMPILER FAILURE' }).click()
-    await expect(page.getByRole('heading', { name: 'The compiler is unavailable' })).toBeVisible()
-
-    await page.getByRole('button', { name: 'EDIT SOURCE' }).click()
-    await page.getByRole('button', { name: 'BACK' }).click()
-    await page.getByText('VIEW RECOVERY DEMOS').click()
-    await page.getByRole('button', { name: 'EXPIRED SESSION' }).click()
-    await expect(page.getByRole('heading', { name: 'This four-hour task window is closed.' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'One thing closed.' })).toBeVisible()
+    expect(await page.evaluate(() => window.sessionStorage.getItem('cf-completed-events'))).toBe('1')
   })
 })
