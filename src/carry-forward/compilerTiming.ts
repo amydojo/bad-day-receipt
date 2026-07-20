@@ -1,4 +1,4 @@
-import { CARRY_FORWARD_COMPILER_LIMITS } from './taskPlanLimits'
+import { CARRY_FORWARD_COMPILER_LIMITS } from './taskPlanLimits.js'
 
 export type CompilerAttemptKind = 'initial' | 'repair'
 
