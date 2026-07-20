@@ -1,0 +1,16 @@
+.cf-app {
+  /* Figma's quiet gray is preserved as a tonal reference, but small production
+     text uses the nearest darker value that clears WCAG AA on every authored
+     canvas and panel surface. */
+  --cf-muted: #5d5a53;
+  --cf-signal-text: #9d302a;
+}
+
+/* Coral remains the motion and object signal. Small text on light surfaces uses
+   a darker application-owned companion so the authored hierarchy stays legible. */
+.cf-mini-receipt span,
+.cf-adaptation-list span,
+.cf-compile-stages span,
+.cf-why-list > li > span {
+  color: var(--cf-signal-text);
+}
