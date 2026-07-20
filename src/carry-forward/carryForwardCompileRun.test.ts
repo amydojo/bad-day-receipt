@@ -11,19 +11,19 @@ describe('Carry Forward client compile deadline', () => {
     const onFailure = vi.fn()
     const onTimeout = vi.fn()
     const run = startCarryForwardCompileRun({
-      execute: () => new Promise<string>((resolve) => setTimeout(() => resolve('validated-plan'), 50_000)),
+      execute: () => new Promise<string>((resolve) => setTimeout(() => resolve('validated-plan'), 52_000)),
       onSuccess,
       onFailure,
       onTimeout,
     })
 
-    await vi.advanceTimersByTimeAsync(49_999)
+    await vi.advanceTimersByTimeAsync(51_999)
     expect(onSuccess).not.toHaveBeenCalled()
     expect(onTimeout).not.toHaveBeenCalled()
 
     await vi.advanceTimersByTimeAsync(1)
     await run.promise
-    expect(CARRY_FORWARD_COMPILER_LIMITS.clientTimeoutMs).toBe(58_000)
+    expect(CARRY_FORWARD_COMPILER_LIMITS.clientTimeoutMs).toBe(57_000)
     expect(onSuccess).toHaveBeenCalledWith('validated-plan')
     expect(onFailure).not.toHaveBeenCalled()
     expect(onTimeout).not.toHaveBeenCalled()
@@ -43,7 +43,7 @@ describe('Carry Forward client compile deadline', () => {
       onTimeout,
     })
 
-    await vi.advanceTimersByTimeAsync(58_000)
+    await vi.advanceTimersByTimeAsync(CARRY_FORWARD_COMPILER_LIMITS.clientTimeoutMs)
     await run.promise
     expect(run.signal.aborted).toBe(true)
     expect(onTimeout).toHaveBeenCalledTimes(1)
