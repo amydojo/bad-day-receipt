@@ -1,0 +1,43 @@
+name: three-endings-foundation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/three-endings-foundation.yml'
+      - 'docs/receipt-ending-state-machine.md'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/App.tsx'
+      - 'src/components/ReceiptMachine.tsx'
+      - 'src/main.tsx'
+      - 'src/receipt-ending/**'
+      - 'src/soft-machine/persistence.ts'
+      - 'src/soft-machine/persistence.test.ts'
+      - 'tests/e2e/three-endings-foundation.spec.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: three-endings-foundation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  foundation-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:receipt-regression
+      - run: npm run test:carry-forward
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:three-endings-foundation
