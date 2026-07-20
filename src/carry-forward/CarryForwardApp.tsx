@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import {
   carryForwardReducer,
+  createCompiledRuntimeSession,
   createInitialCarryForwardState,
   type CarryForwardEvent,
   type CarryForwardState,
@@ -23,7 +24,6 @@ import {
 import { startCarryForwardCompileRun } from './carryForwardCompileRun'
 import {
   createInteractionBudget,
-  DEFAULT_INTERACTION_POLICIES,
   type InteractionPolicies,
 } from './interactionBudget'
 import {
@@ -31,25 +31,23 @@ import {
   InputField,
   InspectorSheet,
   InteractionPolicyCard,
-  POLICY_COPY,
   StatusBanner,
   TaskProgress,
   TaskStepShell,
 } from './CarryForwardPrimitives'
-import { isStepReady, TaskStepRenderer } from './TaskStepRenderer'
-import {
-  emitCarryForwardTelemetry,
-  type CarryForwardTelemetryProperties,
-} from './carryForwardTelemetry'
-import type { ValidatedTaskPlan } from './taskPlanSchema'
-import { INSURANCE_DENIAL_SOURCE, INSURANCE_DENIAL_TASK } from './fixtures'
+import { getStepActionLabel, isStepReady, TaskStepRenderer } from './TaskStepRenderer'
+import { emitCarryForwardTelemetry, type CarryForwardTelemetryProperties } from './carryForwardTelemetry'
 import { TASK_PLAN_LIMITS } from './taskPlanLimits'
 import { hasConcreteTask } from './taskAmbiguity'
+import { getAdaptationItems, getCompletionProof, getWhyItems } from './carryForwardPresentation'
+import './carry-forward-parity.css'
 
-const COMPILE_PHASES = [
-  { id: 'request-accepted', label: 'Request accepted' },
-  { id: 'awaiting-plan', label: 'Awaiting bounded plan' },
-  { id: 'validating-plan', label: 'Plan received · verifying source evidence' },
+const RECOVERY_EXAMPLES = [
+  'Reply to the landlord about the repair',
+  'Finish the job application',
+  'Organize the documents for the appeal',
+  'Prepare questions for the clinic',
+  'Update the résumé for this role',
 ] as const
 
 const FALLBACK_COPY: Record<FallbackReason, { title: string; body: string }> = {
@@ -61,9 +59,13 @@ const FALLBACK_COPY: Record<FallbackReason, { title: string; body: string }> = {
   server_error: { title: 'The compiler is unavailable', body: 'Your source is still in this tab and has not been added to progress storage.' },
 }
 
-function getStateCode(state: CarryForwardState) {
-  if (state.kind === 'input' && state.error) return 'M13'
-  if (state.kind === 'input') return state.screen === 'task' ? (state.draft.task ? 'M02' : 'M01') : 'M03'
+function getScreenCode(state: CarryForwardState) {
+  if (state.kind === 'input') {
+    if (state.screen === 'bridge') return 'M01'
+    if (state.screen === 'task') return 'M02'
+    if (state.screen === 'source') return 'M03'
+    return 'M13'
+  }
   if (state.kind === 'budget') return 'M04'
   if (state.kind === 'preview') return 'M05'
   if (state.kind === 'compiling') return 'M06'
@@ -84,130 +86,127 @@ function activeBudget(state: CarryForwardState) {
   return null
 }
 
-function initialSession(plan: ValidatedTaskPlan, startedAt: string): RuntimeSession {
-  return {
-    plan,
-    stepIndex: 0,
-    completedStepIds: [],
-    choices: {},
-    checkedItems: {},
-    composeDrafts: {},
-    expandedChoices: {},
-    startedAt,
-  }
-}
-
 function telemetryPolicies(policies: InteractionPolicies): CarryForwardTelemetryProperties {
   return { ...policies }
 }
 
-function RuntimeInspector({ state, dispatch }: {
-  state: Extract<CarryForwardState, { kind: 'explaining' }>
+function ProductShell({ state, children, endAction }: {
+  state: CarryForwardState
+  children: React.ReactNode
+  endAction?: () => void
+}) {
+  return (
+    <main className="cf-authored-shell" data-state={getScreenCode(state)}>
+      <header className="cf-authored-system-bar">
+        <span>{state.kind === 'compiling' ? 'ASSISTED PLANNING' : state.kind === 'active' || state.kind === 'explaining' ? 'ONE THING MODE' : 'CARRY FORWARD'}</span>
+        {endAction
+          ? <button type="button" onClick={endAction}>END MODE</button>
+          : <span>PRIVATE · TEMPORARY</span>}
+      </header>
+      <section className="cf-authored-scene" key={getScreenCode(state)}>{children}</section>
+    </main>
+  )
+}
+
+function ReceiptBridge({ state, dispatch }: {
+  state: Extract<CarryForwardState, { kind: 'input' }>
   dispatch: React.Dispatch<CarryForwardEvent>
 }) {
   return (
-    <InspectorSheet
-      open
-      title={state.inspector === 'plan' ? 'Complete plan' : 'Why this view'}
-      onClose={() => dispatch({ type: 'CLOSE_WHY' })}
-    >
+    <>
+      <div className="cf-authored-content">
+        <h1 tabIndex={-1} data-screen-heading>You do not have to continue as though nothing happened.</h1>
+        <article className="cf-mini-receipt" aria-label={`Connected receipt ${state.draft.receiptId}`}>
+          <span>BAD DAY RECEIPT · {state.draft.receiptId}</span>
+          <hr />
+          <p>THIS DAY REQUIRED MORE THAN THE RECORD SHOWS.</p>
+          <strong>DOCUMENT WHAT THE DAY COST.</strong>
+        </article>
+        <div className="cf-qualification">
+          <strong>TEMPORARY SERVICE ADJUSTMENT AVAILABLE</strong>
+          <p>One remaining obligation may ask less of you. Carry Forward will let you name the task before anything changes.</p>
+        </div>
+        <p className="cf-authored-thesis">Document what the day cost. Carry one thing forward.</p>
+      </div>
+      <div className="cf-authored-dock">
+        <ActionButton onClick={() => dispatch({ type: 'CONTINUE_FROM_RECEIPT' })}>CARRY ONE THING FORWARD →</ActionButton>
+        <ActionButton variant="quiet" onClick={() => window.location.assign('/')}>NOT NOW</ActionButton>
+      </div>
+    </>
+  )
+}
+
+function RuntimeInspector({ state, dispatch, onEnd }: {
+  state: Extract<CarryForwardState, { kind: 'explaining' }>
+  dispatch: React.Dispatch<CarryForwardEvent>
+  onEnd: () => void
+}) {
+  const returnToTask = () => dispatch({ type: 'CLOSE_WHY' })
+  const title = state.inspector === 'why' ? 'Why this view?' : 'Complete plan'
+  return (
+    <InspectorSheet open title={title} descriptionId={state.inspector === 'why' ? 'cf-why-description' : undefined} onClose={returnToTask}>
       {state.inspector === 'why' ? (
-        <>
-          <section className="cf-inspector-section">
-            <span className="cf-eyebrow">USER-DECLARED POLICIES</span>
-            <dl className="cf-inspector-policies">
-              {(Object.keys(state.budget.policies) as Array<keyof InteractionPolicies>).map((policy) => (
-                <div key={policy}>
-                  <dt>{POLICY_COPY[policy].title}</dt>
-                  <dd>{state.budget.policies[policy] ? 'REQUESTED' : 'NOT REQUESTED'} · {POLICY_COPY[policy].body}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-          <StatusBanner title="Product invariant">Nothing will be sent, submitted, purchased, deleted, or changed automatically.</StatusBanner>
-          <StatusBanner title="Product invariant">The complete plan and exit remain available from every active step.</StatusBanner>
-        </>
+        <div className="cf-authored-inspector">
+          <span className="cf-eyebrow">TRANSPARENCY ON DEMAND</span>
+          <p id="cf-why-description">These changes came from the Interaction Budget you declared. No emotional state was detected.</p>
+          <ol className="cf-why-list">
+            {getWhyItems(state.budget.policies, state.session.plan, state.session).map((item, index) => (
+              <li key={item.id}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <div><strong>{item.change}</strong><p>{item.reason}</p></div>
+              </li>
+            ))}
+          </ol>
+          <StatusBanner title="What remained stable">The complete plan, every approved choice, your exit, and the no-automatic-action boundary remain available.</StatusBanner>
+          <div className="cf-inspector-actions">
+            <ActionButton onClick={returnToTask}>RETURN TO TASK</ActionButton>
+            <ActionButton variant="secondary" onClick={() => dispatch({ type: 'ADJUST_ACTIVE_BUDGET' })}>ADJUST BUDGET</ActionButton>
+            <ActionButton variant="quiet" onClick={onEnd}>END MODE</ActionButton>
+          </div>
+        </div>
       ) : (
-        <>
-      <section className="cf-inspector-section">
-        <span className="cf-eyebrow">DECLARED BUDGET</span>
-        <dl className="cf-inspector-policies">
-          {(Object.keys(state.budget.policies) as Array<keyof InteractionPolicies>).map((policy) => (
-            <div key={policy}>
-              <dt>{POLICY_COPY[policy].title}</dt>
-              <dd>{state.budget.policies[policy] ? 'ON' : 'OFF'} · {POLICY_COPY[policy].body}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-      <section className="cf-inspector-section">
-        <span className="cf-eyebrow">REQUIRED PLAN</span>
-        <ol className="cf-inspector-plan">
-          {state.session.plan.steps.map((step, index) => (
-            <li key={step.id}>
-              <strong>{step.title}</strong>
-              <span>{state.session.completedStepIds.includes(step.id)
-                ? 'COMPLETED'
-                : index === state.session.stepIndex
-                  ? 'CURRENT'
-                  : 'UPCOMING'} · {step.kind.toUpperCase()}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-      {state.session.plan.extractedFacts.length > 0 && (
-        <section className="cf-inspector-section">
-          <span className="cf-eyebrow">EXACT EVIDENCE</span>
-          {state.session.plan.extractedFacts.map((fact) => (
-            <details className="cf-evidence" key={fact.id}>
-              <summary><span>{fact.label}</span><strong>{fact.value}</strong></summary>
-              <blockquote>{fact.evidenceQuote}</blockquote>
-            </details>
-          ))}
-        </section>
-      )}
-      {state.session.plan.later.length > 0 && (
-        <section className="cf-inspector-section cf-later">
-          <span className="cf-eyebrow">{state.budget.policies.deferOptionalWork ? 'LATER' : 'OPTIONAL'} · WHOLE NONREQUIRED TASKS</span>
-          {state.session.plan.later.map((item) => (
-            <article key={item.id}><h3>{item.title}</h3><p>{item.body}</p></article>
-          ))}
-        </section>
-      )}
-        </>
+        <div className="cf-authored-inspector">
+          <span className="cf-eyebrow">COMPLETE PLAN · READ ONLY</span>
+          <ol className="cf-inspector-plan">
+            {state.session.plan.steps.map((step, index) => (
+              <li key={step.id}>
+                <strong>{step.title}</strong>
+                <span>{state.session.completedStepIds.includes(step.id) ? 'COMPLETED' : index === state.session.stepIndex ? 'CURRENT' : 'UPCOMING'} · {step.kind.toUpperCase()}</span>
+              </li>
+            ))}
+          </ol>
+          {state.session.plan.later.length > 0 && (
+            <section className="cf-later">
+              <span className="cf-eyebrow">LATER · OPTIONAL WORK KEPT WHOLE</span>
+              {state.session.plan.later.map((item) => <article key={item.id}><h3>{item.title}</h3><p>{item.body}</p></article>)}
+            </section>
+          )}
+          <ActionButton onClick={returnToTask}>RETURN</ActionButton>
+        </div>
       )}
     </InspectorSheet>
   )
 }
 
-function ActiveWorkspace({
-  state,
-  dispatch,
-  headingRef,
-  onEnd,
-  onCompleteStep,
-}: {
+function ActiveWorkspace({ state, dispatch, onEnd, onCompleteStep }: {
   state: Extract<CarryForwardState, { kind: 'active' }>
   dispatch: React.Dispatch<CarryForwardEvent>
-  headingRef: React.Ref<HTMLHeadingElement>
   onEnd: () => void
   onCompleteStep: () => void
 }) {
   const { plan } = state.session
   const step = plan.steps[state.session.stepIndex]
-  const ready = isStepReady(step, state.session)
-
+  const finalStep = state.session.stepIndex === plan.steps.length - 1
   return (
-    <div className="cf-runtime">
+    <div className="cf-runtime cf-runtime--authored">
       <aside className="cf-task-rail" aria-label="Task plan">
         <a href="/" className="cf-wordmark">bad day<br />receipt</a>
         <div>
-          <span className="cf-eyebrow">TASK PLAN · {plan.steps.length} STEPS</span>
+          <span className="cf-eyebrow">ONE THING MODE · {plan.steps.length} REQUIRED STEPS</span>
           <ol>
             {plan.steps.map((item, index) => (
               <li key={item.id} data-active={index === state.session.stepIndex || undefined} data-complete={state.session.completedStepIds.includes(item.id) || undefined}>
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <strong>{item.title}</strong>
+                <span>{String(index + 1).padStart(2, '0')}</span><strong>{item.title}</strong>
               </li>
             ))}
           </ol>
@@ -219,10 +218,7 @@ function ActiveWorkspace({
         </div>
       </aside>
       <main className="cf-workspace">
-        <div className="cf-mobile-runtime-head">
-          <a href="/" className="cf-wordmark">bad day receipt</a>
-          <button type="button" onClick={onEnd}>END MODE</button>
-        </div>
+        <div className="cf-mobile-runtime-head"><span>ONE THING MODE</span><button type="button" onClick={onEnd}>END MODE</button></div>
         <TaskProgress steps={plan.steps} activeIndex={state.session.stepIndex} completedStepIds={state.session.completedStepIds} />
         <div className="cf-mobile-runtime-links">
           <button type="button" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'plan' })}>COMPLETE PLAN</button>
@@ -231,37 +227,19 @@ function ActiveWorkspace({
         <TaskStepShell
           eyebrow={`STEP ${state.session.stepIndex + 1} OF ${plan.steps.length} · ${step.kind.toUpperCase()}`}
           title={step.title}
-          headingRef={headingRef}
+          headingRef={(node) => node?.setAttribute('data-screen-heading', '')}
           footer={(
             <div className="cf-step-actions">
-              {state.session.stepIndex > 0 && (
-                <ActionButton variant="quiet" onClick={() => dispatch({ type: 'PREVIOUS_STEP' })}>BACK</ActionButton>
-              )}
-              <ActionButton disabled={!ready} onClick={onCompleteStep}>
-                {state.session.stepIndex === plan.steps.length - 1 ? 'FINISH PLAN' : 'COMPLETE STEP'}
-              </ActionButton>
+              {state.session.stepIndex > 0 && <ActionButton variant="quiet" onClick={() => dispatch({ type: 'PREVIOUS_STEP' })}>BACK</ActionButton>}
+              <ActionButton disabled={!isStepReady(step, state.session)} onClick={onCompleteStep}>{getStepActionLabel(step, finalStep)}</ActionButton>
             </div>
           )}
         >
-          <TaskStepRenderer
-            step={step}
-            plan={plan}
-            session={state.session}
-            fewerDecisions={state.budget.policies.fewerDecisions}
-            dispatch={dispatch}
-          />
+          <TaskStepRenderer step={step} plan={plan} session={state.session} fewerDecisions={state.budget.policies.fewerDecisions} dispatch={dispatch} />
           {!state.budget.policies.oneStepAtATime && (
             <section className="cf-plan-context" aria-label="Visible plan context">
-              <span className="cf-eyebrow">PLAN CONTEXT · ONE STEP POLICY OFF</span>
-              <ol>
-                {plan.steps.map((planStep, index) => (
-                  <li key={planStep.id} data-current={index === state.session.stepIndex || undefined}>
-                    <span>{String(index + 1).padStart(2, '0')}</span>
-                    <strong>{planStep.title}</strong>
-                    <small>{index < state.session.stepIndex ? 'COMPLETE' : index === state.session.stepIndex ? 'CURRENT' : 'UPCOMING'}</small>
-                  </li>
-                ))}
-              </ol>
+              <span className="cf-eyebrow">COMPLETE REQUIRED PLAN</span>
+              <ol>{plan.steps.map((item, index) => <li key={item.id} data-current={index === state.session.stepIndex || undefined}><span>{String(index + 1).padStart(2, '0')}</span><strong>{item.title}</strong><small>{index < state.session.stepIndex ? 'COMPLETE' : index === state.session.stepIndex ? 'CURRENT' : 'UPCOMING'}</small></li>)}</ol>
             </section>
           )}
         </TaskStepShell>
@@ -273,63 +251,52 @@ function ActiveWorkspace({
 export default function CarryForwardApp() {
   const [state, dispatch] = useReducer(carryForwardReducer, undefined, () => createInitialCarryForwardState())
   const [outputMessage, setOutputMessage] = useState('')
-  const headingRef = useRef<HTMLHeadingElement | null>(null)
   const compileStartedAtRef = useRef(0)
+  const openedRef = useRef(false)
+  const taskFieldRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     document.title = 'Carry Forward · Bad Day Receipt'
+    const announceOpen = (openedState: CarryForwardTelemetryProperties['state']) => {
+      if (openedRef.current) return
+      openedRef.current = true
+      emitCarryForwardTelemetry('carry_forward_opened', { state: openedState })
+    }
     const stored = loadCarryForwardSession(window.localStorage)
     if (stored.status === 'ready') {
       if (stored.value.status === 'fallback') {
-        dispatch({
-          type: 'RESTORE_FALLBACK',
-          draft: stored.value.draft,
-          budget: stored.value.budget,
-          reason: stored.value.reason,
-          manualItems: stored.value.manualItems,
-          manualDraft: stored.value.manualDraft,
-        })
+        dispatch({ type: 'RESTORE_FALLBACK', draft: stored.value.draft, budget: stored.value.budget, reason: stored.value.reason, manualItems: stored.value.manualItems, manualDraft: stored.value.manualDraft })
+        announceOpen('fallback')
       } else {
-        dispatch({
-          type: 'RESTORE_SESSION',
-          status: stored.value.status,
-          task: stored.value.task,
-          budget: stored.value.budget,
-          session: stored.value.session,
-        })
+        dispatch({ type: 'RESTORE_SESSION', ...stored.value })
+        announceOpen(stored.value.status)
       }
     } else if (stored.status === 'expired') {
       dispatch({ type: 'EXPIRE' })
+      announceOpen('expired')
     } else {
       const receiptId = consumeReceiptSeed(window.sessionStorage)
       if (receiptId) dispatch({ type: 'APPLY_RECEIPT_SEED', receiptId })
+      announceOpen(receiptId ? 'bridge' : 'input')
     }
-    emitCarryForwardTelemetry('carry_forward_opened', { state: 'input' })
   }, [])
 
   useEffect(() => {
-    const animation = window.requestAnimationFrame(() => headingRef.current?.focus())
-    return () => window.cancelAnimationFrame(animation)
+    const frame = window.requestAnimationFrame(() => {
+      if (state.kind === 'input' && state.screen === 'task') taskFieldRef.current?.focus()
+      else document.querySelector<HTMLElement>('[data-screen-heading]')?.focus()
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [state.kind, state.kind === 'input' ? state.screen : '', state.kind === 'active' ? state.session.stepIndex : -1])
 
   useEffect(() => {
     if (state.kind === 'fallback' && state.budget) {
-      saveCarryForwardFallback(window.localStorage, {
-        status: 'fallback',
-        draft: state.draft,
-        budget: state.budget,
-        reason: state.reason,
-        manualItems: state.manualItems,
-        manualDraft: state.manualDraft,
-      })
+      saveCarryForwardFallback(window.localStorage, { status: 'fallback', draft: state.draft, budget: state.budget, reason: state.reason, manualItems: state.manualItems, manualDraft: state.manualDraft })
       return
     }
     if (state.kind !== 'active' && state.kind !== 'complete' && state.kind !== 'explaining') return
-    const status = state.kind === 'complete' || (state.kind === 'explaining' && state.returnTo === 'complete')
-      ? 'complete' as const
-      : 'active' as const
     saveCarryForwardSession(window.localStorage, {
-      status,
+      status: state.kind === 'complete' || (state.kind === 'explaining' && state.returnTo === 'complete') ? 'complete' : 'active',
       task: state.task,
       budget: state.budget,
       session: state.session,
@@ -356,7 +323,6 @@ export default function CarryForwardApp() {
     if (state.kind !== 'compiling') return
     const snapshot = state
     const phaseFrame = window.requestAnimationFrame(() => dispatch({ type: 'COMPILE_PHASE', phase: 'awaiting-plan' }))
-
     const handleFailure = (error: unknown) => {
       const reason = error instanceof CarryForwardCompileError ? error.reason : 'server_error'
       emitCarryForwardTelemetry('carry_forward_compile_failed', { state: 'fallback', errorCode: reason })
@@ -367,42 +333,23 @@ export default function CarryForwardApp() {
       onSuccess: (result) => {
         dispatch({ type: 'COMPILE_PHASE', phase: 'validating-plan' })
         const startedAt = new Date().toISOString()
-        const session = initialSession(result.plan, startedAt)
-        const persisted = saveCarryForwardSession(window.localStorage, {
-          status: 'active',
-          task: snapshot.draft.task,
-          budget: snapshot.budget,
-          session,
-        })
-        if (!persisted) {
-          emitCarryForwardTelemetry('carry_forward_compile_failed', { state: 'fallback', errorCode: 'server_error' })
-          dispatch({ type: 'COMPILE_FAILURE', reason: 'server_error' })
+        const session = createCompiledRuntimeSession(result.plan, startedAt, snapshot.resume)
+        if (!saveCarryForwardSession(window.localStorage, { status: 'active', task: snapshot.draft.task, budget: snapshot.budget, session })) {
+          handleFailure(new CarryForwardCompileError('server_error'))
           return
         }
-        emitCarryForwardTelemetry('carry_forward_compile_succeeded', {
-          state: 'active',
-          stepCount: result.plan.steps.length,
-          repaired: result.repaired,
-          durationMs: Math.max(0, performance.now() - compileStartedAtRef.current),
-        })
+        emitCarryForwardTelemetry('carry_forward_compile_succeeded', { state: 'active', stepCount: result.plan.steps.length, repaired: result.repaired, durationMs: Math.max(0, performance.now() - compileStartedAtRef.current) })
         dispatch({ type: 'COMPILE_SUCCESS', plan: result.plan, startedAt })
       },
       onFailure: handleFailure,
       onTimeout: () => handleFailure(new CarryForwardCompileError('timeout')),
     })
     void run.promise
-
     return () => {
       window.cancelAnimationFrame(phaseFrame)
       run.cancel()
     }
   }, [state.kind])
-
-  const startCompile = () => {
-    compileStartedAtRef.current = performance.now()
-    emitCarryForwardTelemetry('carry_forward_compile_started', { state: 'compiling' })
-    dispatch({ type: 'START_COMPILE' })
-  }
 
   const reset = () => {
     clearCarryForwardSession(window.localStorage)
@@ -410,387 +357,140 @@ export default function CarryForwardApp() {
   }
 
   const endMode = () => {
-    if (state.kind !== 'active' && state.kind !== 'explaining') return
-    const hasWork = state.session.completedStepIds.length > 0
-      || Object.keys(state.session.choices).length > 0
-      || Object.keys(state.session.checkedItems).length > 0
-      || Object.keys(state.session.composeDrafts).length > 0
-    if (hasWork && !window.confirm('End One Thing Mode and clear this temporary task?')) return
-    emitCarryForwardTelemetry('carry_forward_ended', {
-      state: 'active',
-      stepCount: state.session.completedStepIds.length,
-      durationMs: Math.max(0, Date.now() - new Date(state.session.startedAt).getTime()),
-    })
-    reset()
+    const activeLike = state.kind === 'active' || state.kind === 'explaining' || state.kind === 'complete'
+    const compiling = state.kind === 'compiling'
+    if (!activeLike && !compiling && state.kind !== 'preview' && state.kind !== 'budget') return
+    if (activeLike) {
+      emitCarryForwardTelemetry('carry_forward_ended', {
+        state: 'active',
+        stepCount: state.session.completedStepIds.length,
+        durationMs: Math.max(0, Date.now() - new Date(state.session.startedAt).getTime()),
+      })
+    }
+    const receiptId = compiling || state.kind === 'preview' || state.kind === 'budget'
+      ? state.draft.receiptId
+      : state.budget.receiptId
+    clearCarryForwardSession(window.localStorage)
+    dispatch({ type: 'RESET' })
+    if (receiptId) window.location.assign('/')
   }
 
   const completeStep = (activeState: Extract<CarryForwardState, { kind: 'active' }>) => {
     const step = activeState.session.plan.steps[activeState.session.stepIndex]
     if (!step || !isStepReady(step, activeState.session)) return
-    emitCarryForwardTelemetry('carry_forward_step_completed', {
-      state: 'active',
-      stepKind: step.kind,
-      stepIndex: activeState.session.stepIndex,
-      stepCount: activeState.session.plan.steps.length,
-    })
+    emitCarryForwardTelemetry('carry_forward_step_completed', { state: 'active', stepKind: step.kind, stepIndex: activeState.session.stepIndex, stepCount: activeState.session.plan.steps.length })
     if (activeState.session.stepIndex === activeState.session.plan.steps.length - 1) {
-      emitCarryForwardTelemetry('carry_forward_completed', {
-        state: 'complete',
-        stepCount: activeState.session.plan.steps.length,
-        durationMs: Math.max(0, Date.now() - new Date(activeState.session.startedAt).getTime()),
-      })
+      emitCarryForwardTelemetry('carry_forward_completed', { state: 'complete', stepCount: activeState.session.plan.steps.length, durationMs: Math.max(0, Date.now() - new Date(activeState.session.startedAt).getTime()) })
     }
     dispatch({ type: 'COMPLETE_STEP' })
   }
 
-  const trackOutput = (outputKind: 'copy' | 'download', outcome: 'success' | 'failure', manual: boolean) => {
-    emitCarryForwardTelemetry('carry_forward_output_completed', { outputKind, outcome, manual })
-  }
-
-  const screenCode = getStateCode(state)
-
-  if (state.kind === 'active') {
-    return <div className="cf-app" data-screen={screenCode}><ActiveWorkspace state={state} dispatch={dispatch} headingRef={headingRef} onEnd={endMode} onCompleteStep={() => completeStep(state)} /></div>
-  }
+  if (state.kind === 'active') return <div className="cf-app" data-screen={getScreenCode(state)}><ActiveWorkspace state={state} dispatch={dispatch} onEnd={endMode} onCompleteStep={() => completeStep(state)} /></div>
 
   if (state.kind === 'explaining') {
-    const activeState: Extract<CarryForwardState, { kind: 'active' }> = {
-      kind: 'active',
-      task: state.task,
-      budget: state.budget,
-      session: state.session,
-    }
+    const activeState: Extract<CarryForwardState, { kind: 'active' }> = { kind: 'active', task: state.task, budget: state.budget, session: state.session }
     return (
-      <div className="cf-app" data-screen={screenCode}>
+      <div className="cf-app" data-screen="M11">
         {state.returnTo === 'active'
-          ? <ActiveWorkspace state={activeState} dispatch={dispatch} headingRef={headingRef} onEnd={endMode} onCompleteStep={() => completeStep(activeState)} />
-          : <CompleteScreen state={{ ...state, kind: 'complete' }} dispatch={dispatch} headingRef={headingRef} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} onOutput={trackOutput} />}
-        <RuntimeInspector state={state} dispatch={dispatch} />
+          ? <ActiveWorkspace state={activeState} dispatch={dispatch} onEnd={endMode} onCompleteStep={() => completeStep(activeState)} />
+          : <CompletionScreen state={{ kind: 'complete', task: state.task, budget: state.budget, session: state.session }} dispatch={dispatch} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} />}
+        <RuntimeInspector state={state} dispatch={dispatch} onEnd={endMode} />
       </div>
     )
   }
 
-  if (state.kind === 'complete') {
-    return (
-      <div className="cf-app" data-screen={screenCode}>
-        <CompleteScreen state={state} dispatch={dispatch} headingRef={headingRef} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} onOutput={trackOutput} />
-      </div>
-    )
-  }
+  if (state.kind === 'complete') return <div className="cf-app" data-screen="M12"><CompletionScreen state={state} dispatch={dispatch} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} /></div>
 
-  return (
-    <div className="cf-app" data-screen={screenCode}>
-      <header className="cf-masthead">
-        <a href="/" className="cf-wordmark">bad day<br />receipt</a>
-        <div className="cf-masthead__meta">
-          <span>CARRY FORWARD · {screenCode}</span>
-          <span><i aria-hidden="true" /> LOCAL-FIRST · 4 HOUR WINDOW</span>
-        </div>
-      </header>
-      <main className="cf-intake-shell">
-        <aside className="cf-intake-context" aria-label="Carry Forward context">
-          <span className="cf-eyebrow">WHEN A RECEIPT BECOMES A TASK</span>
-          <h2>Carry one thing forward.</h2>
-          <p>Turn a heavy, real-world task into a small deterministic plan—without turning the model into the product.</p>
-          <ol aria-label="Carry Forward stages">
-            <li data-active={state.kind === 'input' || undefined}>01 · INPUT</li>
-            <li data-active={state.kind === 'budget' || undefined}>02 · BUDGET</li>
-            <li data-active={state.kind === 'preview' || state.kind === 'compiling' || undefined}>03 · COMPILE</li>
-            <li>04 · DO</li>
-          </ol>
-        </aside>
-        <section className="cf-intake-card">
-          {state.kind === 'input' && state.screen === 'task' && (
-            <>
-              <span className="cf-eyebrow">01 · NAME THE TASK</span>
-              <h1 ref={headingRef} tabIndex={-1}>What needs to get done?</h1>
-              {state.draft.receiptId && <StatusBanner title="Receipt connected">Only receipt {state.draft.receiptId} is attached as provenance. No receipt text was copied.</StatusBanner>}
-              <InputField
-                id="carry-task"
-                label="ONE CONCRETE TASK"
-                hint="Use a verb and a finish line. Example: prepare and submit my insurance denial appeal."
-                error={state.error}
-                value={state.draft.task}
-                onChange={(value) => dispatch({ type: 'UPDATE_TASK', value })}
-                maxLength={TASK_PLAN_LIMITS.task}
-                placeholder="Prepare and submit…"
-              />
-              <button
-                type="button"
-                className="cf-inline-action"
-                onClick={() => {
-                  dispatch({ type: 'UPDATE_TASK', value: INSURANCE_DENIAL_TASK })
-                  dispatch({ type: 'UPDATE_SOURCE', value: INSURANCE_DENIAL_SOURCE })
-                }}
-              >
-                LOAD INSURANCE DENIAL DEMO
-              </button>
-              <details className="cf-demo-controls">
-                <summary>VIEW RECOVERY DEMOS</summary>
-                <div>
-                  <button type="button" onClick={() => dispatch({ type: 'LOAD_AMBIGUOUS_DEMO' })}>AMBIGUOUS TASK</button>
-                  <button type="button" onClick={() => dispatch({
-                    type: 'OPEN_DEMO_FALLBACK',
-                    budget: createInteractionBudget({ policies: DEFAULT_INTERACTION_POLICIES, receiptId: state.draft.receiptId }),
-                  })}>COMPILER FAILURE</button>
-                  <button type="button" onClick={() => dispatch({ type: 'EXPIRE' })}>EXPIRED SESSION</button>
-                </div>
-              </details>
-              <div className="cf-form-actions">
-                <a href="/" className="cf-text-link">BACK TO RECEIPT</a>
-                <ActionButton disabled={state.draft.task.trim().length < 3} onClick={() => {
-                  if (!hasConcreteTask(state.draft.task)) dispatch({ type: 'TASK_AMBIGUOUS' })
-                  else dispatch({ type: 'NEXT_INPUT' })
-                }}>CONTINUE</ActionButton>
-              </div>
-            </>
-          )}
-
-          {state.kind === 'input' && state.screen === 'source' && (
-            <>
-              <span className="cf-eyebrow">02 · ADD THE SOURCE</span>
-              <h1 ref={headingRef} tabIndex={-1}>Paste the facts you have.</h1>
-              <StatusBanner title="Source boundary">
-                The source is sent once to the server compiler with API storage disabled. This app never writes raw source text to browser storage.
-              </StatusBanner>
-              <details className="cf-data-details">
-                <summary>DATA DETAILS</summary>
-                <p>Assisted planning sends the task and any source you provide to OpenAI only after you compile. OpenAI API data controls may retain content temporarily for abuse monitoring unless additional retention controls are enabled. Nothing is added to receipt history, FIELD records, or analytics.</p>
-              </details>
-              <InputField
-                id="carry-source"
-                label="SOURCE TEXT · OPTIONAL"
-                hint="Paste a notice, email, letter, or notes—or continue without one. Remove details the task does not need."
-                value={state.draft.source}
-                onChange={(value) => dispatch({ type: 'UPDATE_SOURCE', value })}
-                multiline
-                maxLength={TASK_PLAN_LIMITS.source}
-                placeholder="Paste the exact source text here…"
-              />
-              <div className="cf-form-actions">
-                <ActionButton variant="quiet" onClick={() => dispatch({ type: 'BACK_INPUT' })}>BACK</ActionButton>
-                <ActionButton onClick={() => dispatch({ type: 'OPEN_BUDGET' })}>SET INTERACTION BUDGET</ActionButton>
-              </div>
-            </>
-          )}
-
-          {state.kind === 'budget' && (
-            <>
-              <span className="cf-eyebrow">03 · DECLARE THE BUDGET</span>
-              <h1 ref={headingRef} tabIndex={-1}>Choose how the plan should behave.</h1>
-              <p className="cf-lede">These four policies are independent. The compiler receives exactly what you confirm.</p>
-              <div className="cf-policy-grid">
-                {(Object.keys(state.policies) as Array<keyof InteractionPolicies>).map((policy) => (
-                  <InteractionPolicyCard key={policy} policy={policy} selected={state.policies[policy]} onToggle={() => dispatch({ type: 'TOGGLE_POLICY', policy })} />
-                ))}
-              </div>
-              <div className="cf-form-actions">
-                <ActionButton variant="quiet" onClick={() => dispatch({ type: 'BACK_TO_SOURCE' })}>BACK</ActionButton>
-                <ActionButton onClick={() => {
-                  const confirmed = createInteractionBudget({ policies: state.policies, receiptId: state.draft.receiptId })
-                  emitCarryForwardTelemetry('carry_forward_budget_confirmed', { state: 'budget', ...telemetryPolicies(state.policies) })
-                  dispatch({ type: 'PREVIEW', budget: confirmed })
-                }}>CONFIRM BUDGET</ActionButton>
-              </div>
-            </>
-          )}
-
-          {state.kind === 'preview' && (
-            <>
-              <span className="cf-eyebrow">04 · PREVIEW</span>
-              <h1 ref={headingRef} tabIndex={-1}>Ready to compile one plan.</h1>
-              <dl className="cf-preview-list">
-                <div><dt>TASK</dt><dd>{state.draft.task}</dd></div>
-                <div><dt>SOURCE</dt><dd>{state.draft.source.length > 0 ? `${state.draft.source.length} characters · not stored by this app` : 'No source provided · extracted facts will be omitted'}</dd></div>
-                <div><dt>PLAN LIMIT</dt><dd>1–5 required steps · 5 known step kinds</dd></div>
-                <div><dt>EXPIRES</dt><dd>{new Date(state.budget.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</dd></div>
-              </dl>
-              <div className="cf-policy-summary">
-                {(Object.keys(state.budget.policies) as Array<keyof InteractionPolicies>).map((policy) => (
-                  <span key={policy} data-on={state.budget.policies[policy] || undefined}>{POLICY_COPY[policy].title} · {state.budget.policies[policy] ? 'ON' : 'OFF'}</span>
-                ))}
-              </div>
-              <StatusBanner title="Nothing runs automatically">Compile sends one bounded request. No links, tools, external actions, or generated UI are allowed.</StatusBanner>
-              <div className="cf-form-actions">
-                <ActionButton variant="quiet" onClick={() => dispatch({ type: 'EDIT_BUDGET' })}>EDIT BUDGET</ActionButton>
-                <ActionButton onClick={startCompile}>COMPILE TASK PLAN</ActionButton>
-              </div>
-            </>
-          )}
-
-          {state.kind === 'compiling' && (
-            <div className="cf-compile" aria-live="polite">
-              <span className="cf-eyebrow">05 · BOUNDED COMPILER</span>
-              <h1 ref={headingRef} tabIndex={-1}>Building the smallest useful plan.</h1>
-              <div className="cf-compile-mark" aria-hidden="true"><span /><span /><span /></div>
-              <ol>
-                {COMPILE_PHASES.map((phase) => {
-                  const activeIndex = COMPILE_PHASES.findIndex((item) => item.id === state.phase)
-                  const index = COMPILE_PHASES.findIndex((item) => item.id === phase.id)
-                  return <li key={phase.id} data-active={index === activeIndex || undefined} data-complete={index < activeIndex || undefined}>{phase.label}</li>
-                })}
-              </ol>
-              <p>Raw model output is never rendered. Only a strict plan with verified evidence can continue.</p>
+  const screen = state.kind === 'input' && state.screen === 'bridge'
+    ? <ReceiptBridge state={state} dispatch={dispatch} />
+    : state.kind === 'input' && state.screen === 'task'
+      ? (
+        <>
+          <div className="cf-authored-content">
+            <span className="cf-eyebrow">ONE THING MODE · 01</span>
+            <h1 tabIndex={-1} data-screen-heading>What still needs doing?</h1>
+            <p className="cf-authored-lede">Name an action, not the whole situation. One task is enough.</p>
+            <div className="cf-task-examples"><span>EXAMPLES</span><p>Reply · choose · prepare · review</p></div>
+            <div ref={(node: HTMLDivElement | null) => { taskFieldRef.current = node?.querySelector('input') ?? null }}>
+              <InputField id="carry-task" label="WHAT STILL NEEDS DOING?" hint="You can change this before the plan is compiled." error={state.error} value={state.draft.task} onChange={(value) => dispatch({ type: 'UPDATE_TASK', value })} maxLength={TASK_PLAN_LIMITS.task} placeholder="Reply to…" />
             </div>
-          )}
-
-          {state.kind === 'fallback' && (
+          </div>
+          <div className="cf-authored-dock"><ActionButton disabled={state.draft.task.trim().length < 3} onClick={() => hasConcreteTask(state.draft.task) ? dispatch({ type: 'NEXT_INPUT' }) : dispatch({ type: 'TASK_AMBIGUOUS' })}>ADD TASK CONTEXT →</ActionButton><ActionButton variant="quiet" onClick={() => window.location.assign('/')}>CANCEL</ActionButton></div>
+        </>
+      )
+      : state.kind === 'input' && state.screen === 'source'
+        ? (
+          <>
+            <div className="cf-authored-content"><span className="cf-eyebrow">ONE THING MODE · 02</span><h1 tabIndex={-1} data-screen-heading>Give the task only what it needs.</h1><InputField id="carry-source" label="OPTIONAL SOURCE CONTEXT" hint="Remove account numbers or details the response does not require." value={state.draft.source} onChange={(value) => dispatch({ type: 'UPDATE_SOURCE', value })} multiline maxLength={TASK_PLAN_LIMITS.source} placeholder="Paste the exact source text here…" /><StatusBanner title="Assisted planning disclosure">This task and source text will be sent to OpenAI only after you approve the adaptation preview and begin One Thing Mode. Bad Day Receipt does not add it to receipt history, FIELD records, analytics, or exports.</StatusBanner></div>
+            <div className="cf-authored-dock"><ActionButton onClick={() => dispatch({ type: 'OPEN_BUDGET' })}>DECLARE INTERACTION BUDGET →</ActionButton><ActionButton variant="secondary" onClick={() => { dispatch({ type: 'UPDATE_SOURCE', value: '' }); dispatch({ type: 'OPEN_BUDGET' }) }}>CONTINUE WITHOUT SOURCE</ActionButton><ActionButton variant="quiet" onClick={() => dispatch({ type: 'BACK_INPUT' })}>BACK</ActionButton></div>
+          </>
+        )
+        : state.kind === 'input' && state.screen === 'recovery'
+          ? (
             <>
-              <span className="cf-eyebrow">SAFE FALLBACK</span>
-              <h1 ref={headingRef} tabIndex={-1}>{FALLBACK_COPY[state.reason].title}</h1>
-              <StatusBanner tone="warning" title="Nothing partial was used">{FALLBACK_COPY[state.reason].body}</StatusBanner>
-              <fieldset className="cf-manual-list">
-                <legend>MAKE A MANUAL 1–5 STEP PLAN</legend>
-                {state.manualItems.map((item, index) => (
-                  <div key={index}>
-                    <label htmlFor={`manual-${index}`}>{String(index + 1).padStart(2, '0')}</label>
-                    <input id={`manual-${index}`} value={item} maxLength={160} onChange={(event) => dispatch({ type: 'UPDATE_MANUAL_ITEM', index, value: event.target.value })} />
-                    {state.manualItems.length > 1 && <button type="button" aria-label={`Remove manual step ${index + 1}`} onClick={() => dispatch({ type: 'REMOVE_MANUAL_ITEM', index })}>×</button>}
-                  </div>
-                ))}
-                {state.manualItems.length < 5 && <button type="button" className="cf-inline-action" onClick={() => dispatch({ type: 'ADD_MANUAL_ITEM' })}>+ ADD STEP</button>}
-              </fieldset>
-              <div className="cf-compose cf-manual-draft">
-                <label htmlFor="manual-draft">WORKING DRAFT · OPTIONAL</label>
-                <textarea
-                  id="manual-draft"
-                  rows={8}
-                  maxLength={TASK_PLAN_LIMITS.composeDraft}
-                  value={state.manualDraft}
-                  onChange={(event) => dispatch({ type: 'UPDATE_MANUAL_DRAFT', value: event.target.value })}
-                  placeholder="Keep a note or draft here while you work…"
-                />
-              </div>
-              <div className="cf-form-actions cf-form-actions--wrap">
-                <ActionButton variant="quiet" onClick={() => {
-                  clearCarryForwardSession(window.localStorage)
-                  dispatch({ type: 'EDIT_AFTER_FAILURE' })
-                }}>EDIT SOURCE</ActionButton>
-                <ActionButton variant="secondary" onClick={() => {
-                  const steps = state.manualItems.filter((item) => item.trim()).map((item, index) => `${index + 1}. ${item.trim()}`).join('\n')
-                  const text = `${state.draft.task}\n\n${steps}${state.manualDraft.trim() ? `\n\nDRAFT\n${state.manualDraft.trim()}` : ''}`
-                  void navigator.clipboard.writeText(text)
-                    .then(() => {
-                      trackOutput('copy', 'success', true)
-                      setOutputMessage('MANUAL WORK COPIED')
-                    })
-                    .catch(() => {
-                      trackOutput('copy', 'failure', true)
-                      setOutputMessage('COPY FAILED · DOWNLOAD IS STILL AVAILABLE')
-                    })
-                }} disabled={!state.manualItems.some((item) => item.trim()) && !state.manualDraft.trim()}>COPY MANUAL WORK</ActionButton>
-                <ActionButton variant="secondary" onClick={() => {
-                  const steps = state.manualItems.filter((item) => item.trim()).map((item, index) => `${index + 1}. ${item.trim()}`).join('\n')
-                  const text = `${state.draft.task}\n\n${steps}${state.manualDraft.trim() ? `\n\nDRAFT\n${state.manualDraft.trim()}` : ''}`
-                  try {
-                    const href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
-                    const anchor = document.createElement('a')
-                    anchor.href = href
-                    anchor.download = 'manual-carry-forward.txt'
-                    anchor.click()
-                    URL.revokeObjectURL(href)
-                    trackOutput('download', 'success', true)
-                    setOutputMessage('MANUAL WORK DOWNLOADED')
-                  } catch {
-                    trackOutput('download', 'failure', true)
-                    setOutputMessage('DOWNLOAD FAILED · COPY IS STILL AVAILABLE')
-                  }
-                }} disabled={!state.manualItems.some((item) => item.trim()) && !state.manualDraft.trim()}>DOWNLOAD</ActionButton>
-                <ActionButton onClick={() => {
-                  compileStartedAtRef.current = performance.now()
-                  emitCarryForwardTelemetry('carry_forward_compile_started', { state: 'compiling' })
-                  dispatch({ type: 'RETRY_COMPILE' })
-                }} disabled={!state.budget}>RETRY COMPILER</ActionButton>
-              </div>
-              <p className="cf-output-message" role="status">{outputMessage}</p>
+              <div className="cf-authored-content"><span className="cf-eyebrow cf-warning">PLAN NOT COMPILED</span><h1 tabIndex={-1} data-screen-heading>The task needs one clearer action.</h1><StatusBanner tone="warning" title="Nothing was added to a plan">One concrete outcome is needed before compilation. Your original phrase is preserved.</StatusBanner><div className="cf-recovery-phrase"><span>ORIGINAL PHRASE</span><strong>{state.draft.task}</strong></div><p className="cf-authored-lede">Try one of these shapes:</p><ul className="cf-recovery-examples">{RECOVERY_EXAMPLES.map((example) => <li key={example}>{example}</li>)}</ul></div>
+              <div className="cf-authored-dock"><ActionButton onClick={() => dispatch({ type: 'TRY_AGAIN' })}>TRY AGAIN →</ActionButton><ActionButton variant="quiet" onClick={() => window.location.assign('/')}>END MODE</ActionButton></div>
             </>
-          )}
+          )
+          : state.kind === 'budget'
+            ? (
+              <>
+                <div className="cf-authored-content"><span className="cf-eyebrow">ONE THING MODE · 03</span><h1 tabIndex={-1} data-screen-heading>What should this task ask less of?</h1><p className="cf-authored-lede">These are your requests, not conclusions about you.</p><div className="cf-policy-grid">{(Object.keys(state.policies) as Array<keyof InteractionPolicies>).map((policy) => <InteractionPolicyCard key={policy} policy={policy} selected={state.policies[policy]} onToggle={() => dispatch({ type: 'TOGGLE_POLICY', policy })} />)}</div></div>
+                <div className="cf-authored-dock"><ActionButton onClick={() => { const confirmed = createInteractionBudget({ policies: state.policies, receiptId: state.draft.receiptId }); emitCarryForwardTelemetry('carry_forward_budget_confirmed', { state: 'budget', ...telemetryPolicies(state.policies) }); dispatch({ type: 'PREVIEW', budget: confirmed }) }}>PREVIEW CHANGES →</ActionButton><ActionButton variant="quiet" onClick={() => dispatch({ type: 'BACK_TO_SOURCE' })}>{state.resume ? 'RETURN TO TASK' : 'BACK'}</ActionButton></div>
+              </>
+            )
+            : state.kind === 'preview'
+              ? (
+                <>
+                  <div className="cf-authored-content"><span className="cf-eyebrow">BEFORE ANYTHING CHANGES</span><h1 tabIndex={-1} data-screen-heading>One Thing Mode will…</h1><ol className="cf-adaptation-list">{getAdaptationItems(state.budget.policies).map((item, index) => <li key={item.id}><span>{String(index + 1).padStart(2, '0')}</span><strong>{item.text}</strong></li>)}</ol><div className="cf-invariant"><strong>NOTHING WILL BE SENT AUTOMATICALLY.</strong><p>The layout changes once, after approval, then remains stable until the task ends.</p></div><details className="cf-technical-disclosure"><summary>TECHNICAL BOUNDARY</summary><p>One bounded GPT-5.6 request may be repaired once only after validation. The model has no tools and cannot create interface components.</p></details></div>
+                  <div className="cf-authored-dock"><ActionButton onClick={() => { compileStartedAtRef.current = performance.now(); emitCarryForwardTelemetry('carry_forward_compile_started', { state: 'compiling' }); dispatch({ type: 'START_COMPILE' }) }}>BEGIN ONE THING MODE →</ActionButton><ActionButton variant="secondary" onClick={() => dispatch({ type: 'EDIT_BUDGET' })}>ADJUST</ActionButton>{state.resume && <ActionButton variant="secondary" onClick={() => dispatch({ type: 'RESTORE_ACTIVE_FROM_ADJUSTMENT' })}>RETURN TO TASK</ActionButton>}<ActionButton variant="quiet" onClick={endMode}>END MODE</ActionButton></div>
+                </>
+              )
+              : state.kind === 'compiling'
+                ? (
+                  <>
+                    <div className="cf-authored-content" aria-live="polite"><span className="cf-eyebrow">COMPILING A BOUNDED PLAN</span><h1 tabIndex={-1} data-screen-heading>Preparing the minimum necessary interface…</h1><ol className="cf-compile-stages"><li data-complete><span>01</span><strong>REQUEST ACCEPTED</strong></li><li data-active={state.phase === 'awaiting-plan' || undefined} data-complete={state.phase === 'validating-plan' || undefined}><span>02</span><strong>AWAITING A COMPLETE PLAN</strong></li><li data-active={state.phase === 'validating-plan' || undefined}><span>03</span><strong>VALIDATING BEFORE RENDER</strong></li></ol><div className="cf-invariant"><strong>NO SIDE EFFECTS</strong><p>The compiler has no tools. It cannot send, submit, purchase, delete, browse, or access an account.</p></div></div>
+                    <div className="cf-authored-dock"><ActionButton variant="quiet" onClick={() => dispatch({ type: 'CANCEL_COMPILE' })}>CANCEL</ActionButton><ActionButton variant="quiet" onClick={endMode}>END MODE</ActionButton></div>
+                  </>
+                )
+                : state.kind === 'fallback'
+                  ? <FallbackScreen state={state} dispatch={dispatch} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} />
+                  : <><div className="cf-authored-content"><span className="cf-eyebrow">SESSION EXPIRED</span><h1 tabIndex={-1} data-screen-heading>This temporary task window is closed.</h1><StatusBanner title="Context cleared">The isolated Carry Forward record was removed. Receipt history was not touched.</StatusBanner></div><div className="cf-authored-dock"><ActionButton onClick={reset}>START FRESH</ActionButton><ActionButton variant="quiet" onClick={() => window.location.assign('/')}>RETURN TO RECEIPT</ActionButton></div></>
 
-          {state.kind === 'expired' && (
-            <>
-              <span className="cf-eyebrow">SESSION EXPIRED</span>
-              <h1 ref={headingRef} tabIndex={-1}>This four-hour task window is closed.</h1>
-              <StatusBanner title="Progress was cleared">The isolated Carry Forward record was removed. Your receipt machine data was not touched.</StatusBanner>
-              <div className="cf-form-actions">
-                <a href="/" className="cf-text-link">RETURN TO RECEIPT</a>
-                <ActionButton onClick={reset}>START FRESH</ActionButton>
-              </div>
-            </>
-          )}
-        </section>
-      </main>
-    </div>
-  )
+  return <div className="cf-app" data-screen={getScreenCode(state)}><ProductShell state={state} endAction={state.kind === 'compiling' ? endMode : undefined}>{screen}</ProductShell></div>
 }
 
-function CompleteScreen({
-  state,
-  dispatch,
-  headingRef,
-  outputMessage,
-  setOutputMessage,
-  onReset,
-  onOutput,
-}: {
-  state: Extract<CarryForwardState, { kind: 'complete' }>
+function FallbackScreen({ state, dispatch, outputMessage, setOutputMessage, onReset }: {
+  state: Extract<CarryForwardState, { kind: 'fallback' }>
   dispatch: React.Dispatch<CarryForwardEvent>
-  headingRef: React.Ref<HTMLHeadingElement>
   outputMessage: string
   setOutputMessage: (message: string) => void
   onReset: () => void
-  onOutput: (outputKind: 'copy' | 'download', outcome: 'success' | 'failure', manual: boolean) => void
 }) {
-  const { plan } = state.session
   return (
-    <main className="cf-complete">
-      <header className="cf-complete__head">
-        <a href="/" className="cf-wordmark">bad day<br />receipt</a>
-        <span>PLAN COMPLETE · M12</span>
-      </header>
-      <article className="cf-completion-slip">
-        <span className="cf-eyebrow">ONE THING CLOSED · CARRY FORWARD COMPLETE</span>
-        <h1 ref={headingRef} tabIndex={-1}>{plan.title}</h1>
-        <p>{plan.summary}</p>
-        <StatusBanner tone="success" title="Nothing was sent automatically">
-          Temporary task context expires at {new Date(state.budget.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} unless you clear it now.
-        </StatusBanner>
-        <ol>{plan.steps.map((step) => <li key={step.id}><span>✓</span><strong>{step.title}</strong></li>)}</ol>
-        {plan.later.length > 0 && (
-          <section className="cf-later">
-            <span className="cf-eyebrow">LATER · OPTIONAL WORK KEPT WHOLE</span>
-            {plan.later.map((item) => <article key={item.id}><h2>{item.title}</h2><p>{item.body}</p></article>)}
-          </section>
-        )}
-        <footer>
-          <ActionButton variant="quiet" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'why' })}>WHY THIS VIEW</ActionButton>
-          <ActionButton variant="quiet" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'plan' })}>SHOW COMPLETE PLAN</ActionButton>
-          <ActionButton variant="secondary" onClick={() => {
-            void copyPlanOutput(plan, state.session).then(() => {
-              onOutput('copy', 'success', false)
-              setOutputMessage('PLAN COPIED')
-            }).catch(() => {
-              onOutput('copy', 'failure', false)
-              setOutputMessage('COPY FAILED · DOWNLOAD IS STILL AVAILABLE')
-            })
-          }}>COPY PLAN</ActionButton>
-          <ActionButton onClick={() => {
-            try {
-              downloadPlanOutput(plan, state.session)
-              onOutput('download', 'success', false)
-              setOutputMessage('PLAN DOWNLOADED')
-            } catch {
-              onOutput('download', 'failure', false)
-              setOutputMessage('DOWNLOAD FAILED · COPY IS STILL AVAILABLE')
-            }
-          }}>DOWNLOAD PLAN</ActionButton>
-        </footer>
-        <p className="cf-output-message" role="status">{outputMessage}</p>
-      </article>
-      <div className="cf-complete-exits">
-        <a href="/">RETURN TO RECEIPT</a>
-        <button type="button" onClick={onReset}>CLEAR TASK DATA</button>
-        <button type="button" onClick={onReset}>START ANOTHER TASK</button>
-      </div>
+    <>
+      <div className="cf-authored-content"><span className="cf-eyebrow">SAFE MANUAL FALLBACK</span><h1 tabIndex={-1} data-screen-heading>{FALLBACK_COPY[state.reason].title}</h1><StatusBanner tone="warning" title="Nothing partial was used">{FALLBACK_COPY[state.reason].body}</StatusBanner><fieldset className="cf-manual-list"><legend>MAKE A MANUAL 1–5 STEP PLAN</legend>{state.manualItems.map((item, index) => <div key={index}><label htmlFor={`manual-${index}`}>{String(index + 1).padStart(2, '0')}</label><input id={`manual-${index}`} value={item} maxLength={160} onChange={(event) => dispatch({ type: 'UPDATE_MANUAL_ITEM', index, value: event.target.value })} />{state.manualItems.length > 1 && <button type="button" aria-label={`Remove manual step ${index + 1}`} onClick={() => dispatch({ type: 'REMOVE_MANUAL_ITEM', index })}>×</button>}</div>)}{state.manualItems.length < 5 && <button type="button" className="cf-inline-action" onClick={() => dispatch({ type: 'ADD_MANUAL_ITEM' })}>+ ADD STEP</button>}</fieldset><div className="cf-compose cf-manual-draft"><label htmlFor="manual-draft">WORKING DRAFT · OPTIONAL</label><textarea id="manual-draft" rows={8} maxLength={TASK_PLAN_LIMITS.composeDraft} value={state.manualDraft} onChange={(event) => dispatch({ type: 'UPDATE_MANUAL_DRAFT', value: event.target.value })} /></div><p className="cf-output-message" role="status">{outputMessage}</p></div>
+      <div className="cf-authored-dock"><ActionButton variant="quiet" onClick={() => { clearCarryForwardSession(window.localStorage); dispatch({ type: 'EDIT_AFTER_FAILURE' }) }}>EDIT SOURCE</ActionButton><ActionButton variant="secondary" disabled={!state.manualItems.some((item) => item.trim()) && !state.manualDraft.trim()} onClick={() => { const text = `${state.draft.task}\n\n${state.manualItems.filter((item) => item.trim()).map((item, index) => `${index + 1}. ${item.trim()}`).join('\n')}${state.manualDraft.trim() ? `\n\nDRAFT\n${state.manualDraft.trim()}` : ''}`; void navigator.clipboard.writeText(text).then(() => setOutputMessage('MANUAL WORK COPIED')).catch(() => setOutputMessage('COPY FAILED')) }}>COPY MANUAL WORK</ActionButton><ActionButton onClick={() => { emitCarryForwardTelemetry('carry_forward_compile_started', { state: 'compiling' }); dispatch({ type: 'RETRY_COMPILE' }) }} disabled={!state.budget}>RETRY COMPILER</ActionButton><ActionButton variant="quiet" onClick={onReset}>END MODE</ActionButton></div>
+    </>
+  )
+}
+
+function CompletionScreen({ state, dispatch, outputMessage, setOutputMessage, onReset }: {
+  state: Extract<CarryForwardState, { kind: 'complete' }>
+  dispatch: React.Dispatch<CarryForwardEvent>
+  outputMessage: string
+  setOutputMessage: (message: string) => void
+  onReset: () => void
+}) {
+  const proof = getCompletionProof(state.session.plan, state.session)
+  const expires = new Date(state.budget.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return (
+    <main className="cf-authored-shell cf-completion" data-state="M12">
+      <header className="cf-authored-system-bar"><span>CARRY FORWARD</span><span>PRIVATE · TEMPORARY</span></header>
+      <section className="cf-authored-scene">
+        <div className="cf-authored-content"><span className="cf-eyebrow cf-success">TRANSACTION COMPLETE</span><h1 tabIndex={-1} data-screen-heading>One thing closed.</h1><article className="cf-completion-proof"><span>{proof.taskTitle}</span><strong>PREPARED FOR REVIEW</strong><p>{proof.requiredCompleted} of {proof.requiredTotal} required steps completed<br />{proof.draftsPrepared} draft{proof.draftsPrepared === 1 ? '' : 's'} prepared<br />{proof.laterCount} Later item{proof.laterCount === 1 ? '' : 's'} preserved</p></article><StatusBanner tone="success" title="No external action is being claimed">Carry Forward prepared the in-app work. It did not send, submit, file, approve, or resolve anything outside this interface.</StatusBanner><div className="cf-temporary-context"><strong>TEMPORARY CONTEXT</strong><p>The validated plan and protected progress expire at {expires}. Clear them now or return to the receipt.</p><button type="button" onClick={onReset}>CLEAR NOW</button></div><details className="cf-completion-details"><summary>OUTPUT AND FULL DETAILS</summary><p>{state.session.plan.summary}</p><div><ActionButton variant="quiet" onClick={() => dispatch({ type: 'OPEN_INSPECTOR', inspector: 'plan' })}>SHOW COMPLETE PLAN</ActionButton><ActionButton variant="secondary" onClick={() => { void copyPlanOutput(state.session.plan, state.session).then(() => { emitCarryForwardTelemetry('carry_forward_output_completed', { outputKind: 'copy', outcome: 'success', manual: false }); setOutputMessage('PLAN COPIED') }).catch(() => { emitCarryForwardTelemetry('carry_forward_output_completed', { outputKind: 'copy', outcome: 'failure', manual: false }); setOutputMessage('COPY FAILED') }) }}>COPY PLAN</ActionButton><ActionButton variant="secondary" onClick={() => { try { downloadPlanOutput(state.session.plan, state.session); emitCarryForwardTelemetry('carry_forward_output_completed', { outputKind: 'download', outcome: 'success', manual: false }); setOutputMessage('PLAN DOWNLOADED') } catch { emitCarryForwardTelemetry('carry_forward_output_completed', { outputKind: 'download', outcome: 'failure', manual: false }); setOutputMessage('DOWNLOAD FAILED') } }}>DOWNLOAD PLAN</ActionButton></div></details><p className="cf-output-message" role="status">{outputMessage}</p></div>
+        <div className="cf-authored-dock"><a className="cf-button cf-button--primary" href="/">RETURN TO RECEIPT</a><ActionButton variant="secondary" onClick={onReset}>START ANOTHER TASK</ActionButton><ActionButton variant="quiet" onClick={onReset}>CLEAR NOW</ActionButton></div>
+      </section>
     </main>
   )
 }
