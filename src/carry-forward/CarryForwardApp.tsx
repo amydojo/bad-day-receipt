@@ -371,8 +371,11 @@ export default function CarryForwardApp() {
       ? state.draft.receiptId
       : state.budget.receiptId
     clearCarryForwardSession(window.localStorage)
+    if (receiptId) {
+      window.location.replace(new URL('/', window.location.href).href)
+      return
+    }
     dispatch({ type: 'RESET' })
-    if (receiptId) window.location.assign('/')
   }
 
   const completeStep = (activeState: Extract<CarryForwardState, { kind: 'active' }>) => {
