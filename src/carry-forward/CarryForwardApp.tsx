@@ -379,7 +379,7 @@ export default function CarryForwardApp() {
       : state.budget.receiptId
     clearCarryForwardSession(window.localStorage)
     if (receiptId) {
-      window.location.replace(new URL('/', window.location.href).href)
+      window.location.assign('/')
       return
     }
     dispatch({ type: 'RESET' })
