@@ -21,25 +21,5 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      - name: Run tests with failure diagnostics
-        id: tests
-        continue-on-error: true
-        run: npm test > test.log 2>&1
-      - name: Package failure diagnostics
-        if: steps.tests.outcome == 'failure'
-        run: |
-          tar --exclude=.git --exclude=node_modules --exclude=repository-source.tgz -czf /tmp/repository-source.tgz .
-          cp /tmp/repository-source.tgz repository-source.tgz
-      - name: Upload failure diagnostics
-        if: steps.tests.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-failure-diagnostics
-          path: |
-            test.log
-            repository-source.tgz
-          retention-days: 1
-      - name: Fail when tests failed
-        if: steps.tests.outcome == 'failure'
-        run: exit 1
+      - run: npm test
       - run: npm run build
