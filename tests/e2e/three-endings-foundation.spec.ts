@@ -3,8 +3,11 @@ import { commitTransaction, openMachine } from '../fixtures/machine'
 import { mockPlatformApis } from '../fixtures/platformApis'
 
 const machineStorageKey = 'bad-day-receipt-machine-v1'
+const foundationEnabled = process.env.VITE_THREE_ENDINGS === 'true'
 
 test.describe('Three Endings foundation', () => {
+  test.skip(!foundationEnabled, 'Three Endings foundation requires VITE_THREE_ENDINGS=true')
+
   test.beforeEach(async ({ page }) => {
     await mockPlatformApis(page)
   })
