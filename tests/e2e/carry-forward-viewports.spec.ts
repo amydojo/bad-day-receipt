@@ -22,22 +22,35 @@ test.describe('Carry Forward viewport gate', () => {
     })
   }
 
-  test('reduced motion removes the compile loop and preserves status text', async ({ page }) => {
+  test('reduced motion makes authored transitions effectively immediate', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/carry-forward')
-    const duration = await page.locator('.cf-app').evaluate((element) => getComputedStyle(element).getPropertyValue('--cf-motion-scene').trim())
-    expect(duration).toBe('420ms')
+    const sceneDuration = await page.locator('.cf-authored-scene').evaluate((element) => getComputedStyle(element).animationDuration)
+    expect(sceneDuration).toBe('0.001s')
     const reducedRulePresent = await page.evaluate(() => [...document.styleSheets].some((sheet) => {
       try { return [...sheet.cssRules].some((rule) => rule.cssText.includes('prefers-reduced-motion')) } catch { return false }
     }))
     expect(reducedRulePresent).toBe(true)
   })
 
+  test('reduced motion preserves rapid state changes and focus clarity', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/carry-forward')
+    await page.getByLabel('WHAT STILL NEEDS DOING?').fill('Reply to the landlord about the repair')
+    await page.getByRole('button', { name: /ADD TASK CONTEXT/ }).click()
+    await expect(page.getByRole('heading', { name: 'Give the task only what it needs.' })).toBeFocused()
+    await page.getByRole('button', { name: 'BACK' }).click()
+    await expect(page.getByLabel('WHAT STILL NEEDS DOING?')).toBeFocused()
+    await expect(page.locator('.cf-app')).toHaveAttribute('data-screen', 'M02')
+  })
+
   test('200% zoom keeps the primary task and exit controls reachable', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 })
     await page.goto('/carry-forward')
     await page.evaluate(() => { document.documentElement.style.fontSize = '200%' })
-    await expect(page.getByRole('link', { name: 'BACK TO RECEIPT' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'CONTINUE', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'CANCEL' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /ADD TASK CONTEXT/ })).toBeVisible()
+    const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, document: document.documentElement.scrollWidth }))
+    expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1)
   })
 })
