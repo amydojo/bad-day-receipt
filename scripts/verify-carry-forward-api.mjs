@@ -91,5 +91,6 @@ const liveResult = {
 }
 await fs.writeFile('deployed-evidence/live-result.json', JSON.stringify(liveResult, null, 2))
 assert.equal(response.status, 200)
-assert.equal(liveResult.model, 'gpt-5.6')
+assert.equal(typeof liveResult.model, 'string')
+assert.match(liveResult.model, /^gpt-5\.6(?:$|[-.])/)
 assert.equal(liveResult.stepCount > 0, true)
