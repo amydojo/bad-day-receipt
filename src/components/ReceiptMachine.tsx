@@ -183,8 +183,8 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     const displayTheme = endingReceipt ? getTheme(endingReceipt.themeId) : theme
     const displayItems = endingReceipt?.items ?? issuedItems
     const displayReceiptNumber = endingReceipt?.receiptNumber
-      ?? state.receiptNumber
-      ?? receiptNumber
+      || state.receiptNumber
+      || receiptNumber
     const displayAnomaly = endingReceipt?.anomaly ?? anomaly
     const displayShareCopy = endingReceipt?.shareCopy ?? shareCopy
     const displayPhase: PrinterPhase = endingReceipt ? 'complete' : state.phase
@@ -256,6 +256,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           showVerdict={showVerdict}
           couponProgress={couponProgress}
           anomaly={displayAnomaly}
+          printedAt={endingReceipt?.completedAt}
         />
       </ReceiptViewport>
     ) : null
