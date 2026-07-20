@@ -41,6 +41,7 @@ jobs:
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
+          mkdir -p deployed-evidence
           for attempt in $(seq 1 60); do
             while read -r deployment_id; do
               [ -n "$deployment_id" ] || continue
@@ -50,8 +51,12 @@ jobs:
                 echo "DEPLOYED_BASE=${url%/}" >> "$GITHUB_ENV"
                 host=${url#https://}
                 host=${host%%/*}
-                echo "Resolved protected Vercel preview for ${HEAD_SHA}: ${host}"
-                getent ahostsv4 "$host" | sort -u || true
+                {
+                  echo "head_sha=${HEAD_SHA}"
+                  echo "deployment_url=${url%/}"
+                  echo "deployment_host=${host}"
+                  getent ahostsv4 "$host" | sort -u
+                } | tee deployed-evidence/resolution.txt
                 exit 0
               fi
             done < <(gh api "repos/${GITHUB_REPOSITORY}/deployments?sha=${HEAD_SHA}&per_page=100" --jq '.[].id')
@@ -76,7 +81,7 @@ jobs:
           RUN_OPENAI_LIVE: '1'
         run: node scripts/verify-carry-forward-api.mjs
       - name: Upload deployed evidence
-        if: always() && env.VERCEL_AUTOMATION_BYPASS_SECRET != ''
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: carry-forward-deployed-evidence
