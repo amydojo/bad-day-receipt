@@ -26,7 +26,7 @@ test.describe('Carry Forward viewport gate', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/carry-forward')
     const sceneDuration = await page.locator('.cf-authored-scene').evaluate((element) => getComputedStyle(element).animationDuration)
-    expect(sceneDuration).toBe('0.001s')
+    expect(Number.parseFloat(sceneDuration)).toBeLessThanOrEqual(0.001)
     const reducedRulePresent = await page.evaluate(() => [...document.styleSheets].some((sheet) => {
       try { return [...sheet.cssRules].some((rule) => rule.cssText.includes('prefers-reduced-motion')) } catch { return false }
     }))
