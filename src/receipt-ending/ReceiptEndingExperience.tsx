@@ -5,7 +5,13 @@ import {
   type ReactNode,
   type Ref,
 } from 'react'
+import type { MachineSensoryDirector } from '../mobile-instrument/sensory/sensoryTypes'
+import type { CompletedReceiptSnapshot } from './completedReceipt'
 import { EndDispositionChoice } from './EndDispositionChoice'
+import {
+  KeepReceiptRitual,
+  type KeepArchiveCommitResult,
+} from './keep/KeepReceiptRitual'
 import { ReceiptDecisionSurface } from './ReceiptDecisionSurface'
 import { RECEIPT_COMPLETION_PAUSE_MS } from './receiptEndingEffects'
 import type {
@@ -21,11 +27,24 @@ export function ReceiptEndingExperience({
   dispatch,
   headingRef,
   persistenceStatus,
+  reducedMotion,
+  sensory,
+  onCommitKeepArchive,
+  onExportLocalCopy,
+  onCloseKeepCompletion,
 }: {
   state: ReceiptEndingState
   dispatch: Dispatch<ReceiptEndingEvent>
   headingRef?: Ref<HTMLElement>
   persistenceStatus: ReceiptEndingPersistenceStatus
+  reducedMotion: boolean
+  sensory: MachineSensoryDirector
+  onCommitKeepArchive: (
+    receipt: CompletedReceiptSnapshot,
+    archivedAt: string,
+  ) => Promise<KeepArchiveCommitResult> | KeepArchiveCommitResult
+  onExportLocalCopy: (receipt: CompletedReceiptSnapshot) => Promise<boolean>
+  onCloseKeepCompletion: () => void
 }) {
   const localHeadingRef = useRef<HTMLHeadingElement | null>(null)
 
@@ -39,15 +58,15 @@ export function ReceiptEndingExperience({
     return () => window.clearTimeout(timeout)
   }, [dispatch, state.kind, state.receipt.receiptNumber])
 
+  const focusToken = getFocusToken(state)
   useEffect(() => {
-    if (state.kind === 'settling') return
-
+    if (!focusToken) return
     const frame = window.requestAnimationFrame(() => {
       localHeadingRef.current?.focus({ preventScroll: true })
     })
 
     return () => window.cancelAnimationFrame(frame)
-  }, [state.kind, state.receipt.receiptNumber])
+  }, [focusToken, state.receipt.receiptNumber])
 
   const assignHeadingRef = (node: HTMLHeadingElement | null) => {
     localHeadingRef.current = node
@@ -113,15 +132,18 @@ export function ReceiptEndingExperience({
       )
       break
 
-    case 'keep-selected':
+    case 'keep-ritual':
+    case 'keep-recovery':
       surface = (
-        <ReceiptEndingHandoff
-          eyebrow="PRESERVATION READY"
-          title="The receipt is ready to be kept."
-          body="Preservation has not completed yet."
-          slot="keep"
+        <KeepReceiptRitual
+          state={state}
+          dispatch={dispatch}
           headingRef={assignHeadingRef}
-          onBack={() => dispatch({ type: 'BACK_TO_DISPOSITION' })}
+          reducedMotion={reducedMotion}
+          sensory={sensory}
+          onCommitArchive={onCommitKeepArchive}
+          onExportLocalCopy={onExportLocalCopy}
+          onClose={onCloseKeepCompletion}
         />
       )
       break
@@ -171,6 +193,7 @@ export function ReceiptEndingExperience({
     <div
       className="receipt-ending-experience"
       data-receipt-ending-state={state.kind}
+      data-keep-phase={state.kind === 'keep-ritual' ? state.phase : undefined}
     >
       {surface}
       {state.kind === 'documented' && (
@@ -180,6 +203,14 @@ export function ReceiptEndingExperience({
       )}
     </div>
   )
+}
+
+function getFocusToken(state: ReceiptEndingState): string | null {
+  if (state.kind === 'settling') return null
+  if (state.kind === 'keep-ritual') {
+    return state.phase === 'complete' ? 'keep-complete' : null
+  }
+  return state.kind
 }
 
 function ReceiptEndingHandoff({
@@ -194,7 +225,7 @@ function ReceiptEndingHandoff({
   eyebrow: string
   title: string
   body: string
-  slot: 'keep' | 'release' | 'carry' | 'recovery'
+  slot: 'release' | 'carry' | 'recovery'
   headingRef: Ref<HTMLHeadingElement>
   onBack: () => void
   backLabel?: string
