@@ -10,7 +10,7 @@ export function ReceiptEndingBoundary({
   persistenceStatus,
 }: {
   state: ReceiptEndingState
-  headingRef?: Ref<HTMLHeadingElement>
+  headingRef?: Ref<HTMLElement>
   persistenceStatus: ReceiptEndingPersistenceStatus
 }) {
   return (
@@ -22,7 +22,7 @@ export function ReceiptEndingBoundary({
       <span>RECEIPT ENDING · FOUNDATION</span>
       <h2
         id="receipt-ending-foundation-heading"
-        ref={headingRef}
+        ref={headingRef as Ref<HTMLHeadingElement>}
         tabIndex={-1}
       >
         The day is documented.
