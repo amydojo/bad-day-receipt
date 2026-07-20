@@ -1,0 +1,59 @@
+name: apply-receipt-authority-fix
+
+on:
+  push:
+    branches:
+      - codex/carry-forward-vertical-slice
+    paths:
+      - '.github/workflows/apply-receipt-authority-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/carry-forward-vertical-slice
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply exact receipt authority patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/carry-forward/CarryForwardApp.tsx')
+          content = path.read_text()
+          old = """    const receiptId = compiling || state.kind === 'preview' || state.kind === 'budget'
+                ? state.draft.receiptId
+                : state.budget.receiptId
+          """
+          new = """    const receiptId = state.budget.receiptId
+          """
+          count = content.count(old)
+          if count != 1:
+              raise SystemExit(f'Expected one exact receipt authority block, found {count}')
+          path.write_text(content.replace(old, new))
+          PY
+          git diff --check
+          git diff -- src/carry-forward/CarryForwardApp.tsx
+      - run: npm ci
+      - run: npx playwright install --with-deps webkit
+      - name: Stress the formerly failing desktop journey
+        run: npx playwright test tests/e2e/carry-forward.spec.ts --project=webkit-desktop --grep 'End Mode during compilation' --repeat-each=10 --workers=4
+      - name: Verify the complete WebKit desktop Carry Forward spec
+        run: npx playwright test tests/e2e/carry-forward.spec.ts --project=webkit-desktop --workers=4
+      - name: Commit focused fix
+        shell: bash
+        run: |
+          git config user.name 'amydojo'
+          git config user.email 'amycdo98@gmail.com'
+          git add src/carry-forward/CarryForwardApp.tsx
+          git commit -m 'fix: preserve receipt provenance through compilation'
+          git push origin HEAD:codex/carry-forward-vertical-slice
