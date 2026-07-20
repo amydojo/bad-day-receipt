@@ -374,9 +374,7 @@ export default function CarryForwardApp() {
       compileCancelRef.current?.()
       compileCancelRef.current = null
     }
-    const receiptId = compiling || state.kind === 'preview' || state.kind === 'budget'
-      ? state.draft.receiptId
-      : state.budget.receiptId
+    const receiptId = state.budget.receiptId
     clearCarryForwardSession(window.localStorage)
     if (receiptId) {
       window.location.replace(new URL('/', window.location.href).href)
