@@ -42,7 +42,7 @@ export function KeepReceiptRitual({
   onExportLocalCopy: (receipt: CompletedReceiptSnapshot) => Promise<boolean>
   onClose: () => void
 }) {
-  const committedAttempts = useRef(new Set<string>())
+  const commitPromises = useRef(new Map<string, Promise<KeepArchiveCommitResult>>())
   const emittedMilestones = useRef(new Set<string>())
   const [exportMessage, setExportMessage] = useState('')
   const [exportBusy, setExportBusy] = useState(false)
@@ -81,11 +81,14 @@ export function KeepReceiptRitual({
       state.archiveAttempt,
       state.archivedAt,
     ].join(':')
-    if (committedAttempts.current.has(attemptKey)) return
-    committedAttempts.current.add(attemptKey)
+    let commitPromise = commitPromises.current.get(attemptKey)
+    if (!commitPromise) {
+      commitPromise = Promise.resolve(onCommitArchive(state.receipt, state.archivedAt))
+      commitPromises.current.set(attemptKey, commitPromise)
+    }
 
     let canceled = false
-    void Promise.resolve(onCommitArchive(state.receipt, state.archivedAt))
+    void commitPromise
       .then((result) => {
         if (canceled) return
         if (result.status === 'saved') {
