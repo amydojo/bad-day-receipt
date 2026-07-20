@@ -196,6 +196,20 @@ describe('versioned machine persistence', () => {
     expect(target.values.has(MACHINE_STORAGE_KEY)).toBe(false)
   })
 
+  it('reports read denial without claiming recovered persistence', () => {
+    const defaults = createDefaultMachineData(draft)
+    const target: StorageAdapter = {
+      getItem: () => { throw new Error('denied') },
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    }
+
+    expect(loadMachineDataResult(defaults, target)).toEqual({
+      data: defaults,
+      status: 'unavailable',
+    })
+  })
+
   it('exposes typed storage failure while keeping callers in control', () => {
     const target: StorageAdapter = {
       getItem: () => null,
