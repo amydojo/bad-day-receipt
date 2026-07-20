@@ -3,7 +3,21 @@ import { expect, test, type Page } from '@playwright/test'
 import { createInsuranceDenialPlan } from '../../src/carry-forward/fixtures'
 import { compileCarryForwardDemo, mockCarryForwardCompiler, openCarryForwardPreview } from '../fixtures/carryForward'
 
+async function settleAuthoredMotion(page: Page) {
+  await page.evaluate(async () => {
+    const finiteAnimations = document.getAnimations().filter((animation) => {
+      const iterations = animation.effect?.getTiming().iterations
+      return animation.playState !== 'finished' && iterations !== Infinity
+    })
+    await Promise.race([
+      Promise.allSettled(finiteAnimations.map((animation) => animation.finished)),
+      new Promise((resolve) => window.setTimeout(resolve, 1_000)),
+    ])
+  })
+}
+
 async function expectAccessible(page: Page) {
+  await settleAuthoredMotion(page)
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .analyze()
