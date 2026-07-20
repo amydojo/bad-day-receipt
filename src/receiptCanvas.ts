@@ -11,7 +11,7 @@ export function renderReceiptCanvas(
   const width = 1000
   const lineHeight = 42
   const couponHeight = theme.coupons ? theme.coupons.length * 210 + 150 : 0
-  const height = 820 + items.length * lineHeight + couponHeight
+  const height = 960 + items.length * lineHeight + couponHeight
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -117,11 +117,31 @@ export function renderReceiptCanvas(
   theme.notes.forEach((note, index) => ctx.fillText(note, width / 2, y + index * 30))
   y += 112
 
+  ctx.strokeStyle = theme.palette.ink
+  ctx.lineWidth = 2
+  ctx.setLineDash([9, 7])
+  ctx.beginPath()
+  ctx.moveTo(150, y)
+  ctx.lineTo(width - 150, y)
+  ctx.stroke()
+  ctx.setLineDash([])
+  y += 28
+
+  ctx.fillStyle = theme.palette.ink
+  ctx.textAlign = 'left'
+  ctx.font = '700 18px ui-monospace, SFMono-Regular, Menlo, monospace'
+  ctx.fillText('THIS DAY REQUIRED MORE', 150, y)
+  ctx.fillText('THAN THE RECORD SHOWS.', 150, y + 28)
+  ctx.fillStyle = theme.palette.accent
+  ctx.fillText('DAY DOCUMENTED', 150, y + 76)
+  y += 126
+
   if (theme.coupons) {
     ctx.fillStyle = theme.palette.accent
     ctx.fillRect(70, y, width - 140, 50)
     ctx.fillStyle = '#ffffff'
     ctx.font = '900 22px Arial, Helvetica, sans-serif'
+    ctx.textAlign = 'center'
     ctx.fillText('YOUR ABSURDLY LONG COUPONS', width / 2, y + 13)
     y += 76
 
