@@ -1,4 +1,8 @@
-import type { Ref } from 'react'
+import {
+  useEffect,
+  useRef,
+  type Ref,
+} from 'react'
 import type {
   ReceiptEndingPersistenceStatus,
   ReceiptEndingState,
@@ -13,6 +17,24 @@ export function ReceiptEndingBoundary({
   headingRef?: Ref<HTMLElement>
   persistenceStatus: ReceiptEndingPersistenceStatus
 }) {
+  const localHeadingRef = useRef<HTMLHeadingElement | null>(null)
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      localHeadingRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [state.kind, state.receipt.receiptNumber])
+
+  const assignHeadingRef = (node: HTMLHeadingElement | null) => {
+    localHeadingRef.current = node
+    if (typeof headingRef === 'function') {
+      headingRef(node)
+    } else if (headingRef) {
+      headingRef.current = node
+    }
+  }
+
   return (
     <section
       className="receipt-ending-foundation"
@@ -22,9 +44,8 @@ export function ReceiptEndingBoundary({
       <span>RECEIPT ENDING · FOUNDATION</span>
       <h2
         id="receipt-ending-foundation-heading"
-        ref={headingRef as Ref<HTMLHeadingElement>}
+        ref={assignHeadingRef}
         tabIndex={-1}
-        autoFocus
       >
         The day is documented.
       </h2>
