@@ -231,9 +231,11 @@ export function InspectorSheet({
       const returnTarget = returnFocusRef.current
       if (dialog.open) dialog.close()
       requestAnimationFrame(() => {
-        if (dialogRef.current?.open) return
-        if (returnTarget?.isConnected) returnTarget.focus()
-        returnFocusRef.current = null
+        requestAnimationFrame(() => {
+          if (dialogRef.current?.open) return
+          if (returnTarget?.isConnected) returnTarget.focus()
+          returnFocusRef.current = null
+        })
       })
     }
   }, [open])
