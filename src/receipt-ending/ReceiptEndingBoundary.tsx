@@ -24,6 +24,7 @@ export function ReceiptEndingBoundary({
         id="receipt-ending-foundation-heading"
         ref={headingRef as Ref<HTMLHeadingElement>}
         tabIndex={-1}
+        autoFocus
       >
         The day is documented.
       </h2>
