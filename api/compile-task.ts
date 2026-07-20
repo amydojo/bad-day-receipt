@@ -8,6 +8,7 @@ import {
   InteractionBudgetSchema,
   type InteractionPolicies,
 } from '../src/carry-forward/interactionBudget.js'
+import { canAttemptRepair, getCompilerAttemptTimeout } from '../src/carry-forward/compilerTiming.js'
 import { TaskPlanCandidateSchema, type TaskPlanValidationIssue } from '../src/carry-forward/taskPlanSchema.js'
 import { CARRY_FORWARD_COMPILER_LIMITS, TASK_PLAN_LIMITS } from '../src/carry-forward/taskPlanLimits.js'
 
@@ -77,13 +78,9 @@ function classifyCompilerError(error: unknown): { status: number; code: SafeComp
   if (!(error instanceof OpenAI.APIError)) return { status: 502, code: 'compiler_failed' }
 
   const upstreamStatus = error.status
-  if (upstreamStatus === 429 && error.code === 'insufficient_quota') {
-    return { status: 429, code: 'openai_quota_exhausted' }
-  }
+  if (upstreamStatus === 429 && error.code === 'insufficient_quota') return { status: 429, code: 'openai_quota_exhausted' }
   if (upstreamStatus === 429) return { status: 429, code: 'openai_rate_limited' }
-  if (upstreamStatus === 401 || upstreamStatus === 403) {
-    return { status: 503, code: 'compiler_not_authorized' }
-  }
+  if (upstreamStatus === 401 || upstreamStatus === 403) return { status: 503, code: 'compiler_not_authorized' }
   if (upstreamStatus === 400) return { status: 502, code: 'compiler_contract_rejected' }
   return { status: 502, code: 'compiler_failed' }
 }
@@ -201,6 +198,7 @@ async function requestCandidate({
   issues,
   attempt,
   repaired,
+  timeoutMs,
 }: {
   openai: OpenAI
   task: string
@@ -209,10 +207,12 @@ async function requestCandidate({
   issues: Array<Pick<TaskPlanValidationIssue, 'code' | 'path'>> | null
   attempt: CompilerAttemptNumber
   repaired: boolean
+  timeoutMs: number
 }) {
+  if (timeoutMs <= 0) throw new CompilerTimeoutError()
   const startedAt = Date.now()
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), CARRY_FORWARD_COMPILER_LIMITS.attemptTimeoutMs)
+  const timeout = setTimeout(() => controller.abort(), timeoutMs)
   let response: OpenAIResponse
   try {
     response = await openai.responses.create({
@@ -225,25 +225,14 @@ async function requestCandidate({
         { role: 'developer', content: compilerInstructions() },
         {
           role: 'user',
-          content: compilerUserPayload({
-            task,
-            policies: budget.policies,
-            sources,
-            issues,
-          }),
+          content: compilerUserPayload({ task, policies: budget.policies, sources, issues }),
         },
       ],
       text: { format: zodTextFormat(TaskPlanCandidateSchema, 'carry_forward_task_plan') },
     }, { signal: controller.signal })
   } catch (error) {
     const classifiedError = controller.signal.aborted ? new CompilerTimeoutError() : error
-    logCompilerTiming({
-      event: 'carry_forward_compiler_attempt',
-      attempt,
-      startedAt,
-      result: classifyCompilerError(classifiedError).code,
-      repaired,
-    })
+    logCompilerTiming({ event: 'carry_forward_compiler_attempt', attempt, startedAt, result: classifyCompilerError(classifiedError).code, repaired })
     throw classifiedError
   } finally {
     clearTimeout(timeout)
@@ -307,6 +296,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
   inFlightRequestIds.add(input.data.requestId)
   const openai = new OpenAI({ apiKey: key, maxRetries: 0 })
   const requestStartedAt = Date.now()
+  const deadlineAt = requestStartedAt + CARRY_FORWARD_COMPILER_LIMITS.totalServerDeadlineMs
   let finalAttempt: CompilerAttemptNumber = 1
   let repairUsed = false
   let finalResult: SafeCompilerResult = 'compiler_failed'
@@ -320,6 +310,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       issues: null,
       attempt: 1,
       repaired: false,
+      timeoutMs: getCompilerAttemptTimeout('initial', deadlineAt),
     })
     if (!first.ok) {
       finalResult = first.code
@@ -340,20 +331,14 @@ export default async function handler(request: ApiRequest, response: ApiResponse
     const repairIssues = firstValidation.issues
       .filter((issue) => issue.repairable)
       .map(({ code, path }) => ({ code, path }))
-    if (repairIssues.length === 0) {
+    if (repairIssues.length === 0 || CARRY_FORWARD_COMPILER_LIMITS.maxAttempts < 2 || !canAttemptRepair(deadlineAt)) {
       finalResult = 'plan_validation_failed'
       safeError(response, 422, 'plan_validation_failed')
       return
     }
 
-    if (CARRY_FORWARD_COMPILER_LIMITS.maxAttempts < 2) {
-      finalResult = 'plan_validation_failed'
-      safeError(response, 422, 'plan_validation_failed')
-      return
-    }
     finalAttempt = 2
     repairUsed = true
-
     const repair = await requestCandidate({
       openai,
       task: input.data.task,
@@ -362,6 +347,7 @@ export default async function handler(request: ApiRequest, response: ApiResponse
       issues: repairIssues,
       attempt: 2,
       repaired: true,
+      timeoutMs: getCompilerAttemptTimeout('repair', deadlineAt),
     })
     if (!repair.ok) {
       finalResult = repair.code
