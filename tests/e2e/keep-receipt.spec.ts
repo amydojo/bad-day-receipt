@@ -6,11 +6,7 @@ import { mockPlatformApis } from '../fixtures/platformApis'
 const machineStorageKey = 'bad-day-receipt-machine-v1'
 const keepEnabled = process.env.VITE_THREE_ENDINGS === 'true'
 
-async function reachKeep(page: Page): Promise<{
-  receiptNumber: string
-  receiptHandle: Awaited<ReturnType<ReturnType<Page['locator']>['elementHandle']>>
-  printerHandle: Awaited<ReturnType<ReturnType<Page['locator']>['elementHandle']>>
-}> {
+async function reachKeep(page: Page) {
   await openMachine(page)
   await commitTransaction(page)
   await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })
@@ -23,6 +19,46 @@ async function reachKeep(page: Page): Promise<{
   expect(receiptNumber).toBeTruthy()
   expect(receiptHandle).toBeTruthy()
   expect(printerHandle).toBeTruthy()
+
+  await page.evaluate((storageKey) => {
+    const browserWindow = window as Window & {
+      __keepPhases?: string[]
+      __keepArchiveWritePhases?: Array<string | null>
+    }
+    browserWindow.__keepPhases = []
+    browserWindow.__keepArchiveWritePhases = []
+
+    const machine = document.querySelector('.receipt-machine')
+    const recordPhase = () => {
+      const phase = machine?.getAttribute('data-keep-phase')
+      if (phase && browserWindow.__keepPhases?.at(-1) !== phase) {
+        browserWindow.__keepPhases?.push(phase)
+      }
+    }
+    if (machine) {
+      new MutationObserver(recordPhase).observe(machine, {
+        attributes: true,
+        attributeFilter: ['data-keep-phase'],
+      })
+    }
+
+    const originalSetItem = Storage.prototype.setItem
+    Storage.prototype.setItem = function observedSetItem(key: string, value: string) {
+      if (key === storageKey) {
+        try {
+          const parsed = JSON.parse(value)
+          if (parsed?.data?.privateArchive?.length > 0) {
+            browserWindow.__keepArchiveWritePhases?.push(
+              machine?.getAttribute('data-keep-phase') ?? null,
+            )
+          }
+        } catch {
+          // The product's persistence parser owns malformed-data handling.
+        }
+      }
+      return originalSetItem.call(this, key, value)
+    }
+  }, machineStorageKey)
 
   await page.getByRole('button', { name: /END THE DAY HERE/ }).click()
   await page.getByRole('button', { name: /KEEP RECEIPT/ }).click()
@@ -64,11 +100,26 @@ test.describe('Keep Receipt archival ritual', () => {
     const machine = page.locator('.receipt-machine')
 
     await expect(machine).toHaveAttribute('data-keep-phase', 'cut')
-    let stored = await readMachineStorage(page)
-    expect(stored.data.privateArchive).toHaveLength(0)
-    expect(stored.data.pendingReceipt.receiptNumber).toBe(receiptNumber)
+    const duringCut = await readMachineStorage(page)
+    expect(duringCut.data.privateArchive).toHaveLength(0)
+    expect(duringCut.data.pendingReceipt.receiptNumber).toBe(receiptNumber)
 
-    for (const phase of [
+    await expect(page.getByRole('heading', { name: 'Receipt kept with care.' })).toBeFocused({ timeout: 12_000 })
+    await expect(machine).toHaveAttribute('data-keep-phase', 'complete')
+    await expect(page.getByText(`Receipt ${receiptNumber} is stored privately.`, { exact: false })).toBeVisible()
+
+    const observation = await page.evaluate(() => {
+      const browserWindow = window as Window & {
+        __keepPhases?: string[]
+        __keepArchiveWritePhases?: Array<string | null>
+      }
+      return {
+        phases: browserWindow.__keepPhases ?? [],
+        archiveWritePhases: browserWindow.__keepArchiveWritePhases ?? [],
+      }
+    })
+    expect(observation.phases).toEqual([
+      'cut',
       'align',
       'sleeve-rising',
       'sleeve-receiving',
@@ -76,27 +127,14 @@ test.describe('Keep Receipt archival ritual', () => {
       'archive-opening',
       'archiving',
       'archive-closing',
-    ]) {
-      await expect(machine).toHaveAttribute('data-keep-phase', phase, { timeout: 8_000 })
-      expect(await receiptHandle?.evaluate((node) => (
-        node.isConnected && node === document.querySelector('[data-receipt-artifact]')
-      ))).toBe(true)
-      expect(await printerHandle?.evaluate((node) => (
-        node.isConnected && node === document.querySelector('[data-printer-shell]')
-      ))).toBe(true)
+      'complete',
+    ])
+    expect(observation.archiveWritePhases.length).toBeGreaterThan(0)
+    expect(observation.archiveWritePhases.every((phase) => (
+      phase === 'archive-closing' || phase === 'complete'
+    ))).toBe(true)
 
-      if (phase !== 'archive-closing') {
-        stored = await readMachineStorage(page)
-        expect(stored.data.privateArchive).toHaveLength(0)
-        expect(stored.data.pendingReceipt.receiptNumber).toBe(receiptNumber)
-      }
-    }
-
-    await expect(page.getByRole('heading', { name: 'Receipt kept with care.' })).toBeFocused({ timeout: 8_000 })
-    await expect(machine).toHaveAttribute('data-keep-phase', 'complete')
-    await expect(page.getByText(`Receipt ${receiptNumber} is stored privately.`, { exact: false })).toBeVisible()
-
-    stored = await readMachineStorage(page)
+    const stored = await readMachineStorage(page)
     expect(stored.data.privateArchive).toHaveLength(1)
     expect(stored.data.privateArchive[0].receipt.receiptNumber).toBe(receiptNumber)
     expect(stored.data.pendingReceipt).toBeNull()
@@ -104,8 +142,12 @@ test.describe('Keep Receipt archival ritual', () => {
       expect.objectContaining({ receiptNumber, disposition: 'kept' }),
     ]))
 
-    expect(await receiptHandle?.evaluate((node) => node.isConnected)).toBe(true)
-    expect(await printerHandle?.evaluate((node) => node.isConnected)).toBe(true)
+    expect(await receiptHandle?.evaluate((node) => (
+      node.isConnected && node === document.querySelector('[data-receipt-artifact]')
+    ))).toBe(true)
+    expect(await printerHandle?.evaluate((node) => (
+      node.isConnected && node === document.querySelector('[data-printer-shell]')
+    ))).toBe(true)
     await expect(page.getByRole('button', { name: 'SHARE', exact: true })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'REPRINT', exact: true })).toHaveCount(0)
     await expectNoBlockingAxeViolations(page)
