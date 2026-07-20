@@ -1,331 +1,107 @@
 # Carry Forward Figma integration contract
 
-> **Figma defines the interaction rights. TypeScript encodes them. The validator enforces them. GPT-5.6 operates only inside them.**
+> **Figma defines the authored experience. TypeScript owns authority. Validation decides what may render.**
 
-**Status:** Implemented Build Week contract. The current branch maps the approved Figma interaction rights into the reducer, strict plan boundary, responsive runtime, inspector, and focused release gates described below.
+## Canonical source
 
-## Canonical design source
+Figma file: `7qjuReLeQrMAx6MJgHUUgL`
 
-Figma file:
+The production implementation uses one browser route, `/carry-forward`, and a reducer-owned internal sequence. Screen names are documentation labels, not URL fragments. Task or source text is never placed in browser history.
 
-<https://www.figma.com/file/7qjuReLeQrMAx6MJgHUUgL?type=design>
+## Authority hierarchy
 
-The file contains:
+1. The strict domain schema limits GPT-5.6 to `read`, `choice`, `compose`, `checklist`, and `review` steps.
+2. Server validation and exact evidence verification decide whether output becomes a `ValidatedTaskPlan`.
+3. `carryForwardReducer.ts` owns workflow state and legal transitions.
+4. Fixed React renderers own controls, labels, dialogs, copy, download, filenames, focus, and cleanup.
+5. Figma owns fixed product copy, screen purpose, action hierarchy, pacing, disclosure timing, visual hierarchy, and motion character.
+6. Tests prove the design contract without making paid model calls.
 
-- visual and behavioral foundations
-- reusable component sets
-- fifteen canonical mobile states
-- five desktop reference boards
-- failure, privacy, expiry, and recovery states
-- motion and reduced-motion contracts
-- engineering state and data contracts
-- QA and release gates
-- a clickable judge prototype
+Generated Figma code is reference material. Production uses the existing React, TypeScript, and CSS architecture; Tailwind is not installed.
 
-## Source-of-truth hierarchy
+## Canonical production map
 
-1. Domain schema defines what the model may propose.
-2. Application validation determines what becomes trusted.
-3. The reducer owns the workflow state.
-4. Typed React components own rendering and interaction.
-5. Figma defines visual, motion, responsive, accessibility, and user-control contracts.
-6. Tests prove that the implementation preserves those contracts.
+| Canonical state | Figma node | Reducer / production state | Owning production code | Fixed copy owner | Dynamic data owner | Accessibility responsibility | Motion responsibility | Primary verification |
+|---|---:|---|---|---|---|---|---|---|
+| M01 Receipt qualification | `10:7` | `input / bridge` | `CarryForwardApp.tsx` → `ReceiptBridge` | Application | Consumed receipt ID only | Focused heading, semantic receipt article, clear primary and quiet exit | `carry-forward-parity.css` mode transition | `tests/e2e/carry-forward.spec.ts` receipt-origin journey |
+| M02 Name one task | `10:41` | `input / task` | `CarryForwardApp.tsx` | Application | User task remains in memory | Associated label and hint, task-field focus, Cancel remains reachable | Mode transition; local field feedback | Direct-entry, ambiguity, viewport, accessibility tests |
+| M03 Source context + privacy | `10:69` | `input / source` | `CarryForwardApp.tsx` | Application | Optional raw source remains in memory only | Associated textarea, explicit disclosure, continue-without-source path | Mode transition | Full journey and privacy regression tests |
+| M04 Interaction Budget | `10:104` | `budget` | `CarryForwardApp.tsx`; `InteractionPolicyCard` | Application policy copy | User-declared booleans only | Native checkboxes, descriptions, keyboard toggles | 120 ms policy feedback; 280 ms screen handoff | Reducer, parity, accessibility tests |
+| M05 Adaptation preview | `10:154` | `preview` | `CarryForwardApp.tsx`; `carryForwardPresentation.ts` | Application deterministic resolver | Declared policy state | Heading focus, technical details subordinate, Adjust and End Mode available | 180 ms disclosure; 280 ms screen handoff | Deterministic adaptation tests and E2E |
+| M06 Compile task plan | `11:46` | `compiling` | `CarryForwardApp.tsx`; `carryForwardCompileRun.ts` | Application | Broad application-known phase only | Live status, visible Cancel and End Mode, abort-safe focus return | Stable shell; no percentage or looping progress claim | Cancellation, late-response, End Mode, accessibility tests |
+| M07 Decision step | `11:79` | `active / choice` | `ActiveWorkspace`; `TaskStepRenderer.tsx` | Application action resolver | Validated options and user selection | Native radio group; Show All Choices with `aria-expanded` and `aria-controls` | 120 ms selection; 180 ms step change | Progressive-disclosure keyboard tests |
+| M08 Essential facts | `11:113` | `active / read` or `active / checklist` | `ActiveWorkspace`; `TaskStepRenderer.tsx` | Application | Validated facts, exact evidence excerpts, checklist state | Semantic details, labels, native checkboxes | 180 ms step change | Evidence, renderer, and journey tests |
+| M09 Working draft | `11:153` | `active / compose` | `ActiveWorkspace`; `TaskStepRenderer.tsx` | Application action resolver | Validated template and user draft | Associated textarea, protected-state status | 120 ms edit feedback; 180 ms step change | Storage and complete-journey tests |
+| M10 Final review | `11:183` | `active / review` | `ActiveWorkspace`; `TaskStepRenderer.tsx` | Application boundary and final action | Validated review summary and include-list | Semantic review list; explicit no-external-action statement | 180 ms step change | Contextual-label and output tests |
+| M11 Why This View | `12:54` | `explaining / why` | `RuntimeInspector`; `carryForwardPresentation.ts`; `InspectorSheet` | Application causal resolver | Current policies, validated plan, runtime state | Native modal dialog, labelled title and description, initial focus, Escape, focus restoration | 180 ms disclosure; transforms removed for reduced motion | Causal-copy and accessibility E2E |
+| M12 One thing closed | `12:97` | `complete` | `CompletionScreen` | Application closure and proof framing | Validated task title and application-counted completion proof | Focused closure heading; details secondary; explicit cleanup actions | 280 ms completion transition | Completion, refresh, once-only telemetry tests |
+| M13 Ambiguous task recovery | `12:128` | `input / recovery` | `CarryForwardApp.tsx` | Application fixed examples and recovery copy | Original user phrase only | Dedicated state, Try Again focus restoration, no request | 280 ms recovery handoff | No-request ambiguity journey and keyboard test |
+| M14 Assisted fallback | `12:161` | `fallback` | `FallbackScreen` | Application safe error copy | Draft in memory; bounded manual work | Stable error status and manual controls | Mode transition | Existing fallback and API failure tests |
+| M15 Expired task window | `12:190` | `expired` | `CarryForwardApp.tsx` | Application | Receipt ID only when available | Clear recovery actions and focused heading | Mode transition | Existing expiry and storage tests |
 
-Generated Figma code is reference material. It must not be copied literally when it conflicts with the repository's existing stack, CSS system, semantic markup, or accessibility requirements.
+## Product sequence
 
-## Decisions resolved during design audit
+Receipt-origin entry follows:
 
-### One feature route
+`M01 → M02 → M03 → M04 → M05 → M06 → M07–M10 → M11 as requested → M12`
 
-Use one browser-level route:
+Direct `/carry-forward` entry begins at M02. It never fabricates a receipt or shows M01 without a consumed receipt seed. M13 is entered before any model request when the task lacks one concrete action.
 
-```text
-/carry-forward
-```
+## State and effect ownership
 
-The browser route marks the feature boundary. Internal input, budget, preview, compiling, active, explaining, completion, fallback, and expired views are reducer states.
+The reducer contains no fetch, storage, clipboard, download, analytics, navigation, or timers. Effects remain explicit adapters:
 
-Do not require a browser route for every internal screen.
+- `compileCarryForwardTask()`
+- `startCarryForwardCompileRun()`
+- `saveCarryForwardSession()` / `clearCarryForwardSession()`
+- `copyPlanOutput()` / `downloadPlanOutput()`
+- telemetry emission with allowlisted properties
+- expiry timer in the route component
 
-### Four-hour default expiry
+Raw source is removed after successful compilation and never enters protected progress storage.
 
-The default task window is four hours.
+## Adaptation contract
 
-All user-facing time copy must be derived from `expiresAt`. Static design examples may show four hours, but production must not hard-code the remaining duration.
+M05 and M11 are generated by deterministic application resolvers, not the model.
 
-### Fewer decisions versus optional work
+- **One step at a time** controls required-step visibility.
+- **Fewer decisions** shows the primary option first and keeps every approved alternative behind **Show All Choices**.
+- **Protect my progress** controls the isolated four-hour progress record.
+- **Defer optional work** places whole nonrequired activities in **Later**.
+- The shell changes once and remains spatially stable.
 
-The policies are distinct:
-
-- **Fewer decisions** collapses secondary choices behind **Show all choices**.
-- **Defer optional work** moves whole nonrequired activities behind **Later**.
-
-A collapsed choice must not be described as deleted or as optional work deferred.
-
-### Application-derived evidence offsets
-
-GPT-5.6 proposes:
-
-```ts
-interface ProposedExtractedFact {
-  value: string
-  sourceId: string
-  evidenceQuote: string
-}
-```
-
-The application finds one exact, unique quote match and derives:
-
-```ts
-interface ExtractedFact extends ProposedExtractedFact {
-  startOffset: number
-  endOffset: number
-}
-```
-
-Reject missing and ambiguous quotes. Do not ask the model to count offsets.
-
-### Fixture-first runtime
-
-Build the complete runtime against authored `ValidatedTaskPlan` fixtures before connecting the live model compiler.
-
-The product UI, responsive behavior, focus handling, storage, expiry, failure recovery, and visual regression suite must remain testable without network access.
-
-## Figma component map
-
-| Figma node | Component set | Production target |
-|---|---|---|
-| `6:21` | Action Button | `ActionButton.tsx` |
-| `7:36` | Input Field | `CarryForwardField.tsx` |
-| `8:17` | Interaction Policy | `InteractionPolicyCard.tsx` |
-| `8:86` | Status Banner | `StatusBanner.tsx` |
-| `9:61` | Task Progress | `TaskProgress.tsx` |
-| `9:98` | Task Step Shell | `TaskStepShell.tsx` |
-
-Application-owned supporting primitives:
-
-- `ChoiceOption`
-- `EvidenceFact`
-- `ActionDock`
-- `RuntimeLinks`
-- `CompilePhaseList`
-- `InspectorSheet`
-- `DeferredItem`
-- `CompletionProof`
-
-Model-addressable step kinds remain limited to:
-
-- `ReadStep`
-- `ChoiceStep`
-- `ComposeStep`
-- `ChecklistStep`
-- `ReviewStep`
-
-## CSS integration
-
-Create:
-
-```text
-src/carry-forward/carry-forward.css
-```
-
-Extend the current Bad Day Receipt CSS system. Do not install Tailwind to reproduce the generated Figma reference code.
-
-```css
-.carry-forward-shell {
-  --bdr-text-primary: var(--ink);
-  --bdr-text-secondary: var(--muted);
-  --bdr-text-inverse: var(--paper);
-
-  --bdr-background-canvas: #d7d3ca;
-  --bdr-background-surface: #e3e0d8;
-  --bdr-background-panel: var(--paper);
-  --bdr-background-inverse: var(--ink);
-
-  --bdr-action-signal: var(--signal);
-  --bdr-border-default: #9a968d;
-  --bdr-border-strong: var(--ink);
-
-  --cf-control-min-height: 48px;
-}
-```
-
-Reuse the existing DM Mono and Instrument Serif imports and the current ink, paper, signal, and muted primitives.
-
-Do not inherit the existing hover translation used by `.choice-chip` inside One Thing Mode. Carry Forward controls remain spatially stable.
-
-## Semantic markup contract
-
-Use ordinary, native interaction semantics:
-
-- `<button>` for actions
-- `<fieldset>` and `<legend>` for choice groups
-- native radio and checkbox inputs
-- associated labels for every field
-- `<textarea>` for source and draft content
-- live regions for compiling, validation, autosave, copy, and failure status
-- dialog or sheet semantics for **Why This View** and **Complete Plan**
-
-Do not use clickable `div` elements, image-based radio controls, or hover-only meaning.
-
-## State ownership
-
-Use one pure reducer:
-
-```ts
-type CarryForwardState =
-  | InputState
-  | BudgetState
-  | PreviewState
-  | CompilingState
-  | ActiveState
-  | ExplainingState
-  | CompleteState
-  | FallbackState
-  | ExpiredState
-```
-
-The reducer contains no fetch, storage, clipboard, navigation, analytics, or timer effects.
-
-Effects are explicit adapters:
-
-```text
-compileTask()
-persistSession()
-clearSession()
-copyOutput()
-scheduleExpiry()
-```
-
-Each adapter returns a success or failure event to the reducer.
-
-## Trusted rendering boundary
-
-Use a branded validated type:
-
-```ts
-declare const validatedTaskPlanBrand: unique symbol
-
-export type ValidatedTaskPlan = TaskPlan & {
-  readonly [validatedTaskPlanBrand]: true
-}
-```
-
-Only the validator constructs this type.
-
-The production runtime accepts `ValidatedTaskPlan`, never raw model output or a plain `TaskPlan`.
-
-## Responsive ownership
-
-Mobile is canonical.
-
-- `320–767px`: one column, one scroll owner, bottom action dock
-- `768–1099px`: centered task column, collapsible context, sticky progress
-- `1100px+`: task rail plus active workspace
-
-Use one reducer state and one component tree. CSS rearranges the same information.
-
-Desktop may not remove:
-
-- Show Complete Plan
-- Why This View
-- Adjust
-- End Mode
-- collapsed or deferred content
-- manual recovery
+Budget adjustment preserves the current validated session as a return point. Applying changed policies requires an explicit preview and recompilation. Compatible selections, checked items, drafts, expanded choices, completed steps, and the original start time are reconciled by application-owned IDs; incompatible values are not silently transferred.
 
 ## Motion contract
 
-| Token | Purpose |
+The shared tokens remain:
+
+| Token | Use |
 |---|---|
-| `0ms` | focus restoration and immediate validation state |
-| `120ms` | press, selection, local feedback |
-| `180ms` | step change and sheet fade |
-| `280ms` | mode entry and completion |
-| `420ms` | reserved full-scene handoff |
+| `0ms` | focus restoration and immediate validation |
+| `120ms` | control press, selection, local feedback |
+| `180ms` | disclosures, inspector, step changes |
+| `280ms` | screen-state transitions and completion |
+| `420ms` | reserved full-scene handoff; not used to imply compiler progress |
 
-Rules:
+Only changing content animates. The shell and action dock remain stable. No springs, bounce, parallax, ambient loops, fake percentage, or delayed control availability are permitted. Under `prefers-reduced-motion: reduce`, nonessential transforms are removed and authored transitions complete in 1 ms.
 
-- Motion begins after the target state passes validation.
-- Never animate toward a state that may still be rejected.
-- Keep the task shell spatially stable.
-- Do not use springs, pulsing wellness animation, breathing loops, confetti, animated blur, or layout thrash.
-- Reduced motion removes translation while preserving every state cue.
-- Loading labels may change, but control width must not shift.
+## Code Connect status
 
-The Figma prototype uses a timeout only to simulate successful compilation. Production advances after response completion, parsing, validation, evidence verification, persistence, and reducer commit.
-
-## Prototype flows
-
-The clickable prototype has four named starting points:
-
-1. Carry Forward · Judge Path
-2. Carry Forward · Ambiguous Task Recovery
-3. Carry Forward · Compiler Failure
-4. Carry Forward · Expired Session
-
-The happy path includes a wired **Complete Plan** overlay. **Why This View** and **Complete Plan** must preserve task state and restore focus to their trigger.
-
-## Text hierarchy
-
-- 10px is reserved for nonessential machine metadata.
-- Quiet actions use at least 11–12px visible text with a 48px target.
-- Instructional body copy uses at least 13px.
-- Operational controls do not rely on Instrument Serif.
-- Display typography may remain editorial, but controls remain legible and predictable.
-
-## Recommended implementation sequence
-
-1. Domain schema and branded validated type
-2. One route, reducer, effect adapters, and expiring store
-3. CSS aliases and production primitives
-4. Fixture-backed M01–M15 states
-5. Responsive arrangements
-6. Keyboard, focus, recovery, and reduced motion
-7. GPT-5.6 compiler
-8. Exact evidence verification and plan enrichment
-9. Failure and expiry fixtures
-10. Code Connect mappings
-11. Visual and end-to-end release gate
-
-## Code Connect
-
-After component source paths stabilize, map the six canonical Figma component sets to their React implementations.
-
-Do not map entire screens or presentation boards. Code Connect should expose the reusable interface grammar.
+Code Connect is **not configured for this branch**. This document maps canonical nodes to production sources directly and does not claim a Code Connect relationship exists. Files are consolidated where that preserves reducer and runtime clarity; source files are not split merely to imitate Figma frame metadata.
 
 ## Release evidence
 
-A release is blocked if any of these disagree:
+The release gate must prove:
 
-- Figma
-- TypeScript contracts
-- runtime state behavior
-- CSS and responsive behavior
-- tests
-- privacy documentation
-- README
-- demo narration
-
-Required proof includes:
-
-- visual regression for canonical mobile and desktop states
-- keyboard and screen-reader paths
-- 200% zoom and viewport matrix
-- reduced-motion behavior
-- exact evidence verification
-- no raw task content in analytics or logs
-- four-hour expiry consistency
-- direct test access to ambiguous, fallback, and expired states
-- no compile transition before validation succeeds
-
-## Related issues
-
-- #62 Carry Forward epic
-- #63 domain contracts
-- #64 feature route, reducer, and storage
-- #67 validation and evidence verification
-- #68 deterministic runtime
-- #72 accessibility and motion hardening
-- #74 vertical slice and release gate
-- #77 Figma production component contract
+- receipt-origin and direct-entry behavior
+- deterministic M05 adaptation copy for every policy state
+- Cancel and End Mode during compilation, including late-response protection
+- exhaustive application-owned step labels
+- both progressive-disclosure modes and keyboard operation
+- M11 semantics, focus, Escape, and causal copy
+- M12 closure hierarchy, copied/downloaded canonical output, cleanup, refresh, and once-only telemetry
+- M13 no-request recovery
+- 320 px, 390 × 844, tablet, and 1440 × 900 layouts
+- 200% zoom and reduced motion
+- exact evidence validation, no raw-source persistence, four-hour expiry, and FIELD–001 regression integrity
