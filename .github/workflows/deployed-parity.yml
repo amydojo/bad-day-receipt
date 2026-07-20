@@ -6,7 +6,6 @@ on:
       - '.github/workflows/deployed-parity.yml'
       - 'scripts/verify-carry-forward-deployment.mjs'
       - 'scripts/verify-carry-forward-api.mjs'
-      - 'scripts/vercel-share-proxy.mjs'
   workflow_dispatch:
     inputs:
       run_live_compiler:
@@ -18,8 +17,6 @@ on:
 permissions:
   contents: read
   deployments: read
-  issues: read
-  pull-requests: read
 
 concurrency:
   group: deployed-parity-${{ github.event.pull_request.number || github.ref }}
@@ -67,64 +64,24 @@ jobs:
           done
           echo "No successful Vercel deployment found for ${HEAD_SHA}." >&2
           exit 1
-      - name: Resolve protected-preview access
-        id: access
-        shell: bash
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          DISPATCH_LIVE: ${{ inputs.run_live_compiler }}
+      - name: Explain protected-preview automation status
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET == ''
         run: |
-          if [ -n "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
-            echo "ACCESS_MODE=bypass" >> "$GITHUB_ENV"
-            if [ "$DISPATCH_LIVE" = "true" ]; then echo "RUN_LIVE=1" >> "$GITHUB_ENV"; fi
-            exit 0
-          fi
-
-          if [ -z "$PR_NUMBER" ]; then
-            echo 'No pull request is available for temporary protected-preview access.' >&2
-            exit 1
-          fi
-
-          for attempt in $(seq 1 90); do
-            body=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" --paginate \
-              --jq '[.[] | select(.body | contains("<!-- carry-forward-preview-share -->"))][-1].body // empty')
-            share=$(printf '%s\n' "$body" | grep -Eo 'https://[^[:space:]]+\.vercel\.app/\?_vercel_share=[A-Za-z0-9]+' | head -n 1 || true)
-            if [ -n "$share" ]; then
-              echo "::add-mask::$share"
-              echo "VERCEL_SHARE_URL=$share" >> "$GITHUB_ENV"
-              echo "ACCESS_MODE=share" >> "$GITHUB_ENV"
-              if printf '%s' "$body" | grep -q '<!-- carry-forward-run-live -->'; then
-                echo "RUN_LIVE=1" >> "$GITHUB_ENV"
-              fi
-              echo 'Temporary protected-preview access acquired and masked.'
-              exit 0
-            fi
-            sleep 10
-          done
-          echo 'No temporary protected-preview access path was supplied.' >&2
-          exit 1
+          {
+            echo 'Protected browser and API checks require VERCEL_AUTOMATION_BYPASS_SECRET.'
+            echo 'The exact-SHA deployment was still resolved and retained as evidence.'
+            echo 'No share URL is read from PR comments and no deployment protection is weakened.'
+          } | tee deployed-evidence/protected-preview-status.txt
       - run: npx playwright install --with-deps chromium
-      - name: Start ephemeral Vercel share proxy
-        if: env.ACCESS_MODE == 'share'
-        shell: bash
-        run: |
-          node scripts/vercel-share-proxy.mjs > deployed-evidence/share-proxy.log 2>&1 &
-          echo $! > deployed-evidence/share-proxy.pid
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:4174/__health >/dev/null; then
-              echo 'DEPLOYED_BASE=http://127.0.0.1:4174' >> "$GITHUB_ENV"
-              exit 0
-            fi
-            sleep 1
-          done
-          cat deployed-evidence/share-proxy.log >&2
-          exit 1
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET != ''
       - name: Verify deployed M01–M13 journeys
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET != ''
         run: node scripts/verify-carry-forward-deployment.mjs
       - name: Verify sanitized invalid request
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET != ''
         run: node scripts/verify-carry-forward-api.mjs
       - name: Run one authorized synthetic GPT-5.6 request
-        if: env.RUN_LIVE == '1'
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET != '' && github.event_name == 'workflow_dispatch' && inputs.run_live_compiler == true
         env:
           RUN_OPENAI_LIVE: '1'
         run: node scripts/verify-carry-forward-api.mjs
