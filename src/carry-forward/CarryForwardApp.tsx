@@ -362,7 +362,7 @@ export default function CarryForwardApp() {
   const endMode = () => {
     const activeLike = state.kind === 'active' || state.kind === 'explaining' || state.kind === 'complete'
     const compiling = state.kind === 'compiling'
-    if (!activeLike && !compiling && state.kind !== 'preview' && state.kind !== 'budget') return
+    if (!activeLike && !compiling && state.kind !== 'preview' && state.kind !== 'budget' && state.kind !== 'fallback') return
     if (activeLike) {
       emitCarryForwardTelemetry('carry_forward_ended', {
         state: 'active',
@@ -374,12 +374,12 @@ export default function CarryForwardApp() {
       compileCancelRef.current?.()
       compileCancelRef.current = null
     }
-    const receiptId = state.kind === 'budget'
+    const receiptId = state.kind === 'budget' || state.kind === 'fallback'
       ? state.draft.receiptId
       : state.budget.receiptId
     clearCarryForwardSession(window.localStorage)
     if (receiptId) {
-      window.location.replace(new URL('/', window.location.href).href)
+      window.location.assign('/')
       return
     }
     dispatch({ type: 'RESET' })
@@ -464,7 +464,7 @@ export default function CarryForwardApp() {
                   </>
                 )
                 : state.kind === 'fallback'
-                  ? <FallbackScreen state={state} dispatch={dispatch} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={reset} />
+                  ? <FallbackScreen state={state} dispatch={dispatch} outputMessage={outputMessage} setOutputMessage={setOutputMessage} onReset={endMode} />
                   : <><div className="cf-authored-content"><span className="cf-eyebrow">SESSION EXPIRED</span><h1 tabIndex={-1} data-screen-heading>This temporary task window is closed.</h1><StatusBanner title="Context cleared">The isolated Carry Forward record was removed. Receipt history was not touched.</StatusBanner></div><div className="cf-authored-dock"><ActionButton onClick={reset}>START FRESH</ActionButton><ActionButton variant="quiet" onClick={() => window.location.assign('/')}>RETURN TO RECEIPT</ActionButton></div></>
 
   return <div className="cf-app" data-screen={getScreenCode(state)}><ProductShell state={state} endAction={state.kind === 'compiling' ? endMode : undefined}>{screen}</ProductShell></div>

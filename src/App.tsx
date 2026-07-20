@@ -33,6 +33,16 @@ import {
 import { applyPwaUpdate, registerPwa } from './pwa'
 import { catalog, currency, makeReceiptNumber } from './receipt'
 import {
+  adoptCompletedReceipt,
+  THREE_ENDINGS_ENABLED,
+  type ArchivedReceipt,
+  type CompletedReceiptSnapshot,
+  type PendingRelease,
+  type ReceiptDisposition,
+  type ReceiptEndingPersistenceStatus,
+  type ReceiptEndingState,
+} from './receipt-ending'
+import {
   createBrowserArtifactPlatform,
   saveArtifact,
 } from './soft-machine/artifactActions'
@@ -41,8 +51,8 @@ import { MachineBottomSheet } from './soft-machine/MachineBottomSheet'
 import {
   appendValidHistory,
   createDefaultMachineData,
-  loadMachineData,
-  saveMachineData,
+  loadMachineDataResult,
+  persistMachineData,
   type PendingCommit,
   type PersistedMachineData,
 } from './soft-machine/persistence'
@@ -81,10 +91,11 @@ function createStarterItems(): ReceiptItem[] {
 }
 
 function App() {
-  const initialPersisted = useMemo(
-    () => loadMachineData(createDefaultMachineData(createStarterItems())),
+  const initialLoad = useMemo(
+    () => loadMachineDataResult(createDefaultMachineData(createStarterItems())),
     [],
   )
+  const initialPersisted = initialLoad.data
   const dailyItem = useMemo(() => getDailyItem(), [])
   const browserArtifactPlatform = useMemo(createBrowserArtifactPlatform, [])
   const [items, setItems] = useState<ReceiptItem[]>(initialPersisted.draft)
@@ -99,6 +110,20 @@ function App() {
   const [lastCompleted, setLastCompleted] = useState<PersistedMachineData['lastCompleted']>(
     initialPersisted.lastCompleted,
   )
+  const [pendingReceipt, setPendingReceipt] = useState<CompletedReceiptSnapshot | null>(
+    initialPersisted.pendingReceipt,
+  )
+  const [pendingRelease] = useState<PendingRelease | null>(initialPersisted.pendingRelease)
+  const [privateArchive] = useState<ArchivedReceipt[]>(initialPersisted.privateArchive)
+  const [receiptDispositions] = useState<ReceiptDisposition[]>(initialPersisted.receiptDispositions)
+  const [receiptEndingState, setReceiptEndingState] = useState<ReceiptEndingState | null>(() => (
+    THREE_ENDINGS_ENABLED && initialPersisted.pendingReceipt
+      ? { kind: 'documented', receipt: initialPersisted.pendingReceipt }
+      : null
+  ))
+  const [receiptEndingPersistenceStatus, setReceiptEndingPersistenceStatus] = useState<ReceiptEndingPersistenceStatus>(
+    initialLoad.status === 'unavailable' ? 'unavailable' : 'saved',
+  )
   const [sheetExportBusy, setSheetExportBusy] = useState(false)
   const [sheetExportMessage, setSheetExportMessage] = useState('')
   const [pwaUpdate, setPwaUpdate] = useState<ServiceWorkerRegistration | null>(null)
@@ -108,6 +133,9 @@ function App() {
   const sheetTriggerRef = useRef<HTMLElement | null>(null)
 
   const theme = getTheme(themeId)
+  const receiptEndingActive = THREE_ENDINGS_ENABLED && receiptEndingState !== null
+  const presentationPhase = receiptEndingActive ? 'complete' : machineState.phase
+  const activeThemeId = receiptEndingState?.receipt.themeId ?? theme.id
   const charges = useMemo(
     () => [dailyItem, ...catalog.filter((item) => item.kind === 'charge')],
     [dailyItem],
@@ -116,8 +144,8 @@ function App() {
   const live = getDraftSummary(items)
   const anomaly = getRareAnomaly(receiptNumber)
   const shareCopy = createShareCopy(items, live.total, theme.name)
-  const editingLocked = isReceiptEditingLocked(machineState.phase)
-  const focusedMode = isFocusedMachinePhase(machineState.phase)
+  const editingLocked = receiptEndingActive || isReceiptEditingLocked(machineState.phase)
+  const focusedMode = isFocusedMachinePhase(presentationPhase)
 
   useEffect(() => {
     void registerPwa({
@@ -127,15 +155,38 @@ function App() {
   }, [])
 
   useEffect(() => {
-    saveMachineData({
+    const result = persistMachineData({
       draft: items,
       themeId,
       history,
       preferences: { soundEnabled, hapticsEnabled },
       pendingCommit,
       lastCompleted,
+      pendingReceipt,
+      pendingRelease,
+      privateArchive,
+      receiptDispositions,
     })
-  }, [hapticsEnabled, history, items, lastCompleted, pendingCommit, soundEnabled, themeId])
+    setReceiptEndingPersistenceStatus(
+      result.status === 'saved'
+        ? 'saved'
+        : result.status === 'unavailable'
+          ? 'unavailable'
+          : 'failed',
+    )
+  }, [
+    hapticsEnabled,
+    history,
+    items,
+    lastCompleted,
+    pendingCommit,
+    pendingReceipt,
+    pendingRelease,
+    privateArchive,
+    receiptDispositions,
+    soundEnabled,
+    themeId,
+  ])
 
   useEffect(() => {
     if (machineState.phase !== 'arming' || pendingCommit) return
@@ -161,9 +212,15 @@ function App() {
     setItems((current) => [...current, item])
   }
 
+  const resetReceiptEnding = () => {
+    setPendingReceipt(null)
+    setReceiptEndingState(null)
+  }
+
   const clearReceipt = () => {
     setItems([])
     setPendingCommit(null)
+    resetReceiptEnding()
     setReceiptNumber(makeReceiptNumber())
     setMachineState(initialMachineState)
   }
@@ -180,6 +237,7 @@ function App() {
     setReceiptNumber(makeReceiptNumber())
     setItems(createStarterItems())
     setPendingCommit(null)
+    resetReceiptEnding()
     setMachineState(initialMachineState)
     setActiveSheet(null)
     focusFirstComposeControl()
@@ -210,6 +268,18 @@ function App() {
     setLastCompleted({
       receiptNumber: completedReceiptNumber,
       completedAt: new Date().toISOString(),
+    })
+  }
+
+  const recordCompletedReceipt = (snapshot: CompletedReceiptSnapshot) => {
+    setPendingReceipt((current) => (
+      current?.receiptNumber === snapshot.receiptNumber ? current : snapshot
+    ))
+    setReceiptEndingState((current) => adoptCompletedReceipt(current, snapshot))
+    setPendingCommit(null)
+    setLastCompleted({
+      receiptNumber: snapshot.receiptNumber,
+      completedAt: snapshot.completedAt,
     })
   }
 
@@ -245,17 +315,17 @@ function App() {
 
   return (
     <MobileInstrument
-      phase={machineState.phase}
-      theme={theme.id}
+      phase={presentationPhase}
+      theme={activeThemeId}
       sheetOpen={activeSheet !== null}
     >
       <SoftMachineShell
         machineId="bad-day-receipt"
-        phase={machineState.phase}
+        phase={presentationPhase}
         focused={focusedMode}
-        activeTheme={theme.id}
+        activeTheme={activeThemeId}
       >
-        <main ref={mainRef} className="app-shell v2-shell" data-active-theme={theme.id}>
+        <main ref={mainRef} className="app-shell v2-shell" data-active-theme={activeThemeId}>
           <MobileInstrumentScene
             name="compose-chrome"
             activeWhen="compose"
@@ -375,10 +445,14 @@ function App() {
                   shareCopy={shareCopy}
                   soundEnabled={soundEnabled}
                   hapticsEnabled={hapticsEnabled}
+                  threeEndingsEnabled={THREE_ENDINGS_ENABLED}
+                  receiptEndingState={receiptEndingState}
+                  receiptEndingPersistenceStatus={receiptEndingPersistenceStatus}
                   onSoundChange={setSoundEnabled}
                   onReceiptNumberChange={setReceiptNumber}
                   createExport={createExport}
                   onTransactionComplete={recordTransaction}
+                  onReceiptComplete={recordCompletedReceipt}
                   onMakeAnother={makeAnother}
                   onClear={clearReceipt}
                   onStateChange={setMachineState}

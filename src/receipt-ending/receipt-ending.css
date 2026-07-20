@@ -1,0 +1,35 @@
+.receipt-ending-foundation {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 430px);
+  margin: 20px auto 0;
+  padding: 20px;
+  border: 1px solid var(--ink, #171713);
+  background: var(--paper, #f4efd9);
+  color: var(--ink, #171713);
+}
+
+.receipt-ending-foundation > span {
+  font-size: 10px;
+  letter-spacing: .1em;
+}
+
+.receipt-ending-foundation h2 {
+  margin: 0;
+  font-family: "Instrument Serif", Georgia, serif;
+  font-size: clamp(38px, 11vw, 52px);
+  font-weight: 400;
+  line-height: .96;
+}
+
+.receipt-ending-foundation p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.receipt-ending-foundation__storage {
+  padding-top: 12px;
+  border-top: 1px solid rgb(23 23 19 / 24%);
+  color: #5d5a53;
+}
