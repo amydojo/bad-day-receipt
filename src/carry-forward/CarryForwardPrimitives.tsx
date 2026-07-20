@@ -115,10 +115,7 @@ export function InteractionPolicyCard({
 }) {
   const copy = POLICY_COPY[policy]
   return (
-    <label
-      className="cf-policy"
-      data-selected={selected || undefined}
-    >
+    <label className="cf-policy" data-selected={selected || undefined}>
       <input
         className="cf-policy__input"
         type="checkbox"
@@ -205,11 +202,13 @@ export function TaskStepShell({
 export function InspectorSheet({
   open,
   title,
+  descriptionId,
   onClose,
   children,
 }: {
   open: boolean
   title: string
+  descriptionId?: string
   onClose: () => void
   children: ReactNode
 }) {
@@ -234,6 +233,7 @@ export function InspectorSheet({
       ref={dialogRef}
       className="cf-inspector"
       aria-labelledby="cf-inspector-title"
+      aria-describedby={descriptionId}
       onCancel={(event) => { event.preventDefault(); onClose() }}
     >
       <div className="cf-inspector__handle" aria-hidden="true" />
