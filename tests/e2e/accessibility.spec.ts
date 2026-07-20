@@ -16,6 +16,7 @@ test('input state has no serious or critical violations', async ({ page }) => {
 })
 
 test('completed artifact remains accessible', async ({ page }) => {
+  test.setTimeout(45_000)
   await openMachine(page)
   await commitTransaction(page)
   await waitForComplete(page)

@@ -8,7 +8,12 @@
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.api.json",
+    "test:carry-forward": "vitest run src/carry-forward tests/api/compile-task.test.ts tests/api/compile-task.diagnostic.test.ts",
+    "diagnose:carry-forward": "vitest run tests/api/compile-task.diagnostic.test.ts --reporter=verbose",
+    "test:receipt-regression": "vitest run src/receipt.test.ts src/draftReceipt.test.ts src/printer/printerMachine.test.ts src/soft-machine/persistence.test.ts src/mobile-instrument/deriveMobileScene.test.ts",
+    "evals:carry-forward": "vitest run evals/carry-forward",
+    "release:carry-forward": "npm run typecheck && npm run test:carry-forward && npm run evals:carry-forward && npm run test:receipt-regression && npm run build && playwright test tests/e2e/carry-forward.spec.ts tests/e2e/carry-forward-accessibility.spec.ts tests/e2e/carry-forward-viewports.spec.ts --project=chromium-desktop",
     "analyze": "npm run build && node scripts/analyze-build.mjs",
     "test:e2e": "playwright test tests/e2e --grep-invert \"@accessibility|@viewport\"",
     "test:accessibility": "playwright test tests/e2e/accessibility-gate.spec.ts",
@@ -18,16 +23,19 @@
   },
   "dependencies": {
     "@vercel/analytics": "2.0.1",
+    "openai": "^6.48.0",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.10.2",
-    "@playwright/test": "1.55.0",
+    "@playwright/test": "1.55.1",
+    "@types/node": "^26.1.1",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.3",
-    "typescript": "7.0.2",
+    "typescript": "5.9.3",
     "vite": "8.1.4",
     "vitest": "4.1.10"
   }

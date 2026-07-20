@@ -16,6 +16,7 @@ import qrcode
 from qrcode.image.svg import SvgPathImage
 
 ALPHABET_PATTERN = re.compile(r"^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$")
+CANONICAL_MACHINE_ID = "LD-001"
 SVG_NS = "http://www.w3.org/2000/svg"
 ET.register_namespace("", SVG_NS)
 
@@ -72,7 +73,7 @@ def validate_manifest(rows: object) -> list[dict[str, str]]:
             raise ValueError(f"Duplicate edition: {edition}")
         if row["url"] != expected_url:
             raise ValueError(f"URL mismatch for edition {edition}")
-        if row["machine_id"] != "bad-day-receipt":
+        if row["machine_id"] != CANONICAL_MACHINE_ID:
             raise ValueError(f"Unexpected machine for edition {edition}")
 
         seen_tokens.add(token)

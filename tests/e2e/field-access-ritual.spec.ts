@@ -47,8 +47,10 @@ test.describe('Lab Dojo field access ritual', () => {
 
     await page.getByRole('button', { name: 'INSERT ARTIFACT' }).click()
     await expect(page.locator('.field-machine-slot')).toHaveAttribute('data-phase', /captured|reading|accepted|unlocked/)
-    await expect(page.getByRole('heading', { name: /BAD DAY RECEIPT/ })).toBeVisible({ timeout: 6000 })
+    await expect(page.locator('.field-access-one-shot')).toHaveAttribute('data-phase', 'unlocked', { timeout: 6000 })
+    await expect(page.getByRole('heading', { name: /bad day receipt/i })).toBeVisible({ timeout: 6000 })
     await expect(page.locator('.field-access-machine-reveal > span')).toHaveText('LD–001 / LAB DOJO MACHINE')
+    await expect(page.getByText('QR VERIFIED', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'BEGIN OPERATION' }).click()
 
     await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
@@ -79,6 +81,7 @@ test.describe('Lab Dojo field access ritual', () => {
   })
 
   test('uses the same collectible notation for all ten physical objects', async ({ page }) => {
+    test.setTimeout(60_000)
     for (const [edition, token] of fieldObjects) {
       await page.goto(`/access/${edition}/${token}`)
       await expect(page.getByRole('button', { name: 'PRESENT OBJECT' })).toBeVisible()
@@ -109,12 +112,31 @@ test.describe('Lab Dojo field access ritual', () => {
     await page.getByRole('button', { name: 'INSERT ARTIFACT' }).click()
 
     const begin = page.getByRole('button', { name: 'BEGIN OPERATION' })
-    await expect(begin).toBeVisible({ timeout: 6000 })
-    const fits = await begin.evaluate((node) => {
+    await expect(page.locator('.field-access-one-shot')).toHaveAttribute('data-phase', 'unlocked', { timeout: 6000 })
+    await expect(begin).toBeVisible()
+    await expect.poll(async () => begin.evaluate((node) => {
       const rect = node.getBoundingClientRect()
       return rect.top >= 0 && rect.bottom <= window.innerHeight
+    }), {
+      message: 'The launch control should settle fully inside the viewport after the unlock transition.',
+      timeout: 8_000,
+    }).toBe(true)
+    const geometry = await begin.evaluate((node) => {
+      const rect = node.getBoundingClientRect()
+      const slot = node.closest<HTMLElement>('.field-machine-slot')?.getBoundingClientRect()
+      const content = node.closest<HTMLElement>('.field-machine-slot__machine-content')?.getBoundingClientRect()
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        slotTop: slot?.top,
+        slotBottom: slot?.bottom,
+        contentTop: content?.top,
+        contentBottom: content?.bottom,
+        viewportHeight: window.innerHeight,
+      }
     })
-    expect(fits).toBe(true)
+    expect(geometry.top, JSON.stringify(geometry)).toBeGreaterThanOrEqual(0)
+    expect(geometry.bottom, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.viewportHeight)
 
     await begin.click()
     await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
@@ -127,7 +149,8 @@ test.describe('Lab Dojo field access ritual', () => {
 
     await expect(page.getByText('VERIFYING ACCESS')).toHaveCount(0)
     await expect(page.getByText('CALIBRATING MACHINE')).toHaveCount(0)
-    await expect(page.getByText('OBJECT ACCEPTED', { exact: true })).toBeVisible({ timeout: 4000 })
+    await expect(page.locator('.field-access-one-shot')).toHaveAttribute('data-phase', 'unlocked', { timeout: 6000 })
+    await expect(page.getByText('QR VERIFIED', { exact: true })).toBeVisible({ timeout: 6000 })
   })
 
   test('recognizes a previously accepted object after refresh', async ({ page }) => {

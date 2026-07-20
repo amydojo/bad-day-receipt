@@ -1,0 +1,44 @@
+name: carry-forward
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/carry-forward.yml'
+      - 'api/**'
+      - 'docs/carry-forward.md'
+      - 'docs/privacy.md'
+      - 'docs/threat-model.md'
+      - 'evals/carry-forward/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.config.ts'
+      - 'README.md'
+      - 'src/carry-forward/**'
+      - 'tests/api/**'
+      - 'tests/e2e/carry-forward*.spec.ts'
+      - 'tsconfig.api.json'
+      - 'tsconfig.app.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: carry-forward-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify Vercel-compatible TypeScript compiler
+        run: node -e "const ts=require('typescript'); if(ts.version!=='5.9.3'||!ts.sys?.readFile) process.exit(1); console.log(ts.version, true)"
+      - run: npx playwright install --with-deps chromium
+      - run: npm run release:carry-forward

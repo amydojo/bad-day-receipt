@@ -13,6 +13,7 @@ describe('FIELD–001 production manifest', () => {
 
     for (const row of manifest) {
       const config = getFieldAccessConfig(row.edition)
+      expect(row.machine_id).toBe('LD-001')
       expect(row.token).toMatch(tokenPattern)
       expect(row.url).toBe(
         `https://bad-day-receipt.vercel.app/access/${row.edition}/${row.token}`,

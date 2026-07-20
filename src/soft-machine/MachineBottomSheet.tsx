@@ -14,6 +14,7 @@ interface MachineBottomSheetProps {
   description?: string
   onClose: () => void
   isolateRef?: RefObject<HTMLElement | null>
+  returnFocusRef?: RefObject<HTMLElement | null>
   children: ReactNode
 }
 
@@ -23,6 +24,7 @@ export function MachineBottomSheet({
   description,
   onClose,
   isolateRef,
+  returnFocusRef,
   children,
 }: MachineBottomSheetProps) {
   const titleId = useId()
@@ -30,7 +32,7 @@ export function MachineBottomSheet({
   const sheetRef = useRef<HTMLElement | null>(null)
 
   useScrollLock(open)
-  useFocusReturn(open, sheetRef)
+  useFocusReturn(open, sheetRef, returnFocusRef)
 
   useEffect(() => {
     const isolated = isolateRef?.current

@@ -1,0 +1,96 @@
+name: deployed-parity
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/deployed-parity.yml'
+      - 'scripts/verify-carry-forward-deployment.mjs'
+      - 'scripts/verify-carry-forward-api.mjs'
+  workflow_dispatch:
+    inputs:
+      run_live_compiler:
+        description: Run the single paid GPT-5.6 synthetic compiler request
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  deployments: read
+
+concurrency:
+  group: deployed-parity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Protected previews stay protected. Browser/API automation is enabled only by a repository secret.
+jobs:
+  exact-deployment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Resolve exact-SHA Vercel preview
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          mkdir -p deployed-evidence
+          for attempt in $(seq 1 60); do
+            while read -r deployment_id; do
+              [ -n "$deployment_id" ] || continue
+              url=$(gh api "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses?per_page=100" \
+                --jq '[.[] | select(.state == "success") | (.environment_url // .target_url // empty) | select(contains("vercel.app"))][0] // empty')
+              if [ -n "$url" ]; then
+                echo "DEPLOYED_BASE=${url%/}" >> "$GITHUB_ENV"
+                host=${url#https://}
+                host=${host%%/*}
+                {
+                  echo "head_sha=${HEAD_SHA}"
+                  echo "deployment_url=${url%/}"
+                  echo "deployment_host=${host}"
+                  getent ahostsv4 "$host" | sort -u
+                } | tee deployed-evidence/resolution.txt
+                exit 0
+              fi
+            done < <(gh api "repos/${GITHUB_REPOSITORY}/deployments?sha=${HEAD_SHA}&per_page=100" --jq '.[].id')
+            sleep 10
+          done
+          echo "No successful Vercel deployment found for ${HEAD_SHA}." >&2
+          exit 1
+      - name: Explain protected-preview automation status
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET == ''
+        run: |
+          {
+            echo 'Protected browser and API checks require VERCEL_AUTOMATION_BYPASS_SECRET.'
+            echo 'The exact-SHA deployment was still resolved and retained as evidence.'
+            echo 'No share URL is read from PR comments and no deployment protection is weakened.'
+          } | tee deployed-evidence/protected-preview-status.txt
+      - run: npx playwright install --with-deps chromium
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET != ''
+      - name: Verify deployed M01–M13 journeys
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET != ''
+        run: node scripts/verify-carry-forward-deployment.mjs
+      - name: Verify sanitized invalid request
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET != ''
+        run: node scripts/verify-carry-forward-api.mjs
+      - name: Run one authorized synthetic GPT-5.6 request
+        if: env.VERCEL_AUTOMATION_BYPASS_SECRET != '' && github.event_name == 'workflow_dispatch' && inputs.run_live_compiler == true
+        env:
+          RUN_OPENAI_LIVE: '1'
+        run: node scripts/verify-carry-forward-api.mjs
+      - name: Upload deployed evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carry-forward-deployed-evidence
+          path: deployed-evidence
+          if-no-files-found: warn
+          retention-days: 7

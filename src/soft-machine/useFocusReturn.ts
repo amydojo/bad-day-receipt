@@ -3,14 +3,14 @@ import { useEffect, useRef, type RefObject } from 'react'
 export function useFocusReturn(
   open: boolean,
   containerRef: RefObject<HTMLElement | null>,
+  explicitReturnRef?: RefObject<HTMLElement | null>,
 ) {
   const returnTarget = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (!open) return
-    returnTarget.current = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null
+    returnTarget.current = explicitReturnRef?.current
+      ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
 
     const focusFrame = window.requestAnimationFrame(() => {
       const first = getFocusableElements(containerRef.current)[0]
@@ -23,7 +23,7 @@ export function useFocusReturn(
       returnTarget.current = null
       window.setTimeout(() => target?.focus(), 0)
     }
-  }, [containerRef, open])
+  }, [containerRef, explicitReturnRef, open])
 }
 
 export function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
