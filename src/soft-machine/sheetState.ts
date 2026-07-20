@@ -8,7 +8,7 @@ export function getMachineSheetPresentation(width: number): MachineSheetPresenta
 export function getMachineSheetTitle(sheet: MachineSheetId): string {
   switch (sheet) {
     case 'paper': return 'Choose paper stock'
-    case 'history': return 'Local transaction drawer'
+    case 'history': return 'Local records'
     case 'settings': return 'Machine settings'
     case 'export': return 'Save receipt formats'
   }
