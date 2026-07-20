@@ -101,12 +101,18 @@ export function loadMachineDataResult(
 ): MachineLoadResult {
   if (!storage) return { data: defaults, status: 'unavailable' }
 
+  let raw: string | null
   try {
-    const raw = storage.getItem(MACHINE_STORAGE_KEY)
-    if (!raw) {
-      return { data: migrateLegacyHistory(defaults, storage), status: 'defaulted' }
-    }
+    raw = storage.getItem(MACHINE_STORAGE_KEY)
+  } catch {
+    return { data: defaults, status: 'unavailable' }
+  }
 
+  if (!raw) {
+    return { data: migrateLegacyHistory(defaults, storage), status: 'defaulted' }
+  }
+
+  try {
     const parsed: unknown = JSON.parse(raw)
     const envelope = parseEnvelope(parsed)
     if (!envelope) {
