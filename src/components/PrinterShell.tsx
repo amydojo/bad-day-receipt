@@ -6,9 +6,10 @@ import type { ReceiptTheme } from '../themes'
 interface PrinterShellProps {
   phase: PrinterPhase
   theme: ReceiptTheme
+  statusOverride?: string
 }
 
-export function PrinterShell({ phase, theme }: PrinterShellProps) {
+export function PrinterShell({ phase, theme, statusOverride }: PrinterShellProps) {
   return (
     <div
       className="printer-shell"
@@ -22,7 +23,7 @@ export function PrinterShell({ phase, theme }: PrinterShellProps) {
           </span>
         </div>
 
-        <PrinterStatus phase={phase} />
+        <PrinterStatus phase={phase} statusOverride={statusOverride} />
       </div>
 
       <div className="printer-slot" aria-hidden="true">
@@ -35,10 +36,18 @@ export function PrinterShell({ phase, theme }: PrinterShellProps) {
   )
 }
 
-function PrinterStatus({ phase }: { phase: PrinterPhase }) {
+function PrinterStatus({
+  phase,
+  statusOverride,
+}: {
+  phase: PrinterPhase
+  statusOverride?: string
+}) {
   return (
     <div className="printer-status">
-      <span className="printer-status__label">{getPrinterStatus(phase)}</span>
+      <span className="printer-status__label">
+        {statusOverride ?? getPrinterStatus(phase)}
+      </span>
       <span
         className="printer-status__led"
         data-status={getLedStatus(phase)}
