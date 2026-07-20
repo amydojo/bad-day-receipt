@@ -36,6 +36,7 @@ function renderState(state: Extract<ReceiptEndingState, { kind: 'keep-ritual' | 
     <KeepReceiptRitual
       state={state}
       dispatch={noop}
+      headingRef={null}
       reducedMotion={false}
       sensory={sensory}
       onCommitArchive={commit}
