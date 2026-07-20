@@ -18,6 +18,24 @@ export function isStepReady(step: TaskStep, session: RuntimeSession) {
   }
 }
 
+export function getStepActionLabel(step: TaskStep, isFinalStep: boolean): string {
+  if (isFinalStep) return 'Close this task'
+  switch (step.kind) {
+    case 'read':
+      return 'Continue'
+    case 'choice':
+      return 'Confirm choice'
+    case 'compose':
+      return 'Save draft'
+    case 'checklist':
+      return 'Continue'
+    case 'review':
+      return 'Finish review'
+    default:
+      return assertNever(step)
+  }
+}
+
 export function TaskStepRenderer({
   step,
   plan,
@@ -51,35 +69,47 @@ export function TaskStepRenderer({
       )
     }
     case 'choice': {
-      const expanded = session.expandedChoices[step.id]
-      const visible = fewerDecisions && !expanded
+      const expanded = Boolean(session.expandedChoices[step.id])
+      const visibleOptions = fewerDecisions && !expanded
         ? step.options.filter((option) => option.primary)
         : step.options
+      const hiddenCount = step.options.length - visibleOptions.length
       return (
         <fieldset className="cf-step-content cf-choice-list">
           <legend>{step.prompt}</legend>
-          {visible.map((option) => (
-            <label key={option.id} className="cf-choice" data-selected={session.choices[step.id] === option.id || undefined}>
-              <input
-                type="radio"
-                name={step.id}
-                value={option.id}
-                checked={session.choices[step.id] === option.id}
-                onChange={() => dispatch({ type: 'SELECT_CHOICE', stepId: step.id, optionId: option.id })}
-              />
-              <span><strong>{option.label}</strong><small>{option.detail}</small></span>
-              {option.primary && <em>PRIMARY</em>}
-            </label>
-          ))}
-          {visible.length < step.options.length && (
+          <div id={`cf-choice-options-${step.id}`} className="cf-choice-options">
+            {visibleOptions.map((option) => (
+              <label key={option.id} className="cf-choice" data-selected={session.choices[step.id] === option.id || undefined}>
+                <input
+                  type="radio"
+                  name={step.id}
+                  value={option.id}
+                  checked={session.choices[step.id] === option.id}
+                  onChange={() => dispatch({ type: 'SELECT_CHOICE', stepId: step.id, optionId: option.id })}
+                />
+                <span><strong>{option.label}</strong><small>{option.detail}</small></span>
+                {option.primary && <em>RECOMMENDED</em>}
+              </label>
+            ))}
+          </div>
+          {hiddenCount > 0 && (
             <button
               type="button"
               className="cf-inline-action"
+              aria-expanded={expanded}
+              aria-controls={`cf-choice-options-${step.id}`}
               onClick={() => dispatch({ type: 'SHOW_ALL_CHOICES', stepId: step.id })}
             >
-              SHOW ALL CHOICES
+              SHOW ALL CHOICES · {hiddenCount} MORE
             </button>
           )}
+          <span className="cf-sr-only" aria-live="polite">
+            {expanded
+              ? 'All approved choices are visible.'
+              : hiddenCount > 0
+                ? `${hiddenCount} additional approved choices are available.`
+                : 'All approved choices are visible.'}
+          </span>
         </fieldset>
       )
     }
@@ -96,7 +126,7 @@ export function TaskStepRenderer({
             rows={12}
             onChange={(event) => dispatch({ type: 'UPDATE_COMPOSE', stepId: step.id, value: event.target.value })}
           />
-          <small>{value.length}/4000 · SAVED {session.composeDrafts[step.id] === undefined ? 'AFTER EDIT' : 'ON THIS DEVICE'}</small>
+          <small>{value.length}/4000 · {session.composeDrafts[step.id] === undefined ? 'PRESERVED AFTER YOUR FIRST EDIT' : 'PRESERVED ON THIS DEVICE'}</small>
         </div>
       )
     }
@@ -128,6 +158,7 @@ export function TaskStepRenderer({
               </Fragment>
             ))}
           </dl>
+          <p className="cf-review-boundary">Prepared for your review. Nothing has been sent, submitted, filed, or approved.</p>
         </div>
       )
     default:
