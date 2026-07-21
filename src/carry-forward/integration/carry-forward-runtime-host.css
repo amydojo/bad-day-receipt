@@ -4,121 +4,398 @@
 }
 
 .carry-designation__runtime-boundary[data-runtime-active] > .carry-designation__ritual-layer {
-  max-height: 26rem;
+  max-height: 2rem;
   overflow: hidden;
-  opacity: .18;
-  filter: saturate(.55) blur(.6px);
-  transform: scale(.965) translateY(-.6rem);
+  opacity: .08;
+  filter: saturate(.45);
+  transform: scale(.985) translateY(-.35rem);
   transform-origin: 50% 0;
   pointer-events: none;
-  transition: opacity 220ms ease, transform 320ms cubic-bezier(.2,.8,.2,1), filter 220ms ease;
+  transition: opacity 220ms ease, transform 320ms cubic-bezier(.2,.8,.2,1), filter 220ms ease, max-height 320ms ease;
 }
 
 .carry-designation__runtime-layer {
   position: relative;
   z-index: 8;
-  width: min(100vw, 72rem);
-  margin: -2rem auto 0;
+  width: min(100%, 430px);
+  margin: 0 auto;
 }
 
 .cf-in-tree-host {
-  width: 100%;
-  color: var(--ink, #171716);
+  width: min(100%, 430px);
+  min-height: 844px;
+  margin: 0 auto;
+  overflow: hidden;
+  color: var(--cf-ink, #171713);
+  border: 1px solid var(--cf-ink, #171713);
+  border-radius: 28px;
+  background: #d7d3ca;
+  box-shadow: 0 1.5rem 4rem rgb(20 18 15 / 16%);
 }
 
 .cf-in-tree-host .cf-authored-shell,
 .cf-in-tree-host.cf-authored-shell {
-  min-height: min(78vh, 52rem);
+  width: 100%;
+  min-height: 844px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Figma 150:2204 · Applying Field Transfer */
+.cf-applying {
+  position: relative;
+  min-height: 844px;
+  background: #d7d3ca;
+}
+
+.cf-applying .cf-authored-shell {
+  position: relative;
+  min-height: 844px;
+  border: 0;
+  box-shadow: none;
+}
+
+.cf-applying .cf-authored-system-bar {
+  position: relative;
+  min-height: 56px;
+  padding: 20px 20px 0;
+}
+
+.cf-applying .cf-authored-system-bar > span {
+  font-size: 0;
+}
+
+.cf-applying .cf-authored-system-bar > span::before {
+  content: 'ONE THING MODE';
+  color: #5e5b55;
+  font: 400 10px/15px "DM Mono", ui-monospace, monospace;
+  letter-spacing: .1em;
+}
+
+.cf-applying .cf-authored-system-bar::after {
+  content: 'FT 027';
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: #5e5b55;
+  font: 400 10px/15px "DM Mono", ui-monospace, monospace;
+  letter-spacing: .1em;
+}
+
+.cf-applying .cf-authored-system-bar button {
+  position: absolute;
+  right: 12px;
+  bottom: -770px;
+  z-index: 4;
+  min-width: 48px;
+  margin: 0;
+  padding: 10px 8px;
+  color: #5e5b55;
+  font-size: 10px;
+  text-decoration: none;
+}
+
+.cf-applying .cf-authored-scene {
+  min-height: 788px;
 }
 
 .cf-applying .cf-authored-content {
-  display: grid;
-  align-content: center;
-  gap: 1.2rem;
-  min-height: 28rem;
+  display: block;
+  min-height: 0;
+  padding: 16px 20px 0;
 }
 
-.cf-compile-stages {
-  display: grid;
-  gap: .65rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.cf-applying .cf-authored-content > .cf-eyebrow {
+  color: #9d302a;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: .04em;
 }
 
-.cf-compile-stages li {
+.cf-applying .cf-authored-content > h1 {
+  max-width: 350px;
+  margin: 22px 0 92px;
+  font-family: "Instrument Serif", Georgia, serif;
+  font-size: 46px;
+  font-weight: 400;
+  line-height: 44px;
+  letter-spacing: -.025em;
+}
+
+.cf-applying .cf-compile-stages {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 26px;
+  margin: 0 0 78px;
+  border: 0;
+  background: transparent;
+}
+
+.cf-applying .cf-compile-stages li,
+.cf-applying .cf-compile-stages li + li {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
   align-items: center;
-  gap: .7rem;
-  min-height: 3rem;
-  padding: .75rem .85rem;
-  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
-  opacity: .38;
-  transition: opacity 180ms ease, transform 180ms ease, background 180ms ease;
+  min-height: 42px;
+  padding: 0 22px;
+  border: 0;
+  color: #171713;
+  background: transparent;
+  box-shadow: none;
+  opacity: .32;
+  transform: none;
 }
 
-.cf-compile-stages li[data-active] {
-  opacity: .72;
-  transform: translateX(.2rem);
-}
-
-.cf-compile-stages li[data-complete] {
+.cf-applying .cf-compile-stages li[data-complete] {
+  color: #171713;
+  background: transparent;
   opacity: 1;
-  background: color-mix(in srgb, #ff6f61 10%, transparent);
 }
 
-.cf-compile-stages li > span {
-  font: 700 .7rem/1 "DM Mono", ui-monospace, monospace;
+.cf-applying .cf-compile-stages li[data-active] {
+  color: #9d302a;
+  box-shadow: none;
+  opacity: 1;
+  transform: none;
 }
 
-.cf-compile-stages li > strong {
-  font: 700 .74rem/1.35 "DM Mono", ui-monospace, monospace;
-  letter-spacing: .09em;
+.cf-applying .cf-compile-stages li > span,
+.cf-applying .cf-compile-stages li > strong {
+  color: inherit;
+  font: 400 13px/20px "DM Mono", ui-monospace, monospace;
+  letter-spacing: 0;
 }
 
+.cf-applying .cf-compile-stages li > strong::after {
+  content: none;
+}
+
+.cf-applying .cf-invariant {
+  padding: 0;
+  margin: 0;
+  color: #5e5b55;
+  background: transparent;
+}
+
+.cf-applying .cf-invariant strong {
+  color: inherit;
+  font: 400 12px/18px "DM Mono", ui-monospace, monospace;
+  letter-spacing: 0;
+}
+
+.cf-applying .cf-invariant p {
+  display: none;
+}
+
+.cf-applying .cf-authored-dock {
+  position: absolute;
+  right: auto;
+  bottom: 6px;
+  left: 12px;
+  display: block;
+  width: auto;
+  padding: 0;
+  background: transparent;
+}
+
+.cf-applying .cf-authored-dock .cf-button {
+  width: auto;
+  min-width: 48px;
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 0;
+  color: #5e5b55;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.cf-applying .cf-authored-dock .cf-button:last-child {
+  display: none;
+}
+
+/* Figma 150:2212+ · quiet One Thing Mode */
 .cf-runtime--in-tree {
-  min-height: min(82vh, 56rem);
-  background: #f3efe4;
-  box-shadow: 0 2rem 5rem rgb(20 18 15 / 18%);
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 844px;
+  padding: 0;
+  background: #d7d3ca;
+  box-shadow: none;
 }
 
 .cf-runtime--in-tree .cf-task-rail {
-  background: #171716;
+  display: none;
+}
+
+.cf-runtime--in-tree .cf-workspace {
+  min-height: 844px;
+  padding: 0 20px 18px;
+  background: #d7d3ca;
+}
+
+.cf-runtime--in-tree .cf-mobile-runtime-head {
+  position: static;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-height: 62px;
+  margin: 0;
+  padding: 20px 0 0;
+  color: #295c45;
+  border: 0;
+  background: transparent;
+  font: 400 10px/15px "DM Mono", ui-monospace, monospace;
+  letter-spacing: .1em;
+}
+
+.cf-runtime--in-tree .cf-mobile-runtime-head::before {
+  content: 'ONE THING MODE';
+  margin-right: auto;
+  color: #5e5b55;
+}
+
+.cf-runtime--in-tree .cf-mobile-runtime-head button {
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  z-index: 5;
+  min-width: 48px;
+  min-height: 44px;
+  padding: 10px;
+  border: 0;
+  color: #5e5b55;
+  background: transparent;
+  font-size: 0;
+}
+
+.cf-runtime--in-tree .cf-mobile-runtime-head button::after {
+  content: 'END';
+  font-size: 10px;
+}
+
+.cf-runtime--in-tree .cf-progress {
+  max-width: none;
+  margin: 0 0 14px;
+}
+
+.cf-runtime--in-tree .cf-mobile-runtime-links {
+  position: absolute;
+  bottom: 4px;
+  left: 10px;
+  z-index: 4;
+  display: flex;
+  gap: 10px;
+  margin: 0;
+}
+
+.cf-runtime--in-tree .cf-mobile-runtime-links button {
+  min-height: 44px;
+  padding: 10px;
+  border: 0;
+  color: #5e5b55;
+  background: transparent;
+  font-size: 10px;
+}
+
+.cf-runtime--in-tree .cf-step-shell {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  min-height: 738px;
+  margin: 0;
+  background: transparent;
+}
+
+.cf-runtime--in-tree .cf-step-shell > header {
+  padding: 0 0 14px;
+  border: 0;
+}
+
+.cf-runtime--in-tree .cf-step-shell h1 {
+  max-width: 350px;
+  margin: 12px 0 0;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 30px;
+  letter-spacing: -.015em;
+}
+
+.cf-runtime--in-tree .cf-step-shell__body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 0 18px;
+}
+
+.cf-runtime--in-tree .cf-step-content > p,
+.cf-runtime--in-tree .cf-choice-list legend,
+.cf-runtime--in-tree .cf-checklist legend,
+.cf-runtime--in-tree .cf-compose > label {
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.cf-runtime--in-tree .cf-choice {
+  min-height: 60px;
+  margin-bottom: 14px;
+}
+
+.cf-runtime--in-tree .cf-step-shell > footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  padding: 10px 0 54px;
+  border: 0;
+  background: linear-gradient(transparent, #d7d3ca 16%);
+}
+
+.cf-runtime--in-tree .cf-step-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.cf-runtime--in-tree .cf-step-actions .cf-button {
+  width: 100%;
+  min-height: 52px;
 }
 
 .cf-in-tree-host[data-field-transfer-status='applied']::before {
-  content: 'FT 027 APPLIED';
-  position: fixed;
-  inset: auto 1rem 1rem auto;
-  z-index: 30;
-  padding: .45rem .65rem;
-  border: 1px solid currentColor;
-  background: rgb(23 23 22 / 88%);
-  color: #fff8ed;
-  font: 700 .62rem/1 "DM Mono", ui-monospace, monospace;
-  letter-spacing: .11em;
-  pointer-events: none;
+  content: none;
 }
 
-@media (max-width: 48rem) {
-  .carry-designation__runtime-layer {
+@media (max-width: 430px) {
+  .carry-designation__runtime-layer,
+  .cf-in-tree-host {
     width: 100%;
-    margin-top: -1rem;
   }
 
-  .cf-applying .cf-authored-content {
-    min-height: 22rem;
-  }
-
-  .cf-runtime--in-tree {
+  .cf-in-tree-host {
     min-height: 100dvh;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .cf-runtime--in-tree,
+  .cf-runtime--in-tree .cf-workspace,
+  .cf-applying,
+  .cf-applying .cf-authored-shell {
+    min-height: 100dvh;
+  }
+
+  .cf-runtime--in-tree .cf-step-shell {
+    min-height: calc(100dvh - 106px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .carry-designation__runtime-boundary[data-runtime-active] > .carry-designation__ritual-layer,
-  .cf-compile-stages li {
+  .cf-applying .cf-compile-stages li {
     transition-duration: .01ms !important;
   }
 }
