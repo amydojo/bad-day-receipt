@@ -4,6 +4,7 @@ import type {
   ActuatorMilestone,
   CarryRitualEvent,
   CarryRitualPhase,
+  CarryRitualRecoveryReason,
   CarryRitualState,
 } from './carryForwardRitualTypes'
 
@@ -43,7 +44,10 @@ export interface CarryRitualCheckpoint {
   receiptId: string
   stubId: string
   actuatorMilestone: ActuatorMilestone | null
+  recoveryReason: CarryRitualRecoveryReason | null
 }
+
+export const CARRY_RITUAL_CHECKPOINT_KEY = 'bad-day-receipt:carry-ritual-checkpoint:v1'
 
 const PERSISTABLE_PHASES = new Set<CarryRitualPhase>([
   'extension-ready',
@@ -51,6 +55,20 @@ const PERSISTABLE_PHASES = new Set<CarryRitualPhase>([
   'actuator-ready',
   'transfer-issued',
   'recovery',
+])
+
+const ACTUATOR_MILESTONES = new Set<ActuatorMilestone>([
+  'easy',
+  'medium',
+  'heavy',
+  'detent',
+  'locked',
+])
+
+const RECOVERY_REASONS = new Set<CarryRitualRecoveryReason>([
+  'tear-canceled',
+  'intake-jam',
+  'conversion-failed',
 ])
 
 export function isCarryRitualPersistablePhase(phase: CarryRitualPhase) {
@@ -67,6 +85,68 @@ export function createCarryRitualCheckpoint(
     receiptId: state.payload.receiptId,
     stubId: state.stubId,
     actuatorMilestone: state.actuatorMilestone,
+    recoveryReason: state.recoveryReason,
+  }
+}
+
+interface StorageAdapter {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+}
+
+export function saveCarryRitualCheckpoint(
+  storage: StorageAdapter,
+  checkpoint: CarryRitualCheckpoint,
+) {
+  try {
+    storage.setItem(CARRY_RITUAL_CHECKPOINT_KEY, JSON.stringify(checkpoint))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function loadCarryRitualCheckpoint(
+  storage: StorageAdapter,
+): CarryRitualCheckpoint | null {
+  try {
+    const raw = storage.getItem(CARRY_RITUAL_CHECKPOINT_KEY)
+    if (!raw) return null
+    const value: unknown = JSON.parse(raw)
+    if (!value || typeof value !== 'object') return null
+    const record = value as Record<string, unknown>
+    if (record.version !== 1) return null
+    if (typeof record.phase !== 'string' || !PERSISTABLE_PHASES.has(record.phase as CarryRitualPhase)) return null
+    if (typeof record.receiptId !== 'string' || record.receiptId.length < 1) return null
+    if (typeof record.stubId !== 'string' || record.stubId.length < 1) return null
+    if (record.actuatorMilestone !== null && (
+      typeof record.actuatorMilestone !== 'string'
+      || !ACTUATOR_MILESTONES.has(record.actuatorMilestone as ActuatorMilestone)
+    )) return null
+    if (record.recoveryReason !== null && (
+      typeof record.recoveryReason !== 'string'
+      || !RECOVERY_REASONS.has(record.recoveryReason as CarryRitualRecoveryReason)
+    )) return null
+    return {
+      version: 1,
+      phase: record.phase as CarryRitualPhase,
+      receiptId: record.receiptId,
+      stubId: record.stubId,
+      actuatorMilestone: record.actuatorMilestone as ActuatorMilestone | null,
+      recoveryReason: record.recoveryReason as CarryRitualRecoveryReason | null,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function clearCarryRitualCheckpoint(storage: StorageAdapter) {
+  try {
+    storage.removeItem(CARRY_RITUAL_CHECKPOINT_KEY)
+    return true
+  } catch {
+    return false
   }
 }
 
