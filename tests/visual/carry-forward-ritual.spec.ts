@@ -51,33 +51,30 @@ test.describe('Carry Forward ritual visual evidence', () => {
 
     const actuator = page.getByRole('button', { name: 'Push actuator to convert' })
     await expect(actuator).toBeVisible({ timeout: 10_000 })
-    const box = await actuator.boundingBox()
-    expect(box).not.toBeNull()
-    if (!box) return
+    await actuator.focus()
 
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 84, { steps: 5 })
+    await actuator.press('ArrowDown')
+    await expect(page.locator('[data-actuator-milestone="easy"]')).toBeVisible()
+    await actuator.press('ArrowDown')
     await expect(page.locator('[data-actuator-milestone="medium"]')).toBeVisible()
     await attach(page, testInfo, 'actuator-55')
 
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 138, { steps: 4 })
+    await actuator.press('ArrowDown')
+    await expect(page.locator('[data-actuator-milestone="heavy"]')).toBeVisible()
+    await actuator.press('ArrowDown')
     await expect(page.locator('[data-actuator-milestone="detent"]')).toBeVisible()
     await attach(page, testInfo, 'actuator-92-detent')
 
     await page.evaluate(() => {
       const original = window.setTimeout.bind(window)
-      const browserWindow = window as Window & { __carryOriginalTimeout?: typeof window.setTimeout }
-      browserWindow.__carryOriginalTimeout = window.setTimeout
       window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
         if (timeout === 120) return 2147483000
         return original(handler, timeout, ...args)
       }) as typeof window.setTimeout
     })
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 152, { steps: 2 })
+    await actuator.press('ArrowDown')
     await expect(page.locator('[data-actuator-milestone="locked"]')).toBeVisible()
     await attach(page, testInfo, 'actuator-locked')
-    await page.mouse.up()
   })
 
   test('captures registration and the issued Field Transfer', async ({ page }, testInfo) => {
