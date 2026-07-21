@@ -52,12 +52,7 @@ describe('carryDesignationReducer', () => {
       receiptId: 'BD-84',
       candidates: [suggestion],
     })
-    expect(reduce(state, { type: 'SELECT_SUGGESTION', obligation: suggestion })).toEqual({
-      kind: 'source',
-      obligation: suggestion,
-      sourceText: '',
-      sourceExpanded: false,
-    })
+    expect(reduce(state, { type: 'SELECT_SUGGESTION', obligation: suggestion })).toBe(state)
     expect(suggestion.confirmedByUser).toBe(false)
   })
 
