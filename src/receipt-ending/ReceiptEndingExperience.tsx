@@ -6,6 +6,7 @@ import {
   type Ref,
 } from 'react'
 import { CarryForwardDesignation } from '../carry-forward/designation/CarryForwardDesignation'
+import { getDevelopmentDesignationInputs } from '../carry-forward/designation/designationFixtures'
 import type { MachineSensoryDirector } from '../mobile-instrument/sensory/sensoryTypes'
 import type { CompletedReceiptSnapshot } from './completedReceipt'
 import { EndDispositionChoice } from './EndDispositionChoice'
@@ -168,6 +169,7 @@ export function ReceiptEndingExperience({
           origin={{
             kind: 'receipt',
             receiptId: state.receipt.receiptNumber,
+            explicitInputs: getDevelopmentDesignationInputs(),
           }}
           onNothingAfterAll={() => dispatch({ type: 'BACK_TO_DOCUMENTED' })}
         />
