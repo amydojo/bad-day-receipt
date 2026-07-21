@@ -8,7 +8,6 @@ import { startCarryForwardCompileRun } from '../carryForwardCompileRun'
 import {
   CarryForwardCompileError,
   compileCarryForwardTask,
-  type ValidatedTaskPlan,
 } from '../carryForwardEffects'
 import {
   saveCarryForwardSession,
@@ -17,6 +16,7 @@ import {
 } from '../carryForwardStorage'
 import type { InteractionBudget } from '../interactionBudget'
 import type { CarryRitualHandoff } from '../ritual/carryForwardRitualTypes'
+import type { ValidatedTaskPlan } from '../taskPlanSchema'
 
 export const IN_TREE_APPLY_MINIMUM_MS = 800
 
