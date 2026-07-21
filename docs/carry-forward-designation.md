@@ -32,7 +32,7 @@ documented
       └── carry-selected
 ```
 
-`carry-selected` mounts the independent designation domain. Receipt-ending state continues to contain only the frozen receipt and never receives task or source text.
+`carry-selected` mounts the independent designation domain. Receipt-ending state continues to contain only the frozen receipt and never receives task, source, policy, or compiler data.
 
 The designation reducer owns:
 
@@ -64,13 +64,23 @@ type RemainingObligation = {
 }
 ```
 
-`confirmedByUser` remains false until a user selects a suggestion or confirms a manual field.
+Suggestions enter through one strict explicit-input shape:
 
-The runtime provenance parser accepts only explicit input collections. Its schema has no receipt, total, theme, verdict, emotional, behavioral, inferred-capacity, or model-output fields. Unsupported shapes yield no suggestion.
+```ts
+interface ExplicitObligationInputs {
+  explicitCurrentInputs?: string[]
+  explicitPriorInputs?: string[]
+  authoredDemoFixtures?: string[]
+}
+```
+
+The public designation origin does not accept a preconstructed suggestion array. It accepts only the explicit-input collection, which is runtime parsed with a strict schema. Receipt, total, theme, verdict, emotional, behavioral, inferred-capacity, and model-output properties are not valid input fields. A mixed shape containing any unsupported property yields no suggestion.
+
+`confirmedByUser` remains false until a user selects a suggestion or confirms a manual field.
 
 One valid explicit candidate appears as an unselected possible remaining thing. Several candidates appear as an unselected semantic radio group. No valid explicit candidate opens the native manual field immediately.
 
-The current receipt workflow does not supply an implicit suggestion, so it begins with manual designation unless an explicitly authored candidate is provided by a future trusted intake boundary.
+The current production receipt workflow supplies no implicit suggestion, so it begins with manual designation. Development-only authored fixtures exist solely for deterministic browser and visual coverage and are unavailable in production builds.
 
 ## Receipt-origin flow
 
@@ -85,11 +95,13 @@ The day is documented
   → ritual-ready
 ```
 
-The completed receipt remains mounted throughout the designation. The designation domain is in memory only and does not mutate receipt-machine persistence.
+The completed receipt remains mounted throughout designation. The designation domain is in memory only and does not mutate receipt-machine persistence.
 
 ## Direct route
 
-When `VITE_THREE_ENDINGS=true`, `/carry-forward` uses the same designation components but begins with manual input and labels itself as direct entry. It never claims receipt continuity and creates an Interaction Budget with `receiptId: null`.
+For a fresh feature-enabled `/carry-forward` visit, the route uses the same designation components, begins with manual input, labels itself as direct entry, and creates an Interaction Budget with `receiptId: null`.
+
+If an existing valid, fallback, expired, or malformed Carry Forward storage record is present, the route delegates to the existing `CarryForwardApp` so its established parser, recovery, expiry, fallback, and runtime behavior remains authoritative. This prevents enabling Three Endings from abandoning an already-started temporary task.
 
 When the feature flag is disabled, `/carry-forward` continues to mount the existing `CarryForwardApp`, compiler, fallback, temporary session storage, and One Thing Mode runtime unchanged.
 
@@ -104,7 +116,7 @@ When the feature flag is disabled, `/carry-forward` continues to mount the exist
 - changes no private archive content
 - makes no compiler call
 - returns receipt-origin flow to `documented` without replaying the completion pause
-- returns direct entry to the receipt application
+- returns fresh direct entry to the receipt application
 
 It remains available before confirmation, after source entry, on the preset, and at the truthful ritual-ready boundary.
 
@@ -133,6 +145,8 @@ Source text:
 - remains in memory when the disclosure collapses
 - is cleared by Nothing After All
 
+Expand focuses the native textarea. Collapse restores focus to the disclosure trigger and preserves entered text.
+
 ## Recommended preset
 
 The primary path presents one explicit preset:
@@ -148,7 +162,7 @@ Nothing sent automatically
 
 It uses the existing `DEFAULT_INTERACTION_POLICIES` and `createInteractionBudget`. The resulting object is validated by the existing `InteractionBudgetSchema`, contains the existing four-hour expiry, and remains compatible with the current compiler contract.
 
-The main path does not require four separate policy choices. `CUSTOMIZE` opens the existing modal focus-management primitive and the existing `InteractionPolicyCard` controls. Closing the sheet returns focus to the Customize trigger.
+The main path does not require four separate policy choices. `CUSTOMIZE` opens the existing modal focus-management primitive and existing `InteractionPolicyCard` controls. Closing the sheet returns focus to the Customize trigger. Custom policies produce the same typed budget.
 
 ## Ritual-ready boundary
 
@@ -165,12 +179,12 @@ At this boundary:
 - optional source remains in memory
 - a typed Interaction Budget exists
 - receipt origin is present only when truthful
-- no stub has printed
-- no paper has been torn or reinserted
-- no actuator exists
-- no Field Transfer exists
+- the completed receipt remains unchanged
 - `/api/compile-task` has not been called
+- no plan or generated output exists
 - One Thing Mode has not started
+
+`REVIEW ADJUSTMENT` returns to the preset with the same policy values. `NOTHING AFTER ALL` clears the designation and exits intentionally.
 
 #85 owns the physical Carry Forward ritual. #86 owns the in-tree compiler and runtime Apply boundary.
 
@@ -200,12 +214,12 @@ Receipt-machine storage never receives:
 - generated plan
 - compiler output
 
-The designation implementation adds no telemetry emission. Existing feature-disabled Carry Forward telemetry and temporary-session behavior remain unchanged.
+Fresh designation state remains in memory only. The implementation adds no designation telemetry emission. Existing feature-disabled Carry Forward telemetry and temporary-session behavior remain unchanged.
 
 ## Focus and accessibility
 
 - native text input and label
-- semantic suggestion buttons or radio choices
+- semantic suggestion buttons or unselected radio choices
 - no clickable `div`
 - concise live validation error
 - 44×44 minimum actions
@@ -214,24 +228,11 @@ The designation implementation adds no telemetry emission. Existing feature-disa
 - each semantic screen focuses one heading
 - Nothing After All has one consistent accessible name
 - reduced motion does not change logic
+- no receipt utilities compete with designation
 
 ## Responsive ownership
 
-One component tree supports:
-
-```text
-320×568
-375×667
-390×844
-393×852
-430×932
-667×375
-768×1024
-1440×900
-200% zoom
-```
-
-Short and landscape viewports scroll intentionally. Inputs, descriptions, and touch targets do not shrink to force the flow above the fold.
+One component tree supports compact mobile, standard mobile, landscape, tablet, desktop, and 200% zoom. Short and landscape viewports scroll intentionally. Inputs, descriptions, and touch targets do not shrink to force the flow above the fold.
 
 ## Feature flag
 
@@ -239,7 +240,7 @@ Short and landscape viewports scroll intentionally. Inputs, descriptions, and to
 VITE_THREE_ENDINGS=true
 ```
 
-enables receipt-origin designation and the new direct route.
+enables receipt-origin designation and fresh direct-route designation.
 
 Production remains disabled by default.
 
@@ -254,4 +255,4 @@ Production remains disabled by default.
 
 ## Validation status
 
-Provenance, reducer, component, browser, privacy, network-guard, accessibility, and visual fixtures are committed. GitHub-hosted execution remains unavailable while the monthly Actions allowance is exhausted. Vercel rate-limit rejection is reported separately from compilation failure. Browser certification is claimed only when assertions execute in an available browser environment.
+Provenance, reducer, component, browser, privacy, network-guard, accessibility, session-preservation, and visual fixtures are committed. GitHub-hosted execution remains unavailable while the monthly Actions allowance is exhausted. Vercel rate-limit rejection is reported separately from compilation failure. Browser certification is claimed only when assertions execute in an available browser environment.
