@@ -1,5 +1,6 @@
 import {
   useRef,
+  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
@@ -37,6 +38,7 @@ export function MechanicalActuator({
     dragged: boolean
     lastMilestone: ActuatorMilestone | null
   } | null>(null)
+  const suppressClick = useRef(false)
 
   const interactive = [
     'actuator-ready',
@@ -57,6 +59,7 @@ export function MechanicalActuator({
   const begin = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (!interactive) return
     event.preventDefault()
+    suppressClick.current = false
     event.currentTarget.setPointerCapture(event.pointerId)
     pointer.current = {
       id: event.pointerId,
@@ -86,6 +89,7 @@ export function MechanicalActuator({
     const active = pointer.current
     if (!active || active.id !== event.pointerId) return
     pointer.current = null
+    suppressClick.current = active.dragged
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
@@ -102,9 +106,11 @@ export function MechanicalActuator({
   }
 
   const handleClick = () => {
-    const active = pointer.current
-    if (active?.dragged || !interactive) return
-    onFallback()
+    if (suppressClick.current) {
+      suppressClick.current = false
+      return
+    }
+    if (interactive) onFallback()
   }
 
   const accessibleMilestone = milestone
@@ -145,7 +151,7 @@ export function MechanicalActuator({
           style={{
             '--actuator-progress': progress,
             '--actuator-resisted-progress': getActuatorResistance(progress),
-          } as React.CSSProperties}
+          } as CSSProperties}
         >
           <span aria-hidden="true">PUSH</span>
         </button>
