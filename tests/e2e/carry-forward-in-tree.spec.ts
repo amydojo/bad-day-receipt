@@ -121,7 +121,7 @@ test.describe('Carry Forward in-tree compiler and runtime integration', () => {
     })
 
     await reachIssuedTransfer(page)
-    await applyTransfer(page)
+    await page.getByRole('button', { name: 'APPLY' }).click()
     await expect(page.getByRole('heading', { name: 'The plan did not pass validation' })).toBeVisible({ timeout: 15_000 })
     await expect(page.getByText('Nothing partial was used', { exact: true })).toBeVisible()
     await expect(page.getByText('Unvalidated text must not render')).toHaveCount(0)
@@ -159,7 +159,8 @@ test.describe('Carry Forward in-tree compiler and runtime integration', () => {
 
   test('direct route remains truthful and does not invent receipt continuity', async ({ page }) => {
     await page.goto('/carry-forward')
-    await expect(page.getByRole('heading', { name: 'What still needs doing?' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'What is still asking something from you?' })).toBeVisible()
+    await expect(page.getByLabel('ONE REMAINING OBLIGATION')).toBeVisible()
     await expect(page.locator('[data-receipt-artifact]')).toHaveCount(0)
     await expect(page.getByText('FT 027 APPLIED', { exact: true })).toHaveCount(0)
     await expect(page).toHaveURL(/\/carry-forward$/)
