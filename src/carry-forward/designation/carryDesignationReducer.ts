@@ -66,6 +66,9 @@ export function carryDesignationReducer(
       if (event.type === 'UPDATE_DRAFT') {
         return { ...state, draft: event.value, error: null }
       }
+      if (event.type === 'MANUAL_INVALID') {
+        return { ...state, error: event.message }
+      }
       if (event.type === 'CONFIRM_MANUAL') {
         if (!event.obligation.confirmedByUser) {
           return { ...state, error: 'Confirm one concrete obligation before continuing.' }
