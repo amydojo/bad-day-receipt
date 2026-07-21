@@ -3,15 +3,29 @@
   min-height: 1px;
 }
 
+.carry-designation__runtime-boundary[data-runtime-active] {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  min-height: 100dvh;
+  overflow: auto;
+  background: #d7d3ca;
+  isolation: isolate;
+  overscroll-behavior: contain;
+}
+
 .carry-designation__runtime-boundary[data-runtime-active] > .carry-designation__ritual-layer {
-  max-height: 2rem;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  max-height: none;
   overflow: hidden;
-  opacity: .08;
-  filter: saturate(.45);
-  transform: scale(.985) translateY(-.35rem);
+  opacity: .04;
+  filter: saturate(.35);
+  transform: scale(.985);
   transform-origin: 50% 0;
   pointer-events: none;
-  transition: opacity 220ms ease, transform 320ms cubic-bezier(.2,.8,.2,1), filter 220ms ease, max-height 320ms ease;
+  transition: opacity 220ms ease, transform 320ms cubic-bezier(.2,.8,.2,1), filter 220ms ease;
 }
 
 .carry-designation__runtime-layer {
@@ -19,6 +33,11 @@
   z-index: 8;
   width: min(100%, 430px);
   margin: 0 auto;
+}
+
+.carry-designation__runtime-boundary[data-runtime-active] > .carry-designation__runtime-layer {
+  z-index: 2;
+  min-height: 100dvh;
 }
 
 .cf-in-tree-host {
