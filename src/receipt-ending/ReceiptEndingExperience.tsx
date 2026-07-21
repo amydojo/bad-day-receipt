@@ -12,12 +12,18 @@ import {
   KeepReceiptRitual,
   type KeepArchiveCommitResult,
 } from './keep/KeepReceiptRitual'
+import {
+  ReleaseReceiptRitual,
+  type ReleaseCommitResult,
+  type UndoReleaseResult,
+} from './release/ReleaseReceiptRitual'
 import { ReceiptDecisionSurface } from './ReceiptDecisionSurface'
 import { RECEIPT_COMPLETION_PAUSE_MS } from './receiptEndingEffects'
 import type {
   ReceiptEndingEvent,
   ReceiptEndingPersistenceStatus,
   ReceiptEndingState,
+  ReleaseOrigin,
 } from './receiptEndingTypes'
 
 const DOCUMENTED_ANNOUNCEMENT = 'The day is documented. Choose whether to end here or carry one thing forward.'
@@ -30,7 +36,11 @@ export function ReceiptEndingExperience({
   reducedMotion,
   sensory,
   onCommitKeepArchive,
+  onCommitRelease,
+  onUndoRelease,
+  onExpireRelease,
   onExportLocalCopy,
+  onReturnFromRelease,
   onCloseKeepCompletion,
 }: {
   state: ReceiptEndingState
@@ -43,7 +53,15 @@ export function ReceiptEndingExperience({
     receipt: CompletedReceiptSnapshot,
     archivedAt: string,
   ) => Promise<KeepArchiveCommitResult> | KeepArchiveCommitResult
+  onCommitRelease: (
+    receipt: CompletedReceiptSnapshot,
+    origin: ReleaseOrigin,
+    undoUntil: string,
+  ) => Promise<ReleaseCommitResult> | ReleaseCommitResult
+  onUndoRelease: () => Promise<UndoReleaseResult> | UndoReleaseResult
+  onExpireRelease: () => Promise<void> | void
   onExportLocalCopy: (receipt: CompletedReceiptSnapshot) => Promise<boolean>
+  onReturnFromRelease: (origin: ReleaseOrigin) => void
   onCloseKeepCompletion: () => void
 }) {
   const localHeadingRef = useRef<HTMLHeadingElement | null>(null)
@@ -148,15 +166,20 @@ export function ReceiptEndingExperience({
       )
       break
 
-    case 'release-selected':
+    case 'release-ritual':
+    case 'release-recovery':
       surface = (
-        <ReceiptEndingHandoff
-          eyebrow="RELEASE READY"
-          title="The receipt is ready to be released."
-          body="Nothing has been removed yet."
-          slot="release"
+        <ReleaseReceiptRitual
+          state={state}
+          dispatch={dispatch}
           headingRef={assignHeadingRef}
-          onBack={() => dispatch({ type: 'BACK_TO_DISPOSITION' })}
+          reducedMotion={reducedMotion}
+          sensory={sensory}
+          onCommitRelease={onCommitRelease}
+          onUndoRelease={onUndoRelease}
+          onExpireRelease={onExpireRelease}
+          onExportLocalCopy={onExportLocalCopy}
+          onReturnToSource={onReturnFromRelease}
         />
       )
       break
@@ -194,6 +217,7 @@ export function ReceiptEndingExperience({
       className="receipt-ending-experience"
       data-receipt-ending-state={state.kind}
       data-keep-phase={state.kind === 'keep-ritual' ? state.phase : undefined}
+      data-release-phase={state.kind === 'release-ritual' ? state.phase : undefined}
     >
       {surface}
       {state.kind === 'documented' && (
@@ -210,6 +234,11 @@ function getFocusToken(state: ReceiptEndingState): string | null {
   if (state.kind === 'keep-ritual') {
     return state.phase === 'complete' ? 'keep-complete' : null
   }
+  if (state.kind === 'release-ritual') {
+    return state.phase === 'complete' || state.phase === 'undoing'
+      ? 'release-complete'
+      : null
+  }
   return state.kind
 }
 
@@ -225,7 +254,7 @@ function ReceiptEndingHandoff({
   eyebrow: string
   title: string
   body: string
-  slot: 'release' | 'carry' | 'recovery'
+  slot: 'carry' | 'recovery'
   headingRef: Ref<HTMLHeadingElement>
   onBack: () => void
   backLabel?: string
