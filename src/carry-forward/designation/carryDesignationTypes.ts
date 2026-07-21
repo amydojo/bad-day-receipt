@@ -15,15 +15,21 @@ export interface RemainingObligation {
   confirmedByUser: boolean
 }
 
+export interface ExplicitObligationInputs {
+  explicitCurrentInputs?: string[]
+  explicitPriorInputs?: string[]
+  authoredDemoFixtures?: string[]
+}
+
 export type CarryDesignationOrigin =
   | {
       kind: 'receipt'
       receiptId: string
-      candidates?: RemainingObligation[]
+      explicitInputs?: ExplicitObligationInputs
     }
   | {
       kind: 'direct'
-      candidates?: never
+      explicitInputs?: never
     }
 
 export type CarryDesignationFailure =
@@ -89,5 +95,6 @@ export type CarryDesignationEvent =
   | { type: 'TOGGLE_POLICY'; policy: keyof InteractionPolicies }
   | { type: 'CLOSE_CUSTOMIZE' }
   | { type: 'ISSUE_ADJUSTMENT'; budget: InteractionBudget; origin: CarryDesignationOrigin['kind'] }
+  | { type: 'RETURN_TO_PRESET' }
   | { type: 'EDIT_AFTER_RECOVERY' }
   | { type: 'RESET'; state: CarryDesignationState }
