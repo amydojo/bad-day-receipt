@@ -4,12 +4,14 @@ import {
 } from '../interactionBudget'
 import {
   collectExplicitObligations,
+  createManualObligation,
   getObligationChoiceModel,
 } from './obligationProvenance'
 import type {
   CarryDesignationEvent,
   CarryDesignationOrigin,
   CarryDesignationState,
+  RemainingObligation,
 } from './carryDesignationTypes'
 
 export function createInitialCarryDesignationState(
@@ -35,25 +37,16 @@ export function carryDesignationReducer(
   if (event.type === 'RESET') return event.state
 
   switch (state.kind) {
-    case 'choosing':
-      if (event.type === 'SELECT_SUGGESTION'
-        && event.obligation.confirmedByUser
-        && state.suggestion?.text === event.obligation.text) {
-        return {
-          kind: 'source',
-          obligation: event.obligation,
-          sourceText: '',
-          sourceExpanded: false,
-        }
-      }
-      if (event.type === 'SELECT_SUGGESTION'
-        && event.obligation.confirmedByUser
-        && state.alternatives.some((candidate) => candidate.text === event.obligation.text)) {
-        return {
-          kind: 'source',
-          obligation: event.obligation,
-          sourceText: '',
-          sourceExpanded: false,
+    case 'choosing': {
+      if (event.type === 'SELECT_SUGGESTION' && event.obligation.confirmedByUser) {
+        const candidate = findMatchingCandidate(state, event.obligation)
+        if (candidate) {
+          return {
+            kind: 'source',
+            obligation: { ...candidate, confirmedByUser: true },
+            sourceText: '',
+            sourceExpanded: false,
+          }
         }
       }
       if (event.type === 'EDIT_SUGGESTION') {
@@ -63,6 +56,7 @@ export function carryDesignationReducer(
         return { kind: 'editing', draft: '', error: null }
       }
       return state
+    }
 
     case 'editing':
       if (event.type === 'UPDATE_DRAFT') {
@@ -72,12 +66,16 @@ export function carryDesignationReducer(
         return { ...state, error: event.message }
       }
       if (event.type === 'CONFIRM_MANUAL') {
-        if (!event.obligation.confirmedByUser) {
+        const expected = createManualObligation(state.draft)
+        if (!event.obligation.confirmedByUser
+          || event.obligation.source !== 'manual'
+          || !expected
+          || expected.text !== event.obligation.text) {
           return { ...state, error: 'Confirm one concrete obligation before continuing.' }
         }
         return {
           kind: 'source',
-          obligation: event.obligation,
+          obligation: { ...expected, confirmedByUser: true },
           sourceText: '',
           sourceExpanded: false,
         }
@@ -106,7 +104,11 @@ export function carryDesignationReducer(
       if (event.type === 'OPEN_CUSTOMIZE') return { ...state, kind: 'customizing' }
       if (event.type === 'ISSUE_ADJUSTMENT') {
         const budget = InteractionBudgetSchema.safeParse(event.budget)
-        if (!budget.success || !state.obligation.confirmedByUser) {
+        const originMatchesBudget = budget.success && (
+          (event.origin === 'direct' && budget.data.receiptId === null)
+          || (event.origin === 'receipt' && budget.data.receiptId !== null)
+        )
+        if (!budget.success || !originMatchesBudget || !state.obligation.confirmedByUser) {
           return { kind: 'recovery', reason: 'invalid-budget', draft: state.obligation.text }
         }
         return {
@@ -157,4 +159,18 @@ export function carryDesignationReducer(
       }
       return state
   }
+}
+
+function findMatchingCandidate(
+  state: Extract<CarryDesignationState, { kind: 'choosing' }>,
+  obligation: RemainingObligation,
+): RemainingObligation | null {
+  const candidates = state.suggestion
+    ? [state.suggestion]
+    : state.alternatives
+  return candidates.find((candidate) => (
+    candidate.text === obligation.text
+    && candidate.source === obligation.source
+    && candidate.confirmedByUser === false
+  )) ?? null
 }
