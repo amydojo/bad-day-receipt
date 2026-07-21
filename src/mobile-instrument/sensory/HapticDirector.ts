@@ -18,6 +18,10 @@ const HAPTIC_PATTERNS: Partial<Record<MachineSensoryEvent, number | number[]>> =
   'sleeve-receive': 6,
   'archive-label': 5,
   'archive-close': 11,
+  'thermal-unprint-start': 3,
+  'paper-tension-release': 5,
+  'release-corner': 3,
+  'release-close': 9,
 }
 
 export class HapticDirector implements HapticOutput {
