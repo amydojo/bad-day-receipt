@@ -9,6 +9,10 @@
   overflow: visible;
 }
 
+.app-shell:has(.receipt-machine[data-receipt-ending-state]) .cf-machine-entry {
+  display: none;
+}
+
 .receipt-machine[data-receipt-ending-state] .pos-appliance {
   width: 100%;
 }

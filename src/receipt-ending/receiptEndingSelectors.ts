@@ -18,5 +18,7 @@ export function isReceiptDispositionPending(state: ReceiptEndingState): boolean 
 }
 
 export function isReceiptEndingRecovery(state: ReceiptEndingMachineState): boolean {
-  return state?.kind === 'recovery' || state?.kind === 'keep-recovery'
+  return state?.kind === 'recovery'
+    || state?.kind === 'keep-recovery'
+    || state?.kind === 'release-recovery'
 }

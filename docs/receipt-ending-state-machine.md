@@ -1,19 +1,19 @@
 # Receipt ending state machine
 
-Issues: #80, #81, #82  
+Issues: #80, #81, #82, #83  
 Parent: #79
 
-This document describes the completed-receipt foundation, the shared Three Valid Endings decision, and the implemented Keep Receipt archival ritual. Release and Carry Forward remain at truthful handoff boundaries.
+This document describes the completed-receipt foundation, the shared Three Valid Endings decision, the implemented Keep Receipt ritual, and the implemented Let It Go ritual. Carry Forward remains at a truthful handoff boundary.
 
 ## Domain boundary
 
-The printer reducer remains authoritative only for physical printing:
+The printer reducer remains authoritative only for printing:
 
 ```text
 idle → arming → scanning → calculating → feeding → stamping → complete
 ```
 
-Receipt disposition begins only after a successful print:
+Receipt disposition begins after a successful print:
 
 ```text
 PrinterPhase.complete
@@ -23,37 +23,26 @@ CompletedReceiptSnapshot
 ReceiptEndingState
 ```
 
-Keep phases are not `PrinterPhase` values. The receipt already exists before preservation begins.
+Keep and Release phases are not `PrinterPhase` values. The receipt already exists before either ritual begins.
 
 ## Completed receipt ownership
 
-`CompletedReceiptSnapshot` is created once from the committed print inputs and is runtime validated and deeply frozen. Its stable identity is `receiptNumber`.
-
-It contains the exact data needed to rerender the receipt:
-
-- receipt number and original completion time
-- theme identity and name
-- detached receipt items
-- total, item count, and status
-- optional anomaly
-- share copy
-
-It excludes Carry Forward task text, source context, compiler output, generated drafts, evidence quotes, and animation progress.
+`CompletedReceiptSnapshot` is runtime validated, deeply frozen, and keyed by `receiptNumber`. It contains the exact data required to rerender the receipt and excludes Carry Forward task text, source context, compiler output, generated drafts, evidence quotes, and animation progress.
 
 ## Shared transition graph
 
 ```text
 new successful print → settling --700ms--> documented
 restored pending receipt → documented
+restored unexpired Release tombstone → release-ritual/complete
 
 documented --End the Day Here--> end-choice
 documented --Carry One Thing Forward--> carry-selected
 
 end-choice --Keep Receipt--> keep-ritual/cut
-end-choice --Let It Go--> release-selected
+end-choice --Let It Go--> release-ritual/cut
 end-choice --Back--> documented
 
-release-selected --Back--> end-choice
 carry-selected --Back--> documented
 ```
 
@@ -79,41 +68,55 @@ keep-recovery --return--> documented
 complete --close--> ending domain cleared
 ```
 
-Explicit reducer events own every transition:
+The actual receipt and printer remain mounted. Archive persistence clears `pendingReceipt` only after the exact v2 write returns `saved`. The private archive is newest-first, deduplicated by receipt number, and capped at five entries.
+
+## Let It Go graph
 
 ```text
-KEEP_CUT_COMPLETED
-KEEP_ALIGNMENT_COMPLETED
-KEEP_SLEEVE_RAISED
-KEEP_RECEIPT_SLEEVED
-KEEP_LABEL_REGISTERED
-KEEP_ARCHIVE_OPENED
-KEEP_RECEIPT_INSERTED
-KEEP_ARCHIVE_CLOSED
-KEEP_ARCHIVE_COMMITTED | KEEP_ARCHIVE_FAILED
+release-ritual/cut
+  → unprint-total
+  → unprint-lines
+  → unprint-receipt-number
+  → unprint-acknowledgment
+  → soften
+  → slot-opening
+  → receiving
+  → corner-hold
+  → slot-closing
+  → committing
+      ├── saved → complete + Undo
+      └── unavailable|failed → release-recovery/release
+
+complete --Undo Release--> undoing
+  ├── saved/pending-origin → documented
+  ├── saved/archive-origin → private archive
+  └── unavailable|failed → release-recovery/undo
+
+complete --undo deadline expires--> ending domain cleared
 ```
 
-The reducer contains no timers, DOM access, React hooks, CSS callbacks, storage, navigation, analytics, sound, haptics, or export logic. Duplicate and impossible events preserve state deterministically.
+The reducer contains no timers, React, DOM access, CSS callbacks, storage, navigation, analytics, audio, haptics, export logic, or network calls. Duplicate and impossible events preserve state deterministically.
 
-## Timing ownership
+## Release timing ownership
 
-`keepRitualMotion.ts` owns the canonical timing contract:
+`releaseRitualMotion.ts` owns the canonical timing contract:
 
 ```text
-cut                 180ms
-align               120ms
-sleeve rising       360ms
-sleeve receiving    420ms
-label registration  420ms
-archive opening     240ms
-archiving           520ms
-archive closing     220ms
-completion stillness 320ms
+cut                      180ms
+unprint total            220ms
+unprint lines            520ms
+unprint receipt number   180ms
+unprint acknowledgment   260ms
+paper soften             260ms
+slot opening             180ms
+slot receiving           420ms
+final corner hold        100ms
+slot closing             180ms
 ```
 
-One abortable effect schedules the event for the current phase. The timeout is cleaned up on phase change, receipt change, recovery, completion, and unmount. CSS completion events never determine reducer truth.
+One abortable effect schedules the semantic event for the current phase. CSS completion events never determine reducer truth. The final corner hold is an explicit reducer phase.
 
-`VITE_KEEP_RITUAL_TEST_HOLD_MS` is an opt-in test-only phase hold for deterministic visual capture. It has no effect when unset and is not configured in production.
+`VITE_RELEASE_RITUAL_TEST_HOLD_MS` is an opt-in test-only phase hold for deterministic visual capture. It is unset in production.
 
 ## Material continuity
 
@@ -124,7 +127,7 @@ The immediate ending path keeps one semantic receipt root mounted:
 [data-receipt-number]
 ```
 
-Stable regions:
+Stable regions include:
 
 ```text
 paper
@@ -139,182 +142,191 @@ transfer-layer
 archive-label
 ```
 
-The same receipt node survives the shared decision and every Keep phase. No image, canvas, clone, portal copy, or replacement receipt is used during the ritual.
+Release adds deterministic visual targets without replacing semantic content:
 
-The same printer root also remains mounted:
+```text
+data-release-region="total"
+data-release-region="record"
+data-release-region="receipt-number"
+data-release-region="acknowledgment"
+data-release-rank
+```
+
+The same printer remains mounted:
 
 ```text
 [data-printer-shell]
 [data-printer-mode]
-[data-archive-state]
-[data-printer-region="archive-bay"]
+[data-release-state]
+[data-printer-region="release-slot"]
 ```
 
-The archive bay is structurally inside `PrinterShell`. It is not a second appliance.
+The release slot is inside `PrinterShell`. There is no second appliance, blank-paper replica, screenshot, canvas replacement, portal copy, or phase-dependent receipt key.
 
-## Receipt closing
+## Thermal withdrawal order
 
-The canonical closing remains essential receipt content:
+The visual release order is fixed:
+
+1. grand total
+2. line items in reverse order and the remaining record surface
+3. receipt number
+4. acknowledgment and `DAY DOCUMENTED` last
+
+The effect uses clipped paper-colored withdrawal masks and a quiet thermal edge. It does not rely on a whole-line opacity fade or per-character animation. Semantic receipt text remains available during visual unprinting and leaves the reading order only after the release transaction succeeds.
+
+## Paper and release slot
+
+After the receipt is visually blank, its lower edge softens through restrained radius, shadow, and sub-pixel rotation changes. It is not burned, shredded, torn, crumpled, or particle-dissolved.
+
+The same blank receipt travels toward one narrow in-chassis slot. The final visible corner pauses for 100ms, then printer geometry occludes the receipt and the slot closes flush. Opacity does not fake insertion.
+
+## Release tombstone
+
+The persistence-v2 envelope remains on its existing key and version.
+
+```ts
+interface PendingRelease {
+  receipt: CompletedReceiptSnapshot
+  undoUntil: string
+  origin:
+    | { kind: 'pending' }
+    | { kind: 'archive'; archivedAt: string }
+  previousDisposition: ReceiptDisposition | null
+}
+```
+
+Legacy tombstones without `origin` remain readable as pending-receipt releases. Archive origin is required to restore the exact original `archivedAt` after Undo. `previousDisposition` restores the disposition that existed before release.
+
+Default Undo duration:
 
 ```text
-THIS DAY REQUIRED MORE
-THAN THE RECORD SHOWS.
-
-DAY DOCUMENTED
+8,000ms
 ```
 
-The clean cut occurs after this closing. Keep does not append Carry Forward language.
+`undoUntil` is an absolute ISO timestamp and is the source of truth across refresh.
 
-## Keep material choreography
+## Atomic Release transaction
 
-### K01 · Cut
+At `slot-closing`:
 
-The actual receipt advances 6px and becomes mechanically independent. Printer status changes to `RECORD CLOSED`. Sensory milestone: `receipt-cut`.
-
-### K02 · Align
-
-The material stack corrects by 1px with a precise non-elastic easing. Sensory milestone: `archive-align`.
-
-### K03 · Sleeve
-
-A separate `aria-hidden` archival sleeve rises behind the actual receipt. It uses a restrained border, low-opacity material fill, faint edge highlight, and quiet friction shadow. It uses no backdrop blur, glow, or glass-card treatment. Receipt text remains semantic and readable.
-
-Sensory milestone: `sleeve-receive`.
-
-### K04 · Label
-
-The existing archive-label region registers left to right:
-
-```text
-BAD DAY RECEIPT · {receiptNumber}
-PRIVATE ARCHIVE
-```
-
-Sensory milestone: `archive-label`.
-
-### K05 · Archive
-
-The sleeve, receipt, and label move as one material stack into the archive bay in the same printer. Final occlusion is produced by printer geometry rather than opacity disappearance. The drawer closes with a restrained stop.
-
-Sensory milestone: `archive-close`.
-
-### K06 · Completion
-
-Completion exists only after the exact archive write returns `saved`:
-
-```text
-Receipt kept with care.
-
-This happened. It was worth recording.
-Receipt {receiptNumber} is stored privately.
-```
-
-The surface contains only a quiet Close action. Share, export, reprint, Carry Forward, New Receipt, achievement, and continuation prompts are absent.
-
-## Sensory ownership
-
-`keepRitualSensory.ts` maps semantic phases to typed sensory events. Milestones are deduplicated by `receiptNumber + event` and respect the existing sound and haptic preferences.
-
-The generated cues are restrained mechanical textures:
-
-- dry cut tick
-- tiny alignment click
-- low paper/polymer friction
-- short label registration rasp
-- muted archive closure
-
-There is no ambient loop, reward melody, success chime, or sensory output during render.
-
-## Truthful persistence transaction
-
-Persistence envelope v2 remains on the existing key and version. #82 does not introduce a migration or storage-version bump.
-
-At the archive-closing boundary:
-
-1. `createKeepArchiveProjection` validates that the active pending receipt matches the ritual receipt.
-2. The full next v2 payload is built with a deduplicated archive entry and one `kept` disposition.
-3. `persistMachineData(nextPayload)` performs the exact write.
-4. Only after `saved` does React update `privateArchive`, update `receiptDispositions`, clear `pendingReceipt`, and dispatch `KEEP_ARCHIVE_COMMITTED`.
-5. `unavailable` or `failed` leaves all three React collections unchanged and dispatches `KEEP_ARCHIVE_FAILED`.
+1. The source is validated against `pendingReceipt` or the exact archived entry.
+2. A tombstone containing the frozen receipt, absolute Undo deadline, origin, and previous disposition is created.
+3. The source projection is removed.
+4. One `released` disposition is projected.
+5. One complete v2 payload is written.
+6. Only a confirmed `saved` response updates React state and dispatches `RELEASE_COMMITTED`.
 
 Successful state:
 
 ```text
-privateArchive       contains exact frozen snapshot
-receiptDispositions  contains one kept disposition
-pendingReceipt       null
+pendingRelease       contains the frozen receipt and Undo deadline
+pendingReceipt       null for pending-origin release
+privateArchive       excludes the exact archive-origin receipt
+receiptDispositions  contains one released disposition
 ```
 
-The original `completedAt` is preserved. `archivedAt` is created for the archive operation. Entries are newest first, deduplicated by receipt number, and capped at `MAX_PRIVATE_ARCHIVE = 5`.
+A failed write does not update React state, clear the pending receipt, remove an archive entry, or claim release.
 
-The commit effect caches the promise for one receipt/attempt/timestamp. React Strict Mode setups observe the same transaction rather than issuing or losing duplicate writes.
+## Exact Undo transaction
 
-## Interruption and recovery
+Undo performs one complete write:
 
-Before successful persistence, `pendingReceipt` remains intact. Refresh during the choreography restores the completed receipt directly to `documented`; #82 does not claim exact mid-ritual resume. That belongs to #87.
+- pending-origin restores the exact frozen snapshot to `pendingReceipt`
+- archive-origin restores the snapshot with its original `archivedAt`
+- previous disposition is restored or the temporary released disposition is removed
+- `pendingRelease` is cleared
+- React state updates only after `saved`
 
-On storage failure:
+The Undo effect caches one promise per receipt and deadline so React Strict Mode setups observe one exact transaction.
+
+A failed initial Release and a failed Undo have separate recovery ownership. Initial Release recovery may return to the unchanged source. Failed Undo recovery may retry Undo or return to the still-valid released completion; it never claims the source was already restored.
+
+## Expiry and refresh
+
+Refresh during an active Undo window restores the released completion and keyboard-reachable Undo action. On or after `undoUntil`, the tombstone is finalized through a v2 write. The source was already removed by the successful release transaction; expiry does not perform a second deletion.
+
+Refresh before successful Release persistence restores the unchanged pending receipt or archive source. #83 does not persist transient animation phases; exact mid-ritual restoration remains owned by #87.
+
+## Failure copy
+
+Initial Release failure:
 
 ```text
+RECEIPT STILL VALID
+
 The receipt is still here.
-The private archive could not be confirmed on this device.
-Nothing has been lost.
+The release could not be confirmed on this device.
+Nothing has been removed.
 ```
 
-Available actions:
+Failed Undo:
 
-- retry the exact local archive transaction
-- export a local copy using the existing export implementation
-- return to the documented receipt
+```text
+RECEIPT STILL VALID
 
-Recovery never claims “stored privately.” Retry starts from the archive-closing persistence boundary rather than replaying the entire physical ritual.
+The receipt is ready to return.
+The undo could not be confirmed on this device.
+```
 
-## Private archive ownership
+Both paths preserve the frozen receipt, provide a retry, and allow local export through the existing export implementation. No destructive warning, blame, or technical storage jargon is used.
 
-The existing History drawer is now the Local Records sheet. It contains:
+## Completion
 
-- a local-only private archive index
-- newest-five archive policy
-- recent transaction history
+Completion exists only after the Release write returns `saved`:
 
-Opening an archive entry replaces the current sheet content instead of creating a nested overlay.
+```text
+RECORD CLOSED
+NOTHING ELSE REQUIRED
 
-Archived detail rerenders the exact stored snapshot with its original receipt number, items, theme, completion timestamp, total, anomaly, acknowledgment, and closing mark. A new DOM instance is allowed in this later historical view; the no-remount invariant applies to the immediate ritual.
+The day can end here.
+Nothing has been added to tomorrow.
 
-## Utility ownership
+UNDO RELEASE
+```
 
-No utility appears during the Keep ritual or immediate completion.
+No Share, Export, New Receipt, Carry Forward, achievement, or continuation action appears on the immediate completion surface.
 
-Archived receipt detail reuses existing implementations for:
+## Archived receipt release
 
-- copy text
-- full receipt export
-- Dojo archive handoff
-- reprint
+Archived receipt detail exposes `LET IT GO` as a secondary local-record action. The ritual runs in the same main receipt and printer tree. Successful release removes only the exact matching archive entry. Undo restores the same snapshot and original `archivedAt`, then returns to the private archive index.
 
-Exports derive from the selected archived snapshot through `createExportForCompletedReceipt`, never from the current live draft.
+## Sensory ownership
 
-Reprint loads the archived snapshot’s exact items and theme into the existing printer reducer, creates a new physical receipt number, and leaves the archived entry unchanged.
+Release milestones are typed and deduplicated by `receiptNumber + event`:
 
-The feature-disabled `EvidenceViewer` and its current utility behavior remain intact.
+```text
+receipt-cut
+thermal-unprint-start
+paper-tension-release
+release-corner
+release-close
+```
+
+They respect the existing sound and haptic preferences. There is no ambient loop, reward melody, success chime, or sensory output during render.
 
 ## Reduced motion
 
-Reduced motion preserves every semantic phase and the exact persistence transaction. Large travel, friction simulation, and long transitions are replaced with short fades, small corrections, and restrained occlusion changes. It does not jump directly from Keep selection to completion.
+Reduced motion preserves every semantic phase, the explicit corner hold, the persistence boundary, completion, and Undo. Large receipt travel is replaced with short fades, small corrections, and restrained occlusion changes. It never skips from Let It Go directly to completion.
 
 ## Focus and accessibility
 
-- choosing Keep is the final required interaction before automatic choreography
-- no Back or Continue control exists during the ritual
-- the ritual container is `aria-busy`
-- one concise “Preserving the receipt” announcement occurs at the start
+- choosing Let It Go is the final required interaction before automatic choreography
+- no confirmation dialog, Back, or Continue appears during the ritual
+- one concise “Releasing the receipt” announcement occurs at start
 - microphases are not announced
-- decorative sleeve and machine parts are `aria-hidden`
-- completion heading receives focus once after persistence succeeds
-- recovery heading receives focus once after failure
-- archive entries and utilities use native buttons with minimum 44×44 targets
-- archived receipt text remains semantic and selectable
-- focus returns through the existing single-sheet focus contract
+- semantic receipt text remains available during visual unprinting
+- completion heading receives focus after persistence succeeds
+- recovery heading receives focus after failure
+- Undo is a native, keyboard-reachable button
+- all actions meet the existing minimum target contract
+- no color-only meaning is introduced
+- refresh during the Undo window restores the accessible completion surface
+
+## Release privacy and telemetry
+
+Release persistence contains only receipt-domain data already present in the local machine envelope. It never contains Carry Forward task text or source context.
+
+Any future release telemetry may record only bounded semantic events such as started, completed, undone, expired, or failed. It must never contain receipt text, labels, line items, total, receipt number, archive identifiers, task text, or source context. Product copy does not claim deletion of anonymous operational telemetry already emitted.
 
 ## Feature flag
 
@@ -324,17 +336,17 @@ The in-tree experience is enabled only when:
 VITE_THREE_ENDINGS=true
 ```
 
-Production remains disabled by default. The v2 reader and archive data remain readable when the flag is later disabled.
+Production remains disabled by default. Persistence-v2 archive and tombstone data remain readable when the feature flag is disabled.
 
 ## Direct Carry Forward ownership
 
-`/carry-forward` remains a separately addressable direct-entry utility and test surface. #82 does not alter its compiler, validation, fallback, temporary storage, or One Thing Mode runtime.
+`/carry-forward` remains separately addressable. #83 does not alter its compiler, validation, fallback, temporary storage, or One Thing Mode runtime.
 
 ## Deferred scope
 
-- #83: release ritual, local deletion, persisted Undo Release
 - #84: user-designated remaining obligation and humane default preset
 - #85: Carry Forward stub, reinsertion, actuator, and Field Transfer
+- #86: in-tree compiler and One Thing Mode integration
 - #87: interruption and exact mid-ritual recovery
 - #88: shared affective motion and sensory refinement
 - #89: final accessibility and responsive ownership
@@ -342,13 +354,4 @@ Production remains disabled by default. The v2 reader and archive data remain re
 
 ## Validation status
 
-The complete Vitest suite executed on the exact branch through a temporary preview-only build gate:
-
-```text
-Test Files  46 passed | 1 skipped
-Tests       238 passed | 2 skipped
-```
-
-The exact branch also passed TypeScript and the production Vite build. The temporary test build override was removed afterward.
-
-Feature-enabled Chromium/WebKit journeys and visual captures are committed. GitHub-hosted workflows remain unavailable while the monthly Actions allowance is exhausted, and the standard Vercel build image previously lacked Playwright native browser libraries. Browser certification is reported only when browser assertions actually execute.
+Reducer, motion, persistence, component, privacy, browser, and deterministic visual fixtures are committed. GitHub-hosted workflows remain unavailable while the monthly Actions allowance is exhausted. Vercel may reject branch deployments when its build-rate limit is active; that is reported separately from compilation failure. Browser certification is claimed only for browsers that execute assertions.

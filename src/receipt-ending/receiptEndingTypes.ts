@@ -21,6 +21,30 @@ export type KeepArchiveFailure =
   | 'storage-write-failed'
   | 'archive-validation-failed'
 
+export type ReleaseRitualPhase =
+  | 'cut'
+  | 'unprint-total'
+  | 'unprint-lines'
+  | 'unprint-receipt-number'
+  | 'unprint-acknowledgment'
+  | 'soften'
+  | 'slot-opening'
+  | 'receiving'
+  | 'corner-hold'
+  | 'slot-closing'
+  | 'committing'
+  | 'complete'
+  | 'undoing'
+
+export type ReleaseFailure =
+  | 'storage-unavailable'
+  | 'storage-write-failed'
+  | 'release-validation-failed'
+
+export type ReleaseOrigin =
+  | { kind: 'pending' }
+  | { kind: 'archive'; archivedAt: string }
+
 export type ReceiptEndingState =
   | { kind: 'settling'; receipt: CompletedReceiptSnapshot }
   | { kind: 'documented'; receipt: CompletedReceiptSnapshot }
@@ -38,7 +62,23 @@ export type ReceiptEndingState =
       reason: KeepArchiveFailure
       archiveAttempt: number
     }
-  | { kind: 'release-selected'; receipt: CompletedReceiptSnapshot }
+  | {
+      kind: 'release-ritual'
+      receipt: CompletedReceiptSnapshot
+      phase: ReleaseRitualPhase
+      releaseAttempt: number
+      origin: ReleaseOrigin
+      undoUntil?: string
+    }
+  | {
+      kind: 'release-recovery'
+      receipt: CompletedReceiptSnapshot
+      reason: ReleaseFailure
+      operation: 'release' | 'undo' | 'expiry'
+      releaseAttempt: number
+      origin: ReleaseOrigin
+      undoUntil?: string
+    }
   | { kind: 'carry-selected'; receipt: CompletedReceiptSnapshot }
   | {
       kind: 'recovery'
@@ -51,6 +91,8 @@ export type ReceiptEndingMachineState = ReceiptEndingState | null
 export type ReceiptEndingEvent =
   | { type: 'START_NEW_RECEIPT'; receipt: CompletedReceiptSnapshot }
   | { type: 'RESTORE_RECEIPT'; receipt: CompletedReceiptSnapshot }
+  | { type: 'RESTORE_RELEASE'; pendingRelease: PendingRelease }
+  | { type: 'START_ARCHIVED_RELEASE'; receipt: CompletedReceiptSnapshot; archivedAt: string }
   | { type: 'CLEAR_RECEIPT_ENDING' }
   | { type: 'PRINT_COMPLETION_SETTLED' }
   | { type: 'SELECT_END_HERE' }
@@ -72,6 +114,28 @@ export type ReceiptEndingEvent =
   | { type: 'RETRY_KEEP_ARCHIVE'; archivedAt: string }
   | { type: 'RETURN_TO_DOCUMENTED' }
   | { type: 'CLOSE_KEEP_COMPLETION' }
+  | { type: 'RELEASE_CUT_COMPLETED' }
+  | { type: 'RELEASE_TOTAL_UNPRINTED' }
+  | { type: 'RELEASE_LINES_UNPRINTED' }
+  | { type: 'RELEASE_NUMBER_UNPRINTED' }
+  | { type: 'RELEASE_ACKNOWLEDGMENT_UNPRINTED' }
+  | { type: 'RELEASE_PAPER_SOFTENED' }
+  | { type: 'RELEASE_SLOT_OPENED' }
+  | { type: 'RELEASE_RECEIPT_RECEIVED' }
+  | { type: 'RELEASE_CORNER_HOLD_COMPLETED' }
+  | { type: 'RELEASE_SLOT_CLOSED'; undoUntil: string }
+  | { type: 'RELEASE_COMMITTED' }
+  | { type: 'RELEASE_FAILED'; reason: ReleaseFailure }
+  | { type: 'RETRY_RELEASE'; undoUntil: string }
+  | { type: 'UNDO_RELEASE' }
+  | { type: 'RETRY_UNDO_RELEASE' }
+  | { type: 'RETURN_TO_RELEASED_COMPLETION' }
+  | { type: 'UNDO_RELEASE_COMMITTED'; destination: 'documented' | 'archive' }
+  | { type: 'UNDO_RELEASE_FAILED'; reason: ReleaseFailure }
+  | { type: 'RELEASE_EXPIRY_FAILED'; reason: ReleaseFailure }
+  | { type: 'RETRY_RELEASE_EXPIRY' }
+  | { type: 'RELEASE_UNDO_EXPIRED' }
+  | { type: 'CLOSE_RELEASE_COMPLETION' }
   | { type: 'FAIL'; reason: ReceiptEndingFailure }
   | { type: 'RECOVER' }
 
@@ -83,6 +147,8 @@ export interface ArchivedReceipt {
 export interface PendingRelease {
   receipt: CompletedReceiptSnapshot
   undoUntil: string
+  origin: ReleaseOrigin
+  previousDisposition: ReceiptDisposition | null
 }
 
 export interface ReceiptDisposition {

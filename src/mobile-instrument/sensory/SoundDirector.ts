@@ -94,6 +94,30 @@ function renderOneShot(context: AudioContext, event: OneShotEvent): AudioBuffer 
         const contact = deterministicNoise(index, 191) * 0.18
         return (body + contact) * envelope
       })
+    case 'thermal-unprint-start':
+      return createBuffer(context, 0.085, (_time, index, length) => {
+        const progress = index / Math.max(1, length - 1)
+        const envelope = Math.pow(Math.sin(Math.PI * progress), 1.8)
+        return deterministicNoise(index, 211) * envelope * 0.1
+      })
+    case 'paper-tension-release':
+      return createBuffer(context, 0.12, (time, index, length) => {
+        const envelope = decayEnvelope(index, length, 2.2)
+        const body = Math.sin(2 * Math.PI * 46 * time) * 0.1
+        const paper = deterministicNoise(index, 233) * 0.08
+        return (body + paper) * envelope
+      })
+    case 'release-corner':
+      return createBuffer(context, 0.04, (_time, index, length) => (
+        deterministicNoise(index, 257) * decayEnvelope(index, length, 5) * 0.12
+      ))
+    case 'release-close':
+      return createBuffer(context, 0.095, (time, index, length) => {
+        const envelope = decayEnvelope(index, length, 3.6)
+        const body = Math.sin(2 * Math.PI * 58 * time) * 0.22
+        const contact = deterministicNoise(index, 281) * 0.12
+        return (body + contact) * envelope
+      })
     case 'cvs-printer-restart':
       return createBuffer(context, 0.16, (time, index, length) => {
         const first = time < 0.045

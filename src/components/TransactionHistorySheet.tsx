@@ -12,6 +12,7 @@ export function TransactionHistorySheet({
   privateArchive,
   onCreateArchiveExport,
   onReprintArchived,
+  onReleaseArchived,
 }: {
   history: SavedTransaction[]
   privateArchive: ArchivedReceipt[]
@@ -20,6 +21,7 @@ export function TransactionHistorySheet({
     format: ExportFormat,
   ) => Promise<ArtifactExport>
   onReprintArchived: (receipt: CompletedReceiptSnapshot) => void
+  onReleaseArchived?: (entry: ArchivedReceipt) => void
 }) {
   return (
     <div className="local-records-sheet">
@@ -27,6 +29,7 @@ export function TransactionHistorySheet({
         archive={privateArchive}
         onCreateExport={onCreateArchiveExport}
         onReprint={onReprintArchived}
+        onRelease={onReleaseArchived}
       />
 
       <section className="transaction-history" aria-labelledby="transaction-history-heading">
@@ -40,9 +43,7 @@ export function TransactionHistorySheet({
           <div className="sheet-history-list">
             {history.map((entry) => (
               <article key={entry.id}>
-                <time dateTime={entry.createdAt}>
-                  {formatDate(entry.createdAt)}
-                </time>
+                <time dateTime={entry.createdAt}>{formatDate(entry.createdAt)}</time>
                 <span>{entry.themeName}</span>
                 <strong>{currency(entry.total)}</strong>
                 <small>{entry.itemCount} ITEMS · {entry.receiptNumber}</small>

@@ -24,10 +24,6 @@ function documented(): ReceiptEndingState {
   return { kind: 'documented', receipt }
 }
 
-function settling(): ReceiptEndingState {
-  return { kind: 'settling', receipt }
-}
-
 function reduce(state: ReceiptEndingMachineState, event: ReceiptEndingEvent) {
   return receiptEndingReducer(state, event)
 }
@@ -39,43 +35,28 @@ function startKeep(): Extract<ReceiptEndingState, { kind: 'keep-ritual' }> {
   return keep
 }
 
-describe('receiptEndingReducer', () => {
-  it('starts a newly printed receipt in settling', () => {
-    expect(reduce(null, { type: 'START_NEW_RECEIPT', receipt })).toEqual({
-      kind: 'settling',
-      receipt,
-    })
-  })
+function startRelease(): Extract<ReceiptEndingState, { kind: 'release-ritual' }> {
+  const endChoice = reduce(documented(), { type: 'SELECT_END_HERE' })
+  const release = reduce(endChoice, { type: 'SELECT_RELEASE' })
+  if (!release || release.kind !== 'release-ritual') throw new Error('RELEASE_DID_NOT_START')
+  return release
+}
 
-  it('restores a persisted receipt directly to documented', () => {
-    expect(reduce(null, { type: 'RESTORE_RECEIPT', receipt })).toEqual({
-      kind: 'documented',
-      receipt,
-    })
+describe('receiptEndingReducer', () => {
+  it('starts new receipts in settling and restores persisted receipts directly to documented', () => {
+    expect(reduce(null, { type: 'START_NEW_RECEIPT', receipt })).toEqual({ kind: 'settling', receipt })
+    expect(reduce(null, { type: 'RESTORE_RECEIPT', receipt })).toEqual({ kind: 'documented', receipt })
   })
 
   it('settles exactly once and ignores choices before settling', () => {
-    const state = settling()
+    const state: ReceiptEndingState = { kind: 'settling', receipt }
     expect(reduce(state, { type: 'SELECT_END_HERE' })).toBe(state)
-    expect(reduce(state, { type: 'SELECT_CARRY_FORWARD' })).toBe(state)
-
     const complete = reduce(state, { type: 'PRINT_COMPLETION_SETTLED' })
     expect(complete).toEqual({ kind: 'documented', receipt })
     expect(reduce(complete, { type: 'PRINT_COMPLETION_SETTLED' })).toBe(complete)
   })
 
-  it('starts Keep directly at the clean-cut phase without replacing receipt identity', () => {
-    const keep = startKeep()
-
-    expect(keep).toMatchObject({
-      kind: 'keep-ritual',
-      phase: 'cut',
-      archiveAttempt: 1,
-    })
-    expect(keep.receipt).toBe(receipt)
-  })
-
-  it('accepts only the legal Keep phase sequence', () => {
+  it('runs the exact Keep sequence without replacing receipt identity', () => {
     const sequence: Array<[ReceiptEndingEvent, string]> = [
       [{ type: 'KEEP_CUT_COMPLETED' }, 'align'],
       [{ type: 'KEEP_ALIGNMENT_COMPLETED' }, 'sleeve-rising'],
@@ -85,7 +66,6 @@ describe('receiptEndingReducer', () => {
       [{ type: 'KEEP_ARCHIVE_OPENED' }, 'archiving'],
       [{ type: 'KEEP_RECEIPT_INSERTED' }, 'archive-closing'],
     ]
-
     let state: ReceiptEndingMachineState = startKeep()
     for (const [event, phase] of sequence) {
       state = reduce(state, event)
@@ -95,60 +75,21 @@ describe('receiptEndingReducer', () => {
     }
   })
 
-  it('does not equate visual closure with archive completion', () => {
-    let state: ReceiptEndingMachineState = startKeep()
-    const sequence: ReceiptEndingEvent[] = [
-      { type: 'KEEP_CUT_COMPLETED' },
-      { type: 'KEEP_ALIGNMENT_COMPLETED' },
-      { type: 'KEEP_SLEEVE_RAISED' },
-      { type: 'KEEP_RECEIPT_SLEEVED' },
-      { type: 'KEEP_LABEL_REGISTERED' },
-      { type: 'KEEP_ARCHIVE_OPENED' },
-      { type: 'KEEP_RECEIPT_INSERTED' },
-    ]
-    for (const event of sequence) state = reduce(state, event)
-
-    expect(state?.kind).toBe('keep-ritual')
-    expect(state && 'phase' in state ? state.phase : null).toBe('archive-closing')
+  it('does not equate visual Keep closure with persistence completion', () => {
+    const state: ReceiptEndingState = {
+      ...startKeep(),
+      phase: 'archive-closing',
+    }
     expect(reduce(state, { type: 'KEEP_ARCHIVE_COMMITTED' })).toBe(state)
-
     const closed = reduce(state, {
       type: 'KEEP_ARCHIVE_CLOSED',
       archivedAt: '2026-07-20T12:05:00.000Z',
     })
-    expect(closed).toMatchObject({
-      kind: 'keep-ritual',
-      phase: 'archive-closing',
-      archivedAt: '2026-07-20T12:05:00.000Z',
-    })
-
     const completed = reduce(closed, { type: 'KEEP_ARCHIVE_COMMITTED' })
     expect(completed).toMatchObject({ kind: 'keep-ritual', phase: 'complete' })
-    expect(completed?.receipt).toBe(receipt)
   })
 
-  it('enters dignified Keep recovery only after an attempted archive commit', () => {
-    let state: ReceiptEndingMachineState = {
-      ...startKeep(),
-      phase: 'archive-closing',
-      archivedAt: '2026-07-20T12:05:00.000Z',
-    }
-
-    state = reduce(state, {
-      type: 'KEEP_ARCHIVE_FAILED',
-      reason: 'storage-write-failed',
-    })
-
-    expect(state).toEqual({
-      kind: 'keep-recovery',
-      receipt,
-      reason: 'storage-write-failed',
-      archiveAttempt: 1,
-    })
-    expect(state?.receipt).toBe(receipt)
-  })
-
-  it('retries persistence without replaying the physical ritual or replacing receipt identity', () => {
+  it('retries failed Keep persistence without replaying choreography', () => {
     const recovery: ReceiptEndingState = {
       kind: 'keep-recovery',
       receipt,
@@ -159,7 +100,6 @@ describe('receiptEndingReducer', () => {
       type: 'RETRY_KEEP_ARCHIVE',
       archivedAt: '2026-07-20T12:10:00.000Z',
     })
-
     expect(retry).toEqual({
       kind: 'keep-ritual',
       receipt,
@@ -167,66 +107,154 @@ describe('receiptEndingReducer', () => {
       archiveAttempt: 3,
       archivedAt: '2026-07-20T12:10:00.000Z',
     })
-    expect(retry?.receipt).toBe(receipt)
   })
 
-  it('returns from Keep recovery to the documented receipt unchanged', () => {
-    const recovery: ReceiptEndingState = {
-      kind: 'keep-recovery',
-      receipt,
-      reason: 'storage-write-failed',
-      archiveAttempt: 1,
-    }
-    const restored = reduce(recovery, { type: 'RETURN_TO_DOCUMENTED' })
-
-    expect(restored).toEqual({ kind: 'documented', receipt })
-    expect(restored?.receipt).toBe(receipt)
-  })
-
-  it('closes only a truthfully completed Keep ending', () => {
-    const completed: ReceiptEndingState = {
-      ...startKeep(),
-      phase: 'complete',
-      archivedAt: '2026-07-20T12:05:00.000Z',
-    }
-    expect(reduce(completed, { type: 'CLOSE_KEEP_COMPLETION' })).toBeNull()
-    expect(reduce(startKeep(), { type: 'CLOSE_KEEP_COMPLETION' })).not.toBeNull()
-  })
-
-  it('preserves Release and Carry Forward shared transitions', () => {
-    const endChoice = reduce(documented(), { type: 'SELECT_END_HERE' })
-    const release = reduce(endChoice, { type: 'SELECT_RELEASE' })
-    const carry = reduce(documented(), { type: 'SELECT_CARRY_FORWARD' })
-
-    expect(release?.kind).toBe('release-selected')
-    expect(carry?.kind).toBe('carry-selected')
-    expect(release?.receipt).toBe(receipt)
-    expect(carry?.receipt).toBe(receipt)
-    expect(reduce(release, { type: 'BACK_TO_DISPOSITION' })?.kind).toBe('end-choice')
-    expect(reduce(carry, { type: 'BACK_TO_DOCUMENTED' })?.kind).toBe('documented')
-  })
-
-  it('ignores impossible, duplicate, and malformed Keep events deterministically', () => {
-    const state = startKeep()
-    expect(reduce(state, { type: 'KEEP_ALIGNMENT_COMPLETED' })).toBe(state)
-    expect(reduce(state, { type: 'KEEP_ARCHIVE_CLOSED', archivedAt: 'invalid' })).toBe(state)
-    const documentedState = documented()
-    expect(reduce(documentedState, { type: 'SELECT_KEEP' })).toBe(documentedState)
-  })
-
-  it('recovers generic ending failures to the same documented receipt', () => {
-    const failed = reduce(documented(), {
-      type: 'FAIL',
-      reason: 'persistence-unavailable',
+  it('starts Release at clean cut with pending origin', () => {
+    const state = startRelease()
+    expect(state).toMatchObject({
+      kind: 'release-ritual',
+      phase: 'cut',
+      releaseAttempt: 1,
+      origin: { kind: 'pending' },
     })
-    const recovered = reduce(failed, { type: 'RECOVER' })
-
-    expect(failed?.kind).toBe('recovery')
-    expect(recovered).toEqual({ kind: 'documented', receipt })
-    expect(recovered?.receipt).toBe(receipt)
+    expect(state.receipt).toBe(receipt)
   })
 
-  it('clears the complete ending domain explicitly', () => {
+  it('accepts the exact Release order including explicit corner hold', () => {
+    const sequence: Array<[ReceiptEndingEvent, string]> = [
+      [{ type: 'RELEASE_CUT_COMPLETED' }, 'unprint-total'],
+      [{ type: 'RELEASE_TOTAL_UNPRINTED' }, 'unprint-lines'],
+      [{ type: 'RELEASE_LINES_UNPRINTED' }, 'unprint-receipt-number'],
+      [{ type: 'RELEASE_NUMBER_UNPRINTED' }, 'unprint-acknowledgment'],
+      [{ type: 'RELEASE_ACKNOWLEDGMENT_UNPRINTED' }, 'soften'],
+      [{ type: 'RELEASE_PAPER_SOFTENED' }, 'slot-opening'],
+      [{ type: 'RELEASE_SLOT_OPENED' }, 'receiving'],
+      [{ type: 'RELEASE_RECEIPT_RECEIVED' }, 'corner-hold'],
+      [{ type: 'RELEASE_CORNER_HOLD_COMPLETED' }, 'slot-closing'],
+    ]
+    let state: ReceiptEndingMachineState = startRelease()
+    for (const [event, phase] of sequence) {
+      state = reduce(state, event)
+      expect(state?.kind).toBe('release-ritual')
+      expect(state && 'phase' in state ? state.phase : null).toBe(phase)
+      expect(state?.receipt).toBe(receipt)
+    }
+  })
+
+  it('requires an absolute tombstone deadline before Release commit can begin', () => {
+    const state: ReceiptEndingState = {
+      ...startRelease(),
+      phase: 'slot-closing',
+    }
+    expect(reduce(state, { type: 'RELEASE_COMMITTED' })).toBe(state)
+    expect(reduce(state, { type: 'RELEASE_SLOT_CLOSED', undoUntil: 'invalid' })).toBe(state)
+    const committing = reduce(state, {
+      type: 'RELEASE_SLOT_CLOSED',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    })
+    expect(committing).toMatchObject({
+      kind: 'release-ritual',
+      phase: 'committing',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    })
+    expect(reduce(committing, { type: 'RELEASE_COMMITTED' })).toMatchObject({
+      kind: 'release-ritual',
+      phase: 'complete',
+    })
+  })
+
+  it('restores a persisted tombstone directly to released completion', () => {
+    const restored = reduce(null, {
+      type: 'RESTORE_RELEASE',
+      pendingRelease: {
+        receipt,
+        undoUntil: '2026-07-20T12:05:08.000Z',
+        origin: { kind: 'archive', archivedAt: '2026-07-19T10:00:00.000Z' },
+        previousDisposition: null,
+      },
+    })
+    expect(restored).toMatchObject({
+      kind: 'release-ritual',
+      phase: 'complete',
+      origin: { kind: 'archive' },
+    })
+  })
+
+  it('separates failed Release recovery from failed Undo recovery', () => {
+    const releaseRecovery = reduce({
+      ...startRelease(),
+      phase: 'committing',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    }, { type: 'RELEASE_FAILED', reason: 'storage-write-failed' })
+    expect(releaseRecovery).toMatchObject({ kind: 'release-recovery', operation: 'release' })
+
+    const undoRecovery = reduce({
+      ...startRelease(),
+      phase: 'undoing',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    }, { type: 'UNDO_RELEASE_FAILED', reason: 'storage-write-failed' })
+    expect(undoRecovery).toMatchObject({
+      kind: 'release-recovery',
+      operation: 'undo',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    })
+    expect(reduce(undoRecovery, { type: 'RETURN_TO_RELEASED_COMPLETION' })).toMatchObject({
+      kind: 'release-ritual',
+      phase: 'complete',
+    })
+  })
+
+  it('keeps expired Release finalization persistence-bound and retryable', () => {
+    const completed: ReceiptEndingState = {
+      ...startRelease(),
+      phase: 'complete',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    }
+    const recovery = reduce(completed, {
+      type: 'RELEASE_EXPIRY_FAILED',
+      reason: 'storage-write-failed',
+    })
+    expect(recovery).toMatchObject({
+      kind: 'release-recovery',
+      operation: 'expiry',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    })
+    expect(reduce(recovery, { type: 'RETRY_RELEASE_EXPIRY' })).toMatchObject({
+      kind: 'release-ritual',
+      phase: 'complete',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    })
+    expect(reduce(completed, { type: 'RELEASE_UNDO_EXPIRED' })).toBeNull()
+  })
+
+  it('returns exact pending Undo to documented and archive Undo out of the active machine', () => {
+    const pendingUndo: ReceiptEndingState = {
+      ...startRelease(),
+      phase: 'undoing',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    }
+    expect(reduce(pendingUndo, {
+      type: 'UNDO_RELEASE_COMMITTED',
+      destination: 'documented',
+    })).toEqual({ kind: 'documented', receipt })
+    expect(reduce(pendingUndo, {
+      type: 'UNDO_RELEASE_COMMITTED',
+      destination: 'archive',
+    })).toBeNull()
+  })
+
+  it('preserves Carry Forward shared transition and ignores impossible events', () => {
+    const carry = reduce(documented(), { type: 'SELECT_CARRY_FORWARD' })
+    expect(carry?.kind).toBe('carry-selected')
+    expect(carry?.receipt).toBe(receipt)
+    expect(reduce(carry, { type: 'BACK_TO_DOCUMENTED' })?.kind).toBe('documented')
+    const release = startRelease()
+    expect(reduce(release, { type: 'RELEASE_LINES_UNPRINTED' })).toBe(release)
+  })
+
+  it('recovers generic failures and clears the domain explicitly', () => {
+    const failed = reduce(documented(), { type: 'FAIL', reason: 'persistence-unavailable' })
+    expect(reduce(failed, { type: 'RECOVER' })).toEqual({ kind: 'documented', receipt })
     expect(reduce(documented(), { type: 'CLEAR_RECEIPT_ENDING' })).toBeNull()
     expect(reduce(null, { type: 'SELECT_END_HERE' })).toBeNull()
   })

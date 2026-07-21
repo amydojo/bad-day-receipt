@@ -14,11 +14,13 @@ import type {
   ArchivedReceipt,
   ReceiptEndingState,
 } from '../receiptEndingTypes'
+import { THREE_ENDINGS_ENABLED } from '../threeEndingsFeature'
 
 export function PrivateArchive({
   archive,
   onCreateExport,
   onReprint,
+  onRelease,
 }: {
   archive: ArchivedReceipt[]
   onCreateExport: (
@@ -26,6 +28,7 @@ export function PrivateArchive({
     format: ExportFormat,
   ) => Promise<ArtifactExport>
   onReprint: (receipt: ArchivedReceipt['receipt']) => void
+  onRelease?: (entry: ArchivedReceipt) => void
 }) {
   const [selectedReceiptNumber, setSelectedReceiptNumber] = useState<string | null>(null)
   const selected = archive.find((entry) => (
@@ -39,6 +42,7 @@ export function PrivateArchive({
         onBack={() => setSelectedReceiptNumber(null)}
         onCreateExport={onCreateExport}
         onReprint={onReprint}
+        onRelease={THREE_ENDINGS_ENABLED ? onRelease : undefined}
       />
     )
   }
@@ -67,9 +71,7 @@ export function PrivateArchive({
               aria-label={`Open archived receipt ${entry.receipt.receiptNumber}`}
             >
               <span>
-                <time dateTime={entry.receipt.completedAt}>
-                  {formatShortDate(entry.receipt.completedAt)}
-                </time>
+                <time dateTime={entry.receipt.completedAt}>{formatShortDate(entry.receipt.completedAt)}</time>
                 <small>{entry.receipt.themeName}</small>
               </span>
               <span>
@@ -92,6 +94,7 @@ function ArchivedReceiptDetail({
   onBack,
   onCreateExport,
   onReprint,
+  onRelease,
 }: {
   entry: ArchivedReceipt
   onBack: () => void
@@ -100,6 +103,7 @@ function ArchivedReceiptDetail({
     format: ExportFormat,
   ) => Promise<ArtifactExport>
   onReprint: (receipt: ArchivedReceipt['receipt']) => void
+  onRelease?: (entry: ArchivedReceipt) => void
 }) {
   const platform = useMemo(createBrowserArtifactPlatform, [])
   const [busy, setBusy] = useState(false)
@@ -172,23 +176,26 @@ function ArchivedReceiptDetail({
       </div>
 
       <div className="archived-receipt-detail__actions" aria-label="Archived receipt actions">
-        <button type="button" disabled={busy} onClick={() => { void copyText() }}>
-          COPY TEXT
-        </button>
-        <button type="button" disabled={busy} onClick={() => { void exportReceipt() }}>
-          EXPORT
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => window.location.assign(dojoHref)}
-        >
-          SEND TO DOJO ARCHIVE
-        </button>
-        <button type="button" disabled={busy} onClick={() => onReprint(receipt)}>
-          REPRINT
-        </button>
+        <button type="button" disabled={busy} onClick={() => { void copyText() }}>COPY TEXT</button>
+        <button type="button" disabled={busy} onClick={() => { void exportReceipt() }}>EXPORT</button>
+        <button type="button" disabled={busy} onClick={() => window.location.assign(dojoHref)}>SEND TO DOJO ARCHIVE</button>
+        <button type="button" disabled={busy} onClick={() => onReprint(receipt)}>REPRINT</button>
+        {onRelease && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onRelease(entry)}
+            aria-describedby="archived-release-description"
+          >
+            LET IT GO
+          </button>
+        )}
       </div>
+      {onRelease && (
+        <p id="archived-release-description" className="archived-receipt-detail__release-note">
+          Release this local archived copy with an eight-second Undo window.
+        </p>
+      )}
       <p className="archived-receipt-detail__status" aria-live="polite">{message}</p>
     </section>
   )

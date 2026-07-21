@@ -23,9 +23,19 @@ import {
   type ReceiptEndingEvent,
   type ReceiptEndingPersistenceStatus,
   type ReceiptEndingState,
+  type ReleaseOrigin,
 } from '../receipt-ending'
 import { ArchivalSleeve } from '../receipt-ending/keep/ArchivalSleeve'
 import type { KeepArchiveCommitResult } from '../receipt-ending/keep/KeepReceiptRitual'
+import {
+  getPrinterReleaseState,
+  type PrinterReleaseState,
+} from '../receipt-ending/release/ReleaseSlot'
+import {
+  type ReleaseCommitResult,
+  type UndoReleaseResult,
+} from '../receipt-ending/release/ReleaseReceiptRitual'
+import { ThermalUnprintLayer } from '../receipt-ending/release/ThermalUnprintLayer'
 import { getTheme, type ReceiptTheme } from '../themes'
 import type { ReceiptItem } from '../types'
 import type { ExportFormat } from '../v2'
@@ -66,6 +76,14 @@ interface ReceiptMachineProps {
     receipt: CompletedReceiptSnapshot,
     archivedAt: string,
   ) => Promise<KeepArchiveCommitResult> | KeepArchiveCommitResult
+  onCommitRelease: (
+    receipt: CompletedReceiptSnapshot,
+    origin: ReleaseOrigin,
+    undoUntil: string,
+  ) => Promise<ReleaseCommitResult> | ReleaseCommitResult
+  onUndoRelease: () => Promise<UndoReleaseResult> | UndoReleaseResult
+  onExpireRelease: () => Promise<ReleaseCommitResult> | ReleaseCommitResult
+  onReturnFromRelease: (origin: ReleaseOrigin) => void
   onExportLocalCopy: (receipt: CompletedReceiptSnapshot) => Promise<boolean>
   onCloseKeepCompletion: () => void
   onMakeAnother: () => void
@@ -92,6 +110,10 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     onTransactionComplete,
     onReceiptComplete,
     onCommitKeepArchive,
+    onCommitRelease,
+    onUndoRelease,
+    onExpireRelease,
+    onReturnFromRelease,
     onExportLocalCopy,
     onCloseKeepCompletion,
     onMakeAnother,
@@ -219,7 +241,11 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
     const keepPhase = receiptEndingState?.kind === 'keep-ritual'
       ? receiptEndingState.phase
       : undefined
+    const releasePhase = receiptEndingState?.kind === 'release-ritual'
+      ? receiptEndingState.phase
+      : undefined
     const keepRecovery = receiptEndingState?.kind === 'keep-recovery'
+    const releaseRecovery = receiptEndingState?.kind === 'release-recovery'
     const printerPresentation = getPrinterPresentation(receiptEndingState)
 
     const resetForNew = () => {
@@ -267,12 +293,14 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         couponProgress={couponProgress}
         couponCount={displayCouponCount}
         keepPhase={keepPhase}
+        releasePhase={releasePhase}
         materialLayer={(
           <ArchivalSleeve
             phase={keepPhase}
             recovery={keepRecovery}
           />
         )}
+        overlayLayer={<ThermalUnprintLayer phase={releasePhase} />}
       >
         <ReceiptArtifact
           items={displayItems}
@@ -287,6 +315,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           printedAt={endingReceipt?.completedAt}
           endingState={receiptEndingState?.kind}
           keepPhase={keepPhase}
+          releasePhase={releasePhase}
         />
       </ReceiptViewport>
     ) : null
@@ -300,6 +329,7 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
           statusOverride={endingReceipt ? printerPresentation.status : undefined}
           mode={printerPresentation.mode}
           archiveState={printerPresentation.archiveState}
+          releaseState={printerPresentation.releaseState}
         />
         {receipt}
       </div>
@@ -307,6 +337,9 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
 
     const keepBusy = receiptEndingState?.kind === 'keep-ritual'
       && receiptEndingState.phase !== 'complete'
+    const releaseBusy = receiptEndingState?.kind === 'release-ritual'
+      && receiptEndingState.phase !== 'complete'
+      && receiptEndingState.phase !== 'undoing'
 
     return (
       <section
@@ -315,8 +348,9 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
         data-theme={displayTheme.id}
         data-receipt-ending-state={receiptEndingState?.kind}
         data-keep-phase={keepPhase}
+        data-release-phase={releasePhase}
         aria-label="Emotional point of sale terminal and thermal printer"
-        aria-busy={(isBusy && !endingReceipt) || keepBusy}
+        aria-busy={(isBusy && !endingReceipt) || keepBusy || releaseBusy}
       >
         {displayIsComplete && !threeEndingsEnabled ? (
           <EvidenceViewer
@@ -343,7 +377,11 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
                 reducedMotion={reducedMotion}
                 sensory={sensory}
                 onCommitKeepArchive={onCommitKeepArchive}
+                onCommitRelease={onCommitRelease}
+                onUndoRelease={onUndoRelease}
+                onExpireRelease={onExpireRelease}
                 onExportLocalCopy={onExportLocalCopy}
+                onReturnFromRelease={onReturnFromRelease}
                 onCloseKeepCompletion={onCloseKeepCompletion}
               />
             )}
@@ -401,14 +439,39 @@ export const ReceiptMachine = forwardRef<ReceiptMachineHandle, ReceiptMachinePro
 
 function getPrinterPresentation(state: ReceiptEndingState | null): {
   status: string
-  mode: 'receipt' | 'archive'
+  mode: 'receipt' | 'archive' | 'release'
   archiveState: PrinterArchiveState
+  releaseState: PrinterReleaseState
 } {
   if (state?.kind === 'keep-recovery') {
     return {
       status: 'RECORD CLOSED',
       mode: 'archive',
       archiveState: 'recovery',
+      releaseState: 'closed',
+    }
+  }
+
+  if (state?.kind === 'release-recovery') {
+    return {
+      status: 'RECORD CLOSED',
+      mode: 'release',
+      archiveState: 'closed',
+      releaseState: 'recovery',
+    }
+  }
+
+  if (state?.kind === 'release-ritual') {
+    const releaseState = getPrinterReleaseState(state.phase)
+    const slotVisible = ['slot-opening', 'receiving', 'corner-hold', 'slot-closing', 'committing', 'complete', 'undoing']
+      .includes(state.phase)
+    return {
+      status: state.phase === 'complete' || state.phase === 'undoing'
+        ? 'NOTHING ELSE REQUIRED'
+        : 'RECORD CLOSED',
+      mode: slotVisible ? 'release' : 'receipt',
+      archiveState: 'closed',
+      releaseState,
     }
   }
 
@@ -417,6 +480,7 @@ function getPrinterPresentation(state: ReceiptEndingState | null): {
       status: 'DAY DOCUMENTED',
       mode: 'receipt',
       archiveState: 'closed',
+      releaseState: 'closed',
     }
   }
 
@@ -429,36 +493,42 @@ function getPrinterPresentation(state: ReceiptEndingState | null): {
         status: 'RECORD CLOSED',
         mode: 'receipt',
         archiveState: 'closed',
+        releaseState: 'closed',
       }
     case 'label-registering':
       return {
         status: 'PRIVATE ARCHIVE',
         mode: 'archive',
         archiveState: 'closed',
+        releaseState: 'closed',
       }
     case 'archive-opening':
       return {
         status: 'PRIVATE ARCHIVE',
         mode: 'archive',
         archiveState: 'opening',
+        releaseState: 'closed',
       }
     case 'archiving':
       return {
         status: 'PRIVATE ARCHIVE',
         mode: 'archive',
         archiveState: 'receiving',
+        releaseState: 'closed',
       }
     case 'archive-closing':
       return {
         status: 'PRIVATE ARCHIVE',
         mode: 'archive',
         archiveState: state.archivedAt ? 'stored' : 'closing',
+        releaseState: 'closed',
       }
     case 'complete':
       return {
         status: 'PRIVATE ARCHIVE',
         mode: 'archive',
         archiveState: 'stored',
+        releaseState: 'closed',
       }
   }
 }

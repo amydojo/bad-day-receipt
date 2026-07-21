@@ -12,6 +12,10 @@ export type MachineSensoryEvent =
   | 'sleeve-receive'
   | 'archive-label'
   | 'archive-close'
+  | 'thermal-unprint-start'
+  | 'paper-tension-release'
+  | 'release-corner'
+  | 'release-close'
 
 export interface SensoryPreferences {
   soundEnabled: boolean
