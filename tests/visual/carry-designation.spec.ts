@@ -36,6 +36,7 @@ test.describe('Carry designation visual evidence', () => {
     await openReceiptDesignation(page, 'single')
     await attach(page, testInfo, 'suggestion')
 
+    await page.evaluate(() => window.localStorage.clear())
     await page.goto('/?carry-designation-fixture=multiple')
     await commitTransaction(page)
     await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })
