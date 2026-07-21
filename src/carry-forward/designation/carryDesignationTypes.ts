@@ -78,6 +78,7 @@ export type CarryDesignationEvent =
   | { type: 'EDIT_SUGGESTION'; text: string }
   | { type: 'CHOOSE_SOMETHING_ELSE' }
   | { type: 'UPDATE_DRAFT'; value: string }
+  | { type: 'MANUAL_INVALID'; message: string }
   | { type: 'CONFIRM_MANUAL'; obligation: RemainingObligation }
   | { type: 'EXPAND_SOURCE' }
   | { type: 'COLLAPSE_SOURCE' }
