@@ -38,7 +38,7 @@ const sharedProps = {
   sensory,
   onCommitRelease: () => ({ status: 'saved' as const }),
   onUndoRelease: () => ({ status: 'saved' as const, destination: 'documented' as const }),
-  onExpireRelease: () => undefined,
+  onExpireRelease: () => ({ status: 'saved' as const }),
   onExportLocalCopy: async () => true,
   onReturnToSource: () => undefined,
 }
