@@ -201,12 +201,14 @@ export function TaskStepShell({
 
 export function InspectorSheet({
   open,
+  eyebrow = 'INSPECTOR · READ ONLY',
   title,
   descriptionId,
   onClose,
   children,
 }: {
   open: boolean
+  eyebrow?: string
   title: string
   descriptionId?: string
   onClose: () => void
@@ -251,7 +253,7 @@ export function InspectorSheet({
     >
       <div className="cf-inspector__handle" aria-hidden="true" />
       <header>
-        <span className="cf-eyebrow">INSPECTOR · READ ONLY</span>
+        <span className="cf-eyebrow">{eyebrow}</span>
         <h2 id="cf-inspector-title">{title}</h2>
         <ActionButton data-autofocus variant="quiet" onClick={onClose}>CLOSE</ActionButton>
       </header>
