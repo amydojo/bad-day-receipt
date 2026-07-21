@@ -107,12 +107,13 @@ test.describe('Carry Forward designation', () => {
     await expect(page.getByText('Prepare questions for the clinic', { exact: true })).toBeVisible()
   })
 
-  test('receipt-origin manual designation reaches ritual-ready without compiler or receipt-storage leakage', async ({ page }) => {
+  test('receipt-origin manual designation enters the physical ritual without compiler or receipt-storage leakage', async ({ page }) => {
     const telemetryPayloads: string[] = []
     page.on('request', (request) => {
       if (request.url().includes('/_vercel/insights')) telemetryPayloads.push(request.postData() ?? '')
     })
 
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await reachReceiptDesignation(page)
     await expect(page.getByRole('button', { name: 'SHARE', exact: true })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'REPRINT', exact: true })).toHaveCount(0)
@@ -132,9 +133,10 @@ test.describe('Carry Forward designation', () => {
     await expect(page.getByText('Nothing sent automatically', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'ISSUE ADJUSTMENT' }).click()
 
-    await expect(page.getByRole('heading', { name: 'The adjustment is ready to be issued.' })).toBeFocused()
-    await expect(page.getByText('NOT CALLED', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'REVIEW ADJUSTMENT' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'TEAR CARRY FORWARD STUB' })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Separate only the unfinished thing.' })).toBeFocused()
+    await expect(page.getByText('CARRY FORWARD STUB · 01', { exact: true })).toBeVisible()
+    await expect(page.locator('[data-carry-ritual]')).toHaveAttribute('aria-busy', 'false')
 
     const receiptStorage = await page.evaluate((key) => window.localStorage.getItem(key) ?? '', machineStorageKey)
     expect(receiptStorage).not.toContain('Reply to the insurance denial')

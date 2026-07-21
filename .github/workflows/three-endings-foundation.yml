@@ -10,6 +10,7 @@ on:
       - 'src/App.tsx'
       - 'src/carry-forward/CarryForwardPrimitives.tsx'
       - 'src/carry-forward/designation/**'
+      - 'src/carry-forward/ritual/**'
       - 'src/components/Receipt.tsx'
       - 'src/components/ReceiptMachine.tsx'
       - 'src/main.tsx'
@@ -17,8 +18,10 @@ on:
       - 'src/soft-machine/persistence.ts'
       - 'src/soft-machine/persistence.test.ts'
       - 'tests/e2e/carry-designation.spec.ts'
+      - 'tests/e2e/carry-forward-ritual.spec.ts'
       - 'tests/e2e/three-endings-foundation.spec.ts'
       - 'tests/visual/carry-designation.spec.ts'
+      - 'tests/visual/carry-forward-ritual.spec.ts'
   workflow_dispatch:
 
 permissions:
@@ -31,7 +34,7 @@ concurrency:
 jobs:
   foundation-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -48,11 +51,11 @@ jobs:
       - name: Run focused Three Endings browser tests
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/three-endings-results.json
-        run: VITE_THREE_ENDINGS=true npx playwright test tests/e2e/three-endings-foundation.spec.ts tests/e2e/carry-designation.spec.ts --project=chromium-desktop --reporter=json
-      - name: Run Carry designation visual fixtures
+        run: VITE_THREE_ENDINGS=true npx playwright test tests/e2e/three-endings-foundation.spec.ts tests/e2e/carry-designation.spec.ts tests/e2e/carry-forward-ritual.spec.ts --project=chromium-desktop --reporter=json
+      - name: Run Carry visual fixtures
         env:
-          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/carry-designation-visual-results.json
-        run: VITE_THREE_ENDINGS=true npx playwright test tests/visual/carry-designation.spec.ts --project=chromium-desktop --reporter=json
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/carry-visual-results.json
+        run: VITE_THREE_ENDINGS=true npx playwright test tests/visual/carry-designation.spec.ts tests/visual/carry-forward-ritual.spec.ts --project=chromium-desktop --reporter=json
       - name: Upload focused browser evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -3,11 +3,14 @@ import {
   useReducer,
   useRef,
 } from 'react'
+import type { MachineSensoryDirector } from '../../mobile-instrument/sensory/sensoryTypes'
 import {
   ActionButton,
   InputField,
   StatusBanner,
 } from '../CarryForwardPrimitives'
+import { CarryForwardRitual } from '../ritual/CarryForwardRitual'
+import type { CarryRitualHandoff } from '../ritual/carryForwardRitualTypes'
 import { hasConcreteTask } from '../taskAmbiguity'
 import {
   createInteractionBudget,
@@ -35,9 +38,15 @@ import './carry-designation.css'
 export function CarryForwardDesignation({
   origin,
   onNothingAfterAll,
+  reducedMotion = false,
+  sensory,
+  onApply,
 }: {
   origin: CarryDesignationOrigin
   onNothingAfterAll: () => void
+  reducedMotion?: boolean
+  sensory?: MachineSensoryDirector
+  onApply?: (handoff: CarryRitualHandoff) => void
 }) {
   const [state, dispatch] = useReducer(
     carryDesignationReducer,
@@ -109,6 +118,9 @@ export function CarryForwardDesignation({
         confirmManual,
         issueAdjustment,
         resetAndEnd,
+        reducedMotion,
+        sensory,
+        onApply,
       })}
     </section>
   )
@@ -122,6 +134,9 @@ function renderState({
   confirmManual,
   issueAdjustment,
   resetAndEnd,
+  reducedMotion,
+  sensory,
+  onApply,
 }: {
   state: CarryDesignationState
   headingRef: React.RefObject<HTMLHeadingElement | null>
@@ -130,6 +145,9 @@ function renderState({
   confirmManual: () => void
   issueAdjustment: (state: Extract<CarryDesignationState, { kind: 'preset' }>) => void
   resetAndEnd: () => void
+  reducedMotion: boolean
+  sensory?: MachineSensoryDirector
+  onApply?: (handoff: CarryRitualHandoff) => void
 }) {
   if (state.kind === 'choosing') {
     return (
@@ -250,6 +268,25 @@ function renderState({
     )
   }
 
+  if (state.kind === 'ritual-ready' && state.origin === 'receipt' && state.budget.receiptId) {
+    return (
+      <CarryForwardRitual
+        payload={{
+          obligation: state.obligation,
+          sourceText: state.sourceText,
+          budget: state.budget,
+          origin: 'receipt',
+          receiptId: state.budget.receiptId,
+        }}
+        reducedMotion={reducedMotion}
+        sensory={sensory}
+        onApply={onApply}
+        onAdjust={() => dispatch({ type: 'RETURN_TO_PRESET' })}
+        onCancel={resetAndEnd}
+      />
+    )
+  }
+
   if (state.kind === 'ritual-ready') {
     return (
       <section className="carry-designation__ready" data-carry-ritual-ready>
@@ -260,12 +297,12 @@ function renderState({
         <p>Nothing has been compiled or applied yet.</p>
         <dl>
           <div><dt>DESIGNATED THING</dt><dd>{state.obligation.text}</dd></div>
-          <div><dt>ORIGIN</dt><dd>{state.origin === 'receipt' ? 'COMPLETED RECEIPT' : 'DIRECT ENTRY'}</dd></div>
+          <div><dt>ORIGIN</dt><dd>DIRECT ENTRY</dd></div>
           <div><dt>SOURCE</dt><dd>{state.sourceText ? 'OPTIONAL CONTEXT PRESENT' : 'NONE ADDED'}</dd></div>
           <div><dt>COMPILER</dt><dd>NOT CALLED</dd></div>
         </dl>
-        <StatusBanner title="No change yet">
-          The designated task and adjustment remain local. The receipt is unchanged, and nothing has been compiled or applied.
+        <StatusBanner title="No false receipt continuity">
+          Direct entry prepares the same typed adjustment without claiming that a receipt or physical stub exists.
         </StatusBanner>
         <div className="carry-designation__actions">
           <ActionButton variant="secondary" onClick={() => dispatch({ type: 'RETURN_TO_PRESET' })}>

@@ -45,7 +45,7 @@ test.describe('Carry designation visual evidence', () => {
     await attach(page, testInfo, 'multiple-choices')
   })
 
-  test('captures receipt-origin manual, source, preset, customize, and ritual-ready states', async ({ page }, testInfo) => {
+  test('captures receipt-origin manual, source, preset, customize, and extension states', async ({ page }, testInfo) => {
     await openReceiptDesignation(page)
     await attach(page, testInfo, 'manual-entry')
 
@@ -65,7 +65,8 @@ test.describe('Carry designation visual evidence', () => {
     await page.getByRole('button', { name: 'APPLY CUSTOMIZATION' }).click()
 
     await page.getByRole('button', { name: 'ISSUE ADJUSTMENT' }).click()
-    await attach(page, testInfo, 'ritual-ready')
+    await expect(page.getByRole('button', { name: 'TEAR CARRY FORWARD STUB' })).toBeVisible({ timeout: 10_000 })
+    await attach(page, testInfo, 'extension-ready')
   })
 
   test('captures direct entry across compact, landscape, desktop, and zoomed layouts', async ({ page }, testInfo) => {
