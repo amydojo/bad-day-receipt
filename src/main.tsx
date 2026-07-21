@@ -44,6 +44,7 @@ import './carry-forward/carry-forward.css'
 import './carry-forward/carry-forward-accessibility.css'
 import './receipt-ending/receipt-ending.css'
 import './receipt-ending/keep/keep-receipt.css'
+import './receipt-ending/release/release-receipt.css'
 
 const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const route = normalizedPath === '/carry-forward' ? <CarryForwardApp /> : <App />
