@@ -321,9 +321,7 @@ export function ReleaseReceiptRitual({
       aria-label="Releasing the receipt"
     >
       <p className="release-ritual__status" aria-hidden="true">RELEASING THE RECORD</p>
-      <p className="sr-only" aria-live="polite">
-        {state.phase === 'cut' ? 'Releasing the receipt.' : ''}
-      </p>
+      <p className="sr-only" aria-live="polite">Releasing the receipt.</p>
     </section>
   )
 }
