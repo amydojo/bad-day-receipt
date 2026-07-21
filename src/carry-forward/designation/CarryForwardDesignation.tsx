@@ -264,10 +264,15 @@ function renderState({
           <div><dt>SOURCE</dt><dd>{state.sourceText ? 'OPTIONAL CONTEXT PRESENT' : 'NONE ADDED'}</dd></div>
           <div><dt>COMPILER</dt><dd>NOT CALLED</dd></div>
         </dl>
-        <StatusBanner title="Physical handoff reserved">
-          Stub printing, reinsertion, the actuator, Field Transfer, compilation, and One Thing Mode begin in later implementation stages.
+        <StatusBanner title="No change yet">
+          The designated task and adjustment remain local. The receipt is unchanged, and nothing has been compiled or applied.
         </StatusBanner>
-        <ActionButton variant="quiet" onClick={resetAndEnd}>NOTHING AFTER ALL</ActionButton>
+        <div className="carry-designation__actions">
+          <ActionButton variant="secondary" onClick={() => dispatch({ type: 'RETURN_TO_PRESET' })}>
+            REVIEW ADJUSTMENT
+          </ActionButton>
+          <ActionButton variant="quiet" onClick={resetAndEnd}>NOTHING AFTER ALL</ActionButton>
+        </div>
       </section>
     )
   }
