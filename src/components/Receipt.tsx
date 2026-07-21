@@ -109,24 +109,20 @@ export function Receipt({
       <div className="receipt-registration" aria-hidden="true" data-printed={headerPrinted} />
       <div className="theme-mark" aria-hidden="true" data-printed={headerPrinted}>{theme.mark}</div>
 
-      <div
-        className="receipt-region receipt-region--header"
-        data-receipt-region="header"
-        data-release-region="record"
-      >
-        <div className="receipt-header" data-printed={headerPrinted}>
+      <div className="receipt-region receipt-region--header" data-receipt-region="header">
+        <div className="receipt-header" data-release-region="record" data-printed={headerPrinted}>
           <p>{theme.eyebrow}</p>
           <h2>{theme.title}</h2>
           <p>{theme.department}</p>
         </div>
 
         <div className="receipt-meta" data-printed={headerPrinted}>
-          <span>{date}</span>
+          <span data-release-region="record">{date}</span>
           <span data-release-region="receipt-number">{receiptNumber}</span>
-          <span>{theme.servedBy}</span>
+          <span data-release-region="record">{theme.servedBy}</span>
         </div>
 
-        <div className="receipt-rule" data-printed={headerPrinted} />
+        <div className="receipt-rule" data-release-region="record" data-printed={headerPrinted} />
       </div>
 
       <div
@@ -159,11 +155,7 @@ export function Receipt({
         data-printed={visibleLineCount >= items.length && items.length > 0}
       />
 
-      <div
-        className="totals"
-        data-receipt-region="total"
-        data-printed={visibleTotalRows > 0}
-      >
+      <div className="totals" data-receipt-region="total" data-printed={visibleTotalRows > 0}>
         {totalRows.map(([label, amount, isGrandTotal], index) => (
           <div
             className={isGrandTotal ? 'grand-total' : undefined}
@@ -250,16 +242,8 @@ export function Receipt({
         data-active={keepPhase === 'cut' || releasePhase === 'cut'}
         aria-hidden="true"
       />
-      <div
-        className="receipt-future-layer receipt-future-layer--carry-stub"
-        data-receipt-region="carry-stub"
-        aria-hidden="true"
-      />
-      <div
-        className="receipt-future-layer receipt-future-layer--transfer"
-        data-receipt-region="transfer-layer"
-        aria-hidden="true"
-      />
+      <div className="receipt-future-layer receipt-future-layer--carry-stub" data-receipt-region="carry-stub" aria-hidden="true" />
+      <div className="receipt-future-layer receipt-future-layer--transfer" data-receipt-region="transfer-layer" aria-hidden="true" />
       <div
         className="receipt-future-layer receipt-future-layer--archive-label"
         data-receipt-region="archive-label"
