@@ -24,6 +24,7 @@ import type {
   CarryRitualHandoff,
   CarryRitualPayload,
   CarryRitualPhase,
+  CarryRitualState,
 } from './carryForwardRitualTypes'
 import './carry-forward-ritual.css'
 
