@@ -204,6 +204,29 @@ describe('receiptEndingReducer', () => {
     })
   })
 
+  it('keeps expired Release finalization persistence-bound and retryable', () => {
+    const completed: ReceiptEndingState = {
+      ...startRelease(),
+      phase: 'complete',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    }
+    const recovery = reduce(completed, {
+      type: 'RELEASE_EXPIRY_FAILED',
+      reason: 'storage-write-failed',
+    })
+    expect(recovery).toMatchObject({
+      kind: 'release-recovery',
+      operation: 'expiry',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    })
+    expect(reduce(recovery, { type: 'RETRY_RELEASE_EXPIRY' })).toMatchObject({
+      kind: 'release-ritual',
+      phase: 'complete',
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    })
+    expect(reduce(completed, { type: 'RELEASE_UNDO_EXPIRED' })).toBeNull()
+  })
+
   it('returns exact pending Undo to documented and archive Undo out of the active machine', () => {
     const pendingUndo: ReceiptEndingState = {
       ...startRelease(),
