@@ -1,18 +1,30 @@
-import type { MachineSensoryDirector } from '../../mobile-instrument/sensory/sensoryTypes'
+import type {
+  MachineSensoryDirector,
+  MachineSensoryEvent,
+} from '../../mobile-instrument/sensory/sensoryTypes'
 import type { CarryRitualPhase } from './carryForwardRitualTypes'
 
-const PHASE_EVENT = {
-  'extension-printing': 'thermal-feed-start',
-  'extension-ready': 'thermal-feed-stop',
-  'stub-separated': 'receipt-cut',
-  'stub-aligning': 'archive-align',
-  'stub-intake': 'sleeve-receive',
-  'actuator-detent': 'paper-tension-release',
-  'actuator-locked': 'archive-close',
-  'transfer-issuing': 'thermal-feed-start',
-  'transfer-issued': 'thermal-feed-stop',
-  recovery: 'machine-error',
-} as const
+const PHASE_MILESTONES: Partial<Record<CarryRitualPhase, readonly MachineSensoryEvent[]>> = {
+  'extension-printing': ['thermal-feed-start'],
+  'extension-ready': ['thermal-feed-stop'],
+  'stub-separated': ['carry-stub-tear'],
+  'stub-aligning': ['carry-intake-start'],
+  'actuator-revealing': ['carry-intake-stop'],
+  'actuator-medium': ['actuator-medium'],
+  'actuator-heavy': ['actuator-heavy'],
+  'actuator-detent': ['actuator-detent'],
+  'actuator-locked': ['actuator-lock'],
+  'transform-registering': ['transfer-register'],
+  'transfer-issuing': ['thermal-feed-start'],
+  'transfer-issued': ['thermal-feed-stop', 'transfer-issued'],
+}
+
+const ACTUATOR_RETRY_EVENTS: readonly MachineSensoryEvent[] = [
+  'actuator-medium',
+  'actuator-heavy',
+  'actuator-detent',
+  'actuator-lock',
+]
 
 export function emitCarryRitualMilestone({
   sensory,
@@ -21,11 +33,25 @@ export function emitCarryRitualMilestone({
 }: {
   sensory?: MachineSensoryDirector
   phase: CarryRitualPhase
-  emitted: Set<CarryRitualPhase>
-}) {
-  if (!sensory || emitted.has(phase)) return
-  const event = PHASE_EVENT[phase as keyof typeof PHASE_EVENT]
-  if (!event) return
-  emitted.add(phase)
-  sensory.emit(event)
+  emitted: Set<MachineSensoryEvent>
+}): void {
+  const milestones = PHASE_MILESTONES[phase]
+  if (!sensory || !milestones) return
+  for (const milestone of milestones) {
+    if (emitted.has(milestone)) continue
+    emitted.add(milestone)
+    sensory.emit(milestone)
+  }
+}
+
+export function resetCarryActuatorSensoryEligibility(
+  emitted: Set<MachineSensoryEvent>,
+): void {
+  for (const event of ACTUATOR_RETRY_EVENTS) emitted.delete(event)
+}
+
+export function getCarryRitualSensoryEvents(
+  phase: CarryRitualPhase,
+): readonly MachineSensoryEvent[] {
+  return PHASE_MILESTONES[phase] ?? []
 }

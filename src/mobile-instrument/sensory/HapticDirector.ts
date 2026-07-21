@@ -19,9 +19,19 @@ const HAPTIC_PATTERNS: Partial<Record<MachineSensoryEvent, number | number[]>> =
   'archive-label': 5,
   'archive-close': 11,
   'thermal-unprint-start': 3,
+  'thermal-unprint-complete': 2,
   'paper-tension-release': 5,
   'release-corner': 3,
   'release-close': 9,
+  'carry-stub-tear': 7,
+  'carry-intake-start': 4,
+  'carry-intake-stop': 5,
+  'actuator-medium': 4,
+  'actuator-heavy': 7,
+  'actuator-detent': 9,
+  'actuator-lock': 11,
+  'transfer-register': 5,
+  'transfer-issued': 7,
 }
 
 export class HapticDirector implements HapticOutput {

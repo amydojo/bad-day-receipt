@@ -3,7 +3,11 @@ import {
   useReducer,
   useRef,
 } from 'react'
-import type { MachineSensoryDirector } from '../../mobile-instrument/sensory/sensoryTypes'
+import type {
+  MachineSensoryDirector,
+  MachineSensoryEvent,
+} from '../../mobile-instrument/sensory/sensoryTypes'
+import { getRecoveryCopy as getSharedRecoveryCopy } from '../../receipt-ending/recovery/recoveryCopy'
 import { CarryForwardStub } from './CarryForwardStub'
 import { FieldTransferArtifact } from './FieldTransferArtifact'
 import { MechanicalActuator } from './MechanicalActuator'
@@ -21,7 +25,10 @@ import {
   createInitialCarryRitualState,
   toCarryRitualHandoff,
 } from './carryForwardRitualReducer'
-import { emitCarryRitualMilestone } from './carryForwardRitualSensory'
+import {
+  emitCarryRitualMilestone,
+  resetCarryActuatorSensoryEligibility,
+} from './carryForwardRitualSensory'
 import type {
   ActuatorMilestone,
   CarryRitualHandoff,
@@ -39,6 +46,13 @@ const BUSY_PHASES = new Set<CarryRitualPhase>([
   'actuator-locked',
   'transform-registering',
   'transfer-issuing',
+])
+
+const SAFE_EXIT_PHASES = new Set<CarryRitualPhase>([
+  'extension-ready',
+  'stub-separated',
+  'actuator-ready',
+  'released-early',
 ])
 
 function hasConversionFailureFixture() {
@@ -69,7 +83,8 @@ export function CarryForwardRitual({
     createInitialCarryRitualState,
   )
   const headingRef = useRef<HTMLHeadingElement | null>(null)
-  const emittedMilestones = useRef(new Set<CarryRitualPhase>())
+  const emittedMilestones = useRef(new Set<MachineSensoryEvent>())
+  const previousPhase = useRef<CarryRitualPhase | null>(null)
   const fallbackTimers = useRef<number[]>([])
   const conversionFailureFixture = hasConversionFailureFixture()
 
@@ -86,11 +101,18 @@ export function CarryForwardRitual({
   }, [conversionFailureFixture, reducedMotion, state.phase])
 
   useEffect(() => {
+    if (
+      state.phase === 'actuator-ready'
+      && (previousPhase.current === 'released-early' || previousPhase.current === 'recovery')
+    ) {
+      resetCarryActuatorSensoryEligibility(emittedMilestones.current)
+    }
     emitCarryRitualMilestone({
       sensory,
       phase: state.phase,
       emitted: emittedMilestones.current,
     })
+    previousPhase.current = state.phase
   }, [sensory, state.phase])
 
   useEffect(() => {
@@ -220,6 +242,12 @@ export function CarryForwardRitual({
         )}
       </div>
 
+      {SAFE_EXIT_PHASES.has(state.phase) && (
+        <button className="carry-ritual__quiet-exit" type="button" onClick={cancelRitual}>
+          RETURN TO COMPLETED RECEIPT
+        </button>
+      )}
+
       {state.phase === 'released-early' && (
         <div className="carry-ritual__recovery-action">
           <p>The handle returned to zero. The receipt and stub are unchanged.</p>
@@ -231,11 +259,11 @@ export function CarryForwardRitual({
 
       {state.phase === 'recovery' && (
         <div className="carry-ritual__recovery-action" role="status">
-          <p>{getRecoveryCopy(state.recoveryReason)}</p>
+          <p>{getCarryRecoveryBody(state.recoveryReason)}</p>
           <button type="button" onClick={() => dispatch({ type: 'RECOVER' })}>
             RECOVER SAME STUB
           </button>
-          <button type="button" onClick={cancelRitual}>CANCEL WITHOUT CHANGING RECEIPT</button>
+          <button type="button" onClick={cancelRitual}>RETURN TO COMPLETED RECEIPT</button>
         </div>
       )}
 
@@ -269,7 +297,7 @@ function getPhaseDescription(phase: CarryRitualPhase) {
   if (phase.startsWith('actuator-') || phase === 'released-early') return 'Push through easy, medium, heavy, and detent milestones. Nothing is sent automatically.'
   if (phase === 'transform-registering') return 'A translucent transfer layer is aligning over the original obligation.'
   if (phase === 'transfer-issuing') return 'The transformed stub is advancing back out of the same printer.'
-  if (phase === 'transfer-issued') return 'Review, adjust, cancel, or apply when compiler integration is available.'
+  if (phase === 'transfer-issued') return 'Review, adjust, cancel, or apply the issued transfer.'
   return 'The completed receipt has not been changed.'
 }
 
@@ -282,8 +310,8 @@ function getAnnouncement(phase: CarryRitualPhase) {
   return ''
 }
 
-function getRecoveryCopy(reason: CarryRitualState['recoveryReason']) {
-  if (reason === 'tear-canceled') return 'The stub did not separate. The extension remains attached and can be tried again.'
-  if (reason === 'intake-jam') return 'The intake did not capture the stub. The same separated stub is still available.'
-  return 'Conversion did not register. The same stub can return to the actuator-ready boundary.'
+function getCarryRecoveryBody(reason: CarryRitualState['recoveryReason']) {
+  if (reason === 'intake-jam') return getSharedRecoveryCopy('carry-intake').body
+  if (reason === 'conversion-failed') return getSharedRecoveryCopy('carry-conversion').body
+  return getSharedRecoveryCopy('carry-extension').body
 }

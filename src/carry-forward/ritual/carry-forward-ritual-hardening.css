@@ -1,0 +1,25 @@
+.carry-ritual__quiet-exit {
+  order: 3;
+  width: 100%;
+  min-height: 44px;
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  border: 1px solid currentColor;
+  border-radius: 0;
+  background: transparent;
+  color: var(--carry-ink, #171716);
+  font: 600 10px/1.3 "DM Mono", ui-monospace, monospace;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.carry-ritual__quiet-exit:focus-visible {
+  outline: 3px solid var(--carry-coral, #ff6f61);
+  outline-offset: 3px;
+}
+
+@media (max-width: 360px), (max-height: 620px) {
+  .carry-ritual__quiet-exit {
+    margin-top: 6px;
+  }
+}

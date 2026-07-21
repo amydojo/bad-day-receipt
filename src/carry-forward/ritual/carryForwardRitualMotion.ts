@@ -1,13 +1,8 @@
+import { RECEIPT_ENDING_TIMING } from '../../motion/receiptEndingMotion'
 import type { CarryRitualPhase } from './carryForwardRitualTypes'
 
 export const CARRY_RITUAL_MOTION = {
-  extensionPrintMs: 780,
-  stubAlignMs: 320,
-  stubIntakeMs: 520,
-  actuatorRevealMs: 420,
-  transformRegisterMs: 680,
-  transferIssueMs: 620,
-  reducedTransitionMs: 80,
+  ...RECEIPT_ENDING_TIMING.carry,
   tearDistancePx: 92,
   intakeDistancePx: 116,
   actuatorTravelPx: 148,

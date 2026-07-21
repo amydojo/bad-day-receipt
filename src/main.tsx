@@ -10,6 +10,7 @@ import { MachineErrorBoundary } from './components/MachineErrorBoundary'
 import { FieldAccessGate } from './field-access/FieldAccessGate'
 import './field-access/canonicalMachineLabels'
 import { THREE_ENDINGS_ENABLED } from './receipt-ending'
+import './motion/receipt-ending-motion.css'
 import './styles.css'
 import './cvs-realism'
 import './styles/printer.css'
@@ -48,8 +49,12 @@ import './carry-forward/carry-forward-accessibility.css'
 import './receipt-ending/receipt-ending.css'
 import './receipt-ending/keep/keep-receipt.css'
 import './receipt-ending/release/release-receipt.css'
+import './receipt-ending/recovery/receipt-ending-recovery.css'
+import './carry-forward/ritual/carry-forward-ritual-hardening.css'
 // Keep the in-tree runtime coordinate correction after shared authored motion.
 import './carry-forward/integration/carry-forward-runtime-coordinate-fix.css'
+// Keep cross-breakpoint action ownership after legacy display rules.
+import './styles/three-endings-responsive-hardening.css'
 
 function hasStoredCarryForwardSession(): boolean {
   try {

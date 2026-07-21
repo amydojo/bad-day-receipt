@@ -1,25 +1,20 @@
+import {
+  RECEIPT_ENDING_EASING,
+  RECEIPT_ENDING_TIMING,
+  resolveRitualDuration,
+} from '../../motion/receiptEndingMotion'
 import type {
   KeepRitualPhase,
   ReceiptEndingEvent,
 } from '../receiptEndingTypes'
 
-export const KEEP_RITUAL_TIMING = {
-  cut: 180,
-  align: 120,
-  sleeveRising: 360,
-  sleeveReceiving: 420,
-  labelRegistering: 420,
-  archiveOpening: 240,
-  archiving: 520,
-  archiveClosing: 220,
-  completionStillness: 320,
-} as const
+export const KEEP_RITUAL_TIMING = RECEIPT_ENDING_TIMING.keep
 
 export const KEEP_RITUAL_EASING = {
-  precise: 'cubic-bezier(.2, .65, .25, 1)',
-  magnetic: 'cubic-bezier(.24, .82, .34, 1)',
-  friction: 'cubic-bezier(.18, .72, .26, 1)',
-  settle: 'cubic-bezier(.2, .6, .3, 1)',
+  precise: RECEIPT_ENDING_EASING.precise,
+  magnetic: RECEIPT_ENDING_EASING.magnetic,
+  friction: RECEIPT_ENDING_EASING.resistant,
+  settle: RECEIPT_ENDING_EASING.settle,
 } as const
 
 export interface KeepPhaseAdvance {
@@ -33,10 +28,12 @@ export function getKeepPhaseAdvance(
   now: () => string = () => new Date().toISOString(),
 ): KeepPhaseAdvance | null {
   const testHold = readTestPhaseHold()
-  const duration = (standard: number, reduced = 100) => {
-    if (testHold !== null) return testHold
-    return reducedMotion ? Math.min(standard, reduced) : standard
-  }
+  const duration = (standard: number, reduced = 100) => resolveRitualDuration({
+    standard,
+    reducedMotion,
+    reducedCap: reduced,
+    testHold,
+  })
 
   switch (phase) {
     case 'cut':

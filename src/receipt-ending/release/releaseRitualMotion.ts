@@ -1,28 +1,22 @@
+import {
+  RECEIPT_ENDING_EASING,
+  RECEIPT_ENDING_TIMING,
+  resolveRitualDuration,
+} from '../../motion/receiptEndingMotion'
 import type {
   ReceiptEndingEvent,
   ReleaseRitualPhase,
 } from '../receiptEndingTypes'
 import { createReleaseUndoUntil } from './releasePersistence'
 
-export const RELEASE_RITUAL_TIMING = {
-  cut: 180,
-  unprintTotal: 220,
-  unprintLines: 520,
-  unprintReceiptNumber: 180,
-  unprintAcknowledgment: 260,
-  soften: 260,
-  slotOpening: 180,
-  receiving: 420,
-  cornerHold: 100,
-  slotClosing: 180,
-} as const
+export const RELEASE_RITUAL_TIMING = RECEIPT_ENDING_TIMING.release
 
 export const RELEASE_RITUAL_EASING = {
-  precise: 'cubic-bezier(.2, .65, .25, 1)',
-  withdraw: 'cubic-bezier(.32, .02, .55, 1)',
-  soften: 'cubic-bezier(.2, .55, .32, 1)',
-  receive: 'cubic-bezier(.18, .72, .26, 1)',
-  settle: 'cubic-bezier(.2, .6, .3, 1)',
+  precise: RECEIPT_ENDING_EASING.precise,
+  withdraw: RECEIPT_ENDING_EASING.release,
+  soften: RECEIPT_ENDING_EASING.soften,
+  receive: RECEIPT_ENDING_EASING.resistant,
+  settle: RECEIPT_ENDING_EASING.settle,
 } as const
 
 export interface ReleasePhaseAdvance {
@@ -36,10 +30,12 @@ export function getReleasePhaseAdvance(
   now: () => Date = () => new Date(),
 ): ReleasePhaseAdvance | null {
   const testHold = readTestPhaseHold()
-  const duration = (standard: number, reduced = 100) => {
-    if (testHold !== null) return testHold
-    return reducedMotion ? Math.min(standard, reduced) : standard
-  }
+  const duration = (standard: number, reduced = 100) => resolveRitualDuration({
+    standard,
+    reducedMotion,
+    reducedCap: reduced,
+    testHold,
+  })
 
   switch (phase) {
     case 'cut':
