@@ -82,7 +82,7 @@ interface ReceiptMachineProps {
     undoUntil: string,
   ) => Promise<ReleaseCommitResult> | ReleaseCommitResult
   onUndoRelease: () => Promise<UndoReleaseResult> | UndoReleaseResult
-  onExpireRelease: () => Promise<void> | void
+  onExpireRelease: () => Promise<ReleaseCommitResult> | ReleaseCommitResult
   onReturnFromRelease: (origin: ReleaseOrigin) => void
   onExportLocalCopy: (receipt: CompletedReceiptSnapshot) => Promise<boolean>
   onCloseKeepCompletion: () => void
