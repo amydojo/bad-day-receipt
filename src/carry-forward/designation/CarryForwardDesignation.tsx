@@ -2,6 +2,7 @@ import {
   useEffect,
   useReducer,
   useRef,
+  useState,
 } from 'react'
 import type { MachineSensoryDirector } from '../../mobile-instrument/sensory/sensoryTypes'
 import {
@@ -9,6 +10,7 @@ import {
   InputField,
   StatusBanner,
 } from '../CarryForwardPrimitives'
+import { CarryForwardRuntimeHost } from '../integration/CarryForwardRuntimeHost'
 import { CarryForwardRitual } from '../ritual/CarryForwardRitual'
 import type { CarryRitualHandoff } from '../ritual/carryForwardRitualTypes'
 import { hasConcreteTask } from '../taskAmbiguity'
@@ -53,17 +55,19 @@ export function CarryForwardDesignation({
     origin,
     createInitialCarryDesignationState,
   )
+  const [runtimeHandoff, setRuntimeHandoff] = useState<CarryRitualHandoff | null>(null)
   const headingRef = useRef<HTMLHeadingElement | null>(null)
 
   useEffect(() => {
-    if (state.kind === 'customizing') return
+    if (state.kind === 'customizing' || runtimeHandoff) return
     const frame = window.requestAnimationFrame(() => {
       headingRef.current?.focus({ preventScroll: true })
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [state.kind])
+  }, [runtimeHandoff, state.kind])
 
   const resetAndEnd = () => {
+    setRuntimeHandoff(null)
     dispatch({ type: 'RESET', state: createInitialCarryDesignationState(origin) })
     onNothingAfterAll()
   }
@@ -103,11 +107,17 @@ export function CarryForwardDesignation({
     dispatch({ type: 'ISSUE_ADJUSTMENT', budget, origin: origin.kind })
   }
 
+  const applyFieldTransfer = (handoff: CarryRitualHandoff) => {
+    setRuntimeHandoff(handoff)
+    onApply?.(handoff)
+  }
+
   return (
     <section
       className="carry-designation"
       data-carry-designation-state={state.kind}
       data-carry-designation-origin={origin.kind}
+      data-in-tree-runtime-active={runtimeHandoff ? true : undefined}
       aria-labelledby="carry-designation-heading"
     >
       {renderState({
@@ -120,7 +130,9 @@ export function CarryForwardDesignation({
         resetAndEnd,
         reducedMotion,
         sensory,
-        onApply,
+        runtimeHandoff,
+        applyFieldTransfer,
+        cancelRuntime: () => setRuntimeHandoff(null),
       })}
     </section>
   )
@@ -136,7 +148,9 @@ function renderState({
   resetAndEnd,
   reducedMotion,
   sensory,
-  onApply,
+  runtimeHandoff,
+  applyFieldTransfer,
+  cancelRuntime,
 }: {
   state: CarryDesignationState
   headingRef: React.RefObject<HTMLHeadingElement | null>
@@ -147,7 +161,9 @@ function renderState({
   resetAndEnd: () => void
   reducedMotion: boolean
   sensory?: MachineSensoryDirector
-  onApply?: (handoff: CarryRitualHandoff) => void
+  runtimeHandoff: CarryRitualHandoff | null
+  applyFieldTransfer: (handoff: CarryRitualHandoff) => void
+  cancelRuntime: () => void
 }) {
   if (state.kind === 'choosing') {
     return (
@@ -270,20 +286,40 @@ function renderState({
 
   if (state.kind === 'ritual-ready' && state.origin === 'receipt' && state.budget.receiptId) {
     return (
-      <CarryForwardRitual
-        payload={{
-          obligation: state.obligation,
-          sourceText: state.sourceText,
-          budget: state.budget,
-          origin: 'receipt',
-          receiptId: state.budget.receiptId,
-        }}
-        reducedMotion={reducedMotion}
-        sensory={sensory}
-        onApply={onApply}
-        onAdjust={() => dispatch({ type: 'RETURN_TO_PRESET' })}
-        onCancel={resetAndEnd}
-      />
+      <div
+        className="carry-designation__runtime-boundary"
+        data-runtime-active={runtimeHandoff ? true : undefined}
+      >
+        <div
+          className="carry-designation__ritual-layer"
+          aria-hidden={runtimeHandoff ? true : undefined}
+          inert={runtimeHandoff ? true : undefined}
+        >
+          <CarryForwardRitual
+            payload={{
+              obligation: state.obligation,
+              sourceText: state.sourceText,
+              budget: state.budget,
+              origin: 'receipt',
+              receiptId: state.budget.receiptId,
+            }}
+            reducedMotion={reducedMotion}
+            sensory={sensory}
+            onApply={applyFieldTransfer}
+            onAdjust={() => dispatch({ type: 'RETURN_TO_PRESET' })}
+            onCancel={resetAndEnd}
+          />
+        </div>
+        {runtimeHandoff && (
+          <div className="carry-designation__runtime-layer">
+            <CarryForwardRuntimeHost
+              handoff={runtimeHandoff}
+              onCancelToTransfer={cancelRuntime}
+              onReturnToReceipt={resetAndEnd}
+            />
+          </div>
+        )}
+      </div>
     )
   }
 
