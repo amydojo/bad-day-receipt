@@ -2,7 +2,10 @@ import type { CSSProperties } from 'react'
 import { fieldReleaseStamp } from '../field-access/fieldRelease'
 import { getCurrentFieldAccess } from '../field-access/fieldAccessStorage'
 import { currency, summarizeReceipt } from '../receipt'
-import type { KeepRitualPhase } from '../receipt-ending/receiptEndingTypes'
+import type {
+  KeepRitualPhase,
+  ReleaseRitualPhase,
+} from '../receipt-ending/receiptEndingTypes'
 import type { PrinterPhase } from '../printer/printerTypes'
 import {
   getThemeItemLabel,
@@ -18,7 +21,8 @@ export type ReceiptArtifactState =
   | 'end-choice'
   | 'keep-ritual'
   | 'keep-recovery'
-  | 'release-selected'
+  | 'release-ritual'
+  | 'release-recovery'
   | 'carry-selected'
   | 'recovery'
 
@@ -35,6 +39,7 @@ export interface ReceiptProps {
   printedAt?: string
   artifactState?: ReceiptArtifactState
   keepPhase?: KeepRitualPhase
+  releasePhase?: ReleaseRitualPhase
   artifactId?: string
 }
 
@@ -51,6 +56,7 @@ export function Receipt({
   printedAt,
   artifactState = 'printing',
   keepPhase,
+  releasePhase,
   artifactId = 'receipt',
 }: ReceiptProps) {
   const summary = summarizeReceipt(items)
@@ -82,6 +88,7 @@ export function Receipt({
   const archiveLabelActive = keepPhase
     ? ['label-registering', 'archive-opening', 'archiving', 'archive-closing', 'complete'].includes(keepPhase)
     : false
+  const releasedFromAccessibility = releasePhase === 'complete' || releasePhase === 'undoing'
 
   return (
     <article
@@ -92,15 +99,21 @@ export function Receipt({
       data-receipt-region="paper"
       data-receipt-ending-state={artifactState}
       data-keep-phase={keepPhase}
+      data-release-phase={releasePhase}
       data-theme={theme.id}
       data-phase={phase}
       data-blank-tip={phase === 'arming'}
+      aria-hidden={releasedFromAccessibility || undefined}
     >
       <div className="receipt-paper-leader" aria-hidden="true" />
       <div className="receipt-registration" aria-hidden="true" data-printed={headerPrinted} />
       <div className="theme-mark" aria-hidden="true" data-printed={headerPrinted}>{theme.mark}</div>
 
-      <div className="receipt-region receipt-region--header" data-receipt-region="header">
+      <div
+        className="receipt-region receipt-region--header"
+        data-receipt-region="header"
+        data-release-region="record"
+      >
         <div className="receipt-header" data-printed={headerPrinted}>
           <p>{theme.eyebrow}</p>
           <h2>{theme.title}</h2>
@@ -109,7 +122,7 @@ export function Receipt({
 
         <div className="receipt-meta" data-printed={headerPrinted}>
           <span>{date}</span>
-          <span>{receiptNumber}</span>
+          <span data-release-region="receipt-number">{receiptNumber}</span>
           <span>{theme.servedBy}</span>
         </div>
 
@@ -119,6 +132,7 @@ export function Receipt({
       <div
         className="receipt-lines"
         data-receipt-region="line-items"
+        data-release-region="record"
         data-printed={bodyPrinted}
       >
         {items.length === 0 ? (
@@ -129,6 +143,8 @@ export function Receipt({
           <div
             className="receipt-line"
             data-printed={index < visibleLineCount}
+            data-release-rank={items.length - index}
+            style={{ '--release-rank': items.length - index } as CSSProperties}
             key={item.id}
           >
             <span>{getThemeItemLabel(item, theme).toUpperCase()}</span>
@@ -137,7 +153,11 @@ export function Receipt({
         ))}
       </div>
 
-      <div className="receipt-rule dashed" data-printed={visibleLineCount >= items.length && items.length > 0} />
+      <div
+        className="receipt-rule dashed"
+        data-release-region="record"
+        data-printed={visibleLineCount >= items.length && items.length > 0}
+      />
 
       <div
         className="totals"
@@ -148,6 +168,7 @@ export function Receipt({
           <div
             className={isGrandTotal ? 'grand-total' : undefined}
             data-printed={index < visibleTotalRows}
+            data-release-region={isGrandTotal ? 'total' : 'record'}
             key={label}
           >
             <span>{label}</span>
@@ -156,24 +177,25 @@ export function Receipt({
         ))}
       </div>
 
-      <div className="status-stamp" data-visible={showVerdict}>
+      <div className="status-stamp" data-release-region="record" data-visible={showVerdict}>
         {getThemeStatus(summary.status, theme)}
       </div>
 
       {anomaly && showVerdict && (
-        <div className="receipt-anomaly">
+        <div className="receipt-anomaly" data-release-region="record">
           <span>REGISTER ADJUSTMENT</span>
           <strong>{anomaly}</strong>
         </div>
       )}
 
-      <div className="receipt-note" data-printed={showVerdict}>
+      <div className="receipt-note" data-release-region="record" data-printed={showVerdict}>
         {theme.notes.map((note) => <p key={note}>{note}</p>)}
       </div>
 
       <div
         className="receipt-acknowledgment"
         data-receipt-region="acknowledgment"
+        data-release-region="acknowledgment"
         data-printed={showVerdict}
       >
         <span>THIS DAY REQUIRED MORE</span>
@@ -183,6 +205,7 @@ export function Receipt({
       <p
         className="receipt-closing-mark"
         data-receipt-region="closing-mark"
+        data-release-region="acknowledgment"
         data-printed={showVerdict}
       >
         DAY DOCUMENTED
@@ -191,6 +214,7 @@ export function Receipt({
       {fieldAccess && (
         <div
           className="receipt-field-provenance"
+          data-release-region="record"
           data-printed={showVerdict}
           aria-label={`${fieldReleaseStamp(fieldAccess.edition)}, generated through LD–001`}
         >
@@ -203,6 +227,7 @@ export function Receipt({
       {couponTailMounted && coupons.length > 0 && (
         <div
           className="coupon-tail"
+          data-release-region="record"
           aria-label="CVS catastrophe coupons"
           style={{ '--coupon-progress': couponProgress } as CSSProperties}
         >
@@ -222,7 +247,7 @@ export function Receipt({
       <div
         className="receipt-future-layer receipt-future-layer--perforation"
         data-receipt-region="perforation"
-        data-active={keepPhase === 'cut'}
+        data-active={keepPhase === 'cut' || releasePhase === 'cut'}
         aria-hidden="true"
       />
       <div
@@ -245,7 +270,7 @@ export function Receipt({
         <span>PRIVATE ARCHIVE</span>
       </div>
 
-      <div className="barcode" aria-hidden="true" data-printed={showVerdict}>
+      <div className="barcode" data-release-region="record" aria-hidden="true" data-printed={showVerdict}>
         {Array.from({ length: 42 }, (_, index) => <i key={index} />)}
       </div>
       <div className="receipt-teeth bottom" aria-hidden="true" data-printed={showVerdict} />
