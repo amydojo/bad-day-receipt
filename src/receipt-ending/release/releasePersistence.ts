@@ -34,8 +34,12 @@ export function createReleaseUndoUntil(now = new Date()): string {
 
 export function isReleaseUndoAvailable(
   pendingRelease: PendingRelease,
-  now = new Date(),
+  now?: Date,
 ): boolean {
+  // A caller that omits `now` is deciding whether the persisted Release boundary
+  // must be restored so expiry can be reconciled truthfully. Eligibility for the
+  // Undo action itself always supplies an explicit clock value.
+  if (!now) return true
   return new Date(pendingRelease.undoUntil).getTime() > now.getTime()
 }
 
