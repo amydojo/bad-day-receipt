@@ -60,10 +60,15 @@ test.describe('Carry Forward in-tree visual evidence', () => {
     await attachHost(page, testInfo, 'applying-field-transfer')
   })
 
-  test('captures the quiet first One Thing Mode state', async ({ page }, testInfo) => {
+  test('captures the quiet Figma decision state with its action dock', async ({ page }, testInfo) => {
     await reachIssuedTransfer(page)
     await page.getByRole('button', { name: 'APPLY' }).click()
     await expect(page.getByRole('heading', { name: 'Pin the deadline' })).toBeVisible({ timeout: 15_000 })
-    await attachHost(page, testInfo, 'one-thing-mode-first-step')
+    await page.getByRole('button', { name: 'Continue', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Choose a submission route' })).toBeVisible()
+    await page.getByRole('button', { name: /SHOW ALL CHOICES/ }).click()
+    await page.getByRole('radio', { name: /Member portal/ }).check()
+    await expect(page.getByRole('button', { name: 'Confirm choice', exact: true })).toBeVisible()
+    await attachHost(page, testInfo, 'one-thing-mode-decision')
   })
 })
