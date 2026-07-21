@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { analyticsBeforeSend } from './analytics/fieldAnalytics'
 import CarryForwardApp from './carry-forward/CarryForwardApp'
+import { CARRY_FORWARD_STORAGE_KEY } from './carry-forward/carryForwardStorage'
 import CarryForwardDesignationApp from './carry-forward/designation/CarryForwardDesignationApp'
 import { MachineErrorBoundary } from './components/MachineErrorBoundary'
 import { FieldAccessGate } from './field-access/FieldAccessGate'
@@ -47,9 +48,17 @@ import './carry-forward/carry-forward-accessibility.css'
 import './receipt-ending/receipt-ending.css'
 import './receipt-ending/keep/keep-receipt.css'
 
+function hasStoredCarryForwardSession(): boolean {
+  try {
+    return window.localStorage.getItem(CARRY_FORWARD_STORAGE_KEY) !== null
+  } catch {
+    return false
+  }
+}
+
 const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/'
 const route = normalizedPath === '/carry-forward'
-  ? THREE_ENDINGS_ENABLED
+  ? THREE_ENDINGS_ENABLED && !hasStoredCarryForwardSession()
     ? <CarryForwardDesignationApp />
     : <CarryForwardApp />
   : <App />
