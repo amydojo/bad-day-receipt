@@ -46,6 +46,7 @@ export function CarryForwardStub({
   const isAttached = phase === 'extension-printing'
     || phase === 'extension-ready'
     || phase === 'tear-tension'
+  const canTear = phase === 'extension-ready' || phase === 'tear-tension'
   const isSeparated = phase === 'stub-separated'
   const isTransfer = phase === 'transform-registering'
     || phase === 'transfer-issuing'
@@ -62,7 +63,7 @@ export function CarryForwardStub({
 
   const beginGesture = (event: ReactPointerEvent<HTMLElement>) => {
     if ((event.target as HTMLElement).closest('button')) return
-    const mode = isAttached ? 'tear' : isSeparated ? 'intake' : null
+    const mode = canTear ? 'tear' : isSeparated ? 'intake' : null
     if (!mode) return
     event.currentTarget.setPointerCapture(event.pointerId)
     gesture.current = {
