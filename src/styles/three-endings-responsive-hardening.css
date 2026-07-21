@@ -1,0 +1,68 @@
+/*
+ * Desktop keeps the full editorial page rather than the fixed mobile scene.
+ * The machine drawers are still required product controls, so keep the same
+ * native buttons visible as a compact utility row instead of hiding Records,
+ * settings, paper, and export behind a mobile-only breakpoint.
+ */
+@media (min-width: 768px) {
+  .mobile-machine-tools {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: min(100%, var(--page-width, 1240px));
+    margin: 18px auto 0;
+    border: 1px solid var(--line, rgba(23, 23, 19, .32));
+    background: var(--line, rgba(23, 23, 19, .32));
+    gap: 1px;
+  }
+
+  .mobile-machine-tools > button {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+    min-height: 52px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 0;
+    background: var(--page, #d7c9ab);
+    color: var(--ink, #171713);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .mobile-machine-tools > button > span {
+    color: var(--muted, #5e5b55);
+    font-size: 8px;
+    letter-spacing: .12em;
+  }
+
+  .mobile-machine-tools > button > strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 10px;
+    letter-spacing: .06em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-machine-tools > button:hover,
+  .mobile-machine-tools > button:focus-visible {
+    background: var(--ink, #171713);
+    color: var(--paper, #f4efd9);
+  }
+
+  .mobile-machine-tools > button:focus-visible {
+    outline: 3px solid var(--signal, #ff5b4d);
+    outline-offset: -3px;
+  }
+
+  .mobile-machine-tools > button:disabled {
+    cursor: not-allowed;
+    opacity: .48;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 880px) {
+  .mobile-machine-tools {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
