@@ -1,0 +1,124 @@
+.carry-designation__runtime-boundary {
+  position: relative;
+  min-height: 1px;
+}
+
+.carry-designation__runtime-boundary[data-runtime-active] > .carry-designation__ritual-layer {
+  max-height: 26rem;
+  overflow: hidden;
+  opacity: .18;
+  filter: saturate(.55) blur(.6px);
+  transform: scale(.965) translateY(-.6rem);
+  transform-origin: 50% 0;
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 320ms cubic-bezier(.2,.8,.2,1), filter 220ms ease;
+}
+
+.carry-designation__runtime-layer {
+  position: relative;
+  z-index: 8;
+  width: min(100vw, 72rem);
+  margin: -2rem auto 0;
+}
+
+.cf-in-tree-host {
+  width: 100%;
+  color: var(--ink, #171716);
+}
+
+.cf-in-tree-host .cf-authored-shell,
+.cf-in-tree-host.cf-authored-shell {
+  min-height: min(78vh, 52rem);
+}
+
+.cf-applying .cf-authored-content {
+  display: grid;
+  align-content: center;
+  gap: 1.2rem;
+  min-height: 28rem;
+}
+
+.cf-compile-stages {
+  display: grid;
+  gap: .65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cf-compile-stages li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  align-items: center;
+  gap: .7rem;
+  min-height: 3rem;
+  padding: .75rem .85rem;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  opacity: .38;
+  transition: opacity 180ms ease, transform 180ms ease, background 180ms ease;
+}
+
+.cf-compile-stages li[data-active] {
+  opacity: .72;
+  transform: translateX(.2rem);
+}
+
+.cf-compile-stages li[data-complete] {
+  opacity: 1;
+  background: color-mix(in srgb, #ff6f61 10%, transparent);
+}
+
+.cf-compile-stages li > span {
+  font: 700 .7rem/1 "DM Mono", ui-monospace, monospace;
+}
+
+.cf-compile-stages li > strong {
+  font: 700 .74rem/1.35 "DM Mono", ui-monospace, monospace;
+  letter-spacing: .09em;
+}
+
+.cf-runtime--in-tree {
+  min-height: min(82vh, 56rem);
+  background: #f3efe4;
+  box-shadow: 0 2rem 5rem rgb(20 18 15 / 18%);
+}
+
+.cf-runtime--in-tree .cf-task-rail {
+  background: #171716;
+}
+
+.cf-in-tree-host[data-field-transfer-status='applied']::before {
+  content: 'FT 027 APPLIED';
+  position: fixed;
+  inset: auto 1rem 1rem auto;
+  z-index: 30;
+  padding: .45rem .65rem;
+  border: 1px solid currentColor;
+  background: rgb(23 23 22 / 88%);
+  color: #fff8ed;
+  font: 700 .62rem/1 "DM Mono", ui-monospace, monospace;
+  letter-spacing: .11em;
+  pointer-events: none;
+}
+
+@media (max-width: 48rem) {
+  .carry-designation__runtime-layer {
+    width: 100%;
+    margin-top: -1rem;
+  }
+
+  .cf-applying .cf-authored-content {
+    min-height: 22rem;
+  }
+
+  .cf-runtime--in-tree {
+    min-height: 100dvh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carry-designation__runtime-boundary[data-runtime-active] > .carry-designation__ritual-layer,
+  .cf-compile-stages li {
+    transition-duration: .01ms !important;
+  }
+}
