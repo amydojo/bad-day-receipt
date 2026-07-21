@@ -4,10 +4,15 @@ on:
   pull_request:
     paths:
       - '.github/workflows/three-endings-foundation.yml'
+      - '.github/workflows/production-three-endings-smoke.yml'
       - 'docs/receipt-ending-state-machine.md'
       - 'docs/three-endings-hardening-*.md'
+      - 'docs/three-valid-endings.md'
       - 'package.json'
       - 'package-lock.json'
+      - 'playwright.production.config.ts'
+      - 'scripts/assert-production-three-endings.mjs'
+      - 'scripts/assert-production-three-endings.node-test.mjs'
       - 'src/App.tsx'
       - 'src/motion/**'
       - 'src/mobile-instrument/sensory/**'
@@ -26,6 +31,7 @@ on:
       - 'tests/e2e/carry-forward-in-tree.spec.ts'
       - 'tests/e2e/carry-forward-ritual.spec.ts'
       - 'tests/e2e/keep-receipt.spec.ts'
+      - 'tests/production/production-three-endings-smoke.spec.ts'
       - 'tests/e2e/release-receipt.spec.ts'
       - 'tests/e2e/three-endings-foundation.spec.ts'
       - 'tests/e2e/three-endings-hardening.spec.ts'
@@ -56,6 +62,23 @@ jobs:
       - run: npm ci
       - name: Run full unit suite
         run: npm test
+      - name: Prove the production build succeeds with Three Endings enabled
+        run: VERCEL_ENV=production VITE_THREE_ENDINGS=true npm run build
+      - name: Prove the production build fails closed without Three Endings
+        shell: bash
+        run: |
+          mkdir -p test-results
+          set +e
+          VERCEL_ENV=production VITE_THREE_ENDINGS=false npm run build > test-results/production-guard-negative.log 2>&1
+          status=$?
+          set -e
+          cat test-results/production-guard-negative.log
+          if [ "$status" -eq 0 ]; then
+            echo "Expected the production release guard to fail."
+            exit 1
+          fi
+          grep -F "Production build blocked" test-results/production-guard-negative.log
+          grep -F "legacy completed-receipt Evidence Viewer" test-results/production-guard-negative.log
       - run: npx playwright install --with-deps chromium
       - name: Run exact Three Endings release command
         env:

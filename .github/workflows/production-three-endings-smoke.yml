@@ -1,0 +1,51 @@
+name: production-three-endings-smoke
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-three-endings-smoke
+  cancel-in-progress: true
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PRODUCTION_BASE_URL: https://bad-day-receipt.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Wait for the fresh production deployment and prove the live interface
+        shell: bash
+        run: |
+          for attempt in $(seq 1 24); do
+            echo "Production smoke attempt ${attempt}/24"
+            if npm run test:production-smoke; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 24 ]; then
+              sleep 20
+            fi
+          done
+          echo "The live production domain never exposed the required Three Endings interface."
+          exit 1
+      - name: Upload production screenshots and browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-three-endings-smoke-${{ github.sha }}
+          path: test-results/production-smoke
+          if-no-files-found: warn
+          retention-days: 14
