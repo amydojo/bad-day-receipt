@@ -298,10 +298,10 @@
 }
 
 .cf-runtime--in-tree .cf-mobile-runtime-head button {
-  position: absolute;
-  right: 10px;
+  position: fixed;
+  right: max(10px, calc((100vw - 430px) / 2 + 10px));
   bottom: 4px;
-  z-index: 8;
+  z-index: 1004;
   min-width: 48px;
   min-height: 44px;
   padding: 10px;
@@ -323,10 +323,10 @@
 }
 
 .cf-runtime--in-tree .cf-mobile-runtime-links {
-  position: absolute;
+  position: fixed;
   bottom: 4px;
-  left: 10px;
-  z-index: 7;
+  left: max(10px, calc((100vw - 430px) / 2 + 10px));
+  z-index: 1003;
   display: flex;
   gap: 10px;
   margin: 0;
@@ -393,11 +393,11 @@
 }
 
 .cf-runtime--in-tree .cf-step-shell > footer {
-  position: absolute !important;
-  right: 0;
-  bottom: 48px;
-  left: 0;
-  z-index: 6;
+  position: fixed !important;
+  right: max(20px, calc((100vw - 430px) / 2 + 20px));
+  bottom: 52px;
+  left: max(20px, calc((100vw - 430px) / 2 + 20px));
+  z-index: 1002;
   display: block;
   padding: 10px 0 0;
   border: 0;
