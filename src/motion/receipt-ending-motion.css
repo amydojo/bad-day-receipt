@@ -1,0 +1,22 @@
+:root {
+  --motion-duration-instant: 0ms;
+  --motion-duration-fast: 120ms;
+  --motion-duration-standard: 220ms;
+  --motion-duration-ritual: 420ms;
+  --motion-duration-hold: 100ms;
+  --motion-easing-precise: cubic-bezier(.2, .65, .25, 1);
+  --motion-easing-magnetic: cubic-bezier(.24, .82, .34, 1);
+  --motion-easing-release: cubic-bezier(.32, .02, .55, 1);
+  --motion-easing-resistant: cubic-bezier(.18, .72, .26, 1);
+  --motion-easing-soften: cubic-bezier(.2, .55, .32, 1);
+  --motion-easing-settle: cubic-bezier(.2, .6, .3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-duration-fast: 60ms;
+    --motion-duration-standard: 80ms;
+    --motion-duration-ritual: 100ms;
+    --motion-duration-hold: 80ms;
+  }
+}
