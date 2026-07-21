@@ -102,7 +102,7 @@ test.describe('Carry Forward designation', () => {
     await expect(choices).toHaveCount(2)
     await expect(choices.nth(0)).not.toBeChecked()
     await expect(choices.nth(1)).not.toBeChecked()
-    await choices.nth(1).check()
+    await choices.nth(1).click()
     await expect(page.getByRole('heading', { name: 'Give the task only what it needs.' })).toBeFocused()
     await expect(page.getByText('Prepare questions for the clinic', { exact: true })).toBeVisible()
   })
