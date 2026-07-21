@@ -158,7 +158,12 @@ function ArchivedReceiptDetail({
         </div>
       </div>
 
-      <div className="archived-receipt-detail__viewport">
+      <div
+        className="archived-receipt-detail__viewport"
+        role="region"
+        aria-label={`Archived receipt ${receipt.receiptNumber}`}
+        tabIndex={0}
+      >
         <ReceiptArtifact
           artifactId={`archived-receipt-${receipt.receiptNumber}`}
           items={receipt.items}
