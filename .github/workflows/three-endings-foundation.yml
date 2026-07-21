@@ -23,6 +23,7 @@ on:
       - 'tests/e2e/carry-forward-ritual.spec.ts'
       - 'tests/e2e/three-endings-foundation.spec.ts'
       - 'tests/visual/carry-designation.spec.ts'
+      - 'tests/visual/carry-forward-in-tree.spec.ts'
       - 'tests/visual/carry-forward-ritual.spec.ts'
   workflow_dispatch:
 
@@ -57,7 +58,7 @@ jobs:
       - name: Run Carry visual fixtures
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/carry-visual-results.json
-        run: VITE_THREE_ENDINGS=true npx playwright test tests/visual/carry-designation.spec.ts tests/visual/carry-forward-ritual.spec.ts --project=chromium-desktop --reporter=json
+        run: VITE_THREE_ENDINGS=true npx playwright test tests/visual/carry-designation.spec.ts tests/visual/carry-forward-ritual.spec.ts tests/visual/carry-forward-in-tree.spec.ts --project=chromium-desktop --reporter=json
       - name: Upload focused browser evidence
         if: always()
         uses: actions/upload-artifact@v4
