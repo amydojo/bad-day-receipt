@@ -28,6 +28,12 @@ import {
 } from './release/ReleaseReceiptRitual'
 import { ReceiptDecisionSurface } from './ReceiptDecisionSurface'
 import { RECEIPT_COMPLETION_PAUSE_MS } from './receiptEndingEffects'
+import { ReceiptEndingRecovery } from './recovery/ReceiptEndingRecovery'
+import {
+  dismissCarryRitualRecovery,
+  reconcileCarryRitualCheckpoint,
+  type CarryCheckpointRecovery,
+} from './recovery/recoveryPersistence'
 import type {
   ReceiptEndingEvent,
   ReceiptEndingPersistenceStatus,
@@ -36,6 +42,8 @@ import type {
 } from './receiptEndingTypes'
 
 const DOCUMENTED_ANNOUNCEMENT = 'The day is documented. Choose whether to end here or carry one thing forward.'
+
+type RecoverableCarryCheckpoint = Extract<CarryCheckpointRecovery, { status: 'recoverable' }>
 
 export function ReceiptEndingExperience({
   state,
@@ -75,6 +83,7 @@ export function ReceiptEndingExperience({
 }) {
   const localHeadingRef = useRef<HTMLHeadingElement | null>(null)
   const [restoredRuntime, setRestoredRuntime] = useState<StoredCarryForwardSession | StoredCarryForwardFallback | null>(null)
+  const [carryCheckpointRecovery, setCarryCheckpointRecovery] = useState<RecoverableCarryCheckpoint | null>(null)
 
   useEffect(() => {
     if (state.kind !== 'settling') return
@@ -88,18 +97,29 @@ export function ReceiptEndingExperience({
 
   useEffect(() => {
     const stored = loadCarryForwardSession(window.localStorage)
-    if (stored.status !== 'ready') {
-      setRestoredRuntime(null)
+    const matchingRuntime = stored.status === 'ready'
+      && stored.value.budget.receiptId === state.receipt.receiptNumber
+      ? stored.value
+      : null
+
+    setRestoredRuntime(matchingRuntime)
+    if (matchingRuntime) {
+      setCarryCheckpointRecovery(null)
       return
     }
-    if (stored.value.budget.receiptId !== state.receipt.receiptNumber) {
-      setRestoredRuntime(null)
-      return
-    }
-    setRestoredRuntime(stored.value)
+
+    const recovery = reconcileCarryRitualCheckpoint(
+      window.sessionStorage,
+      state.receipt.receiptNumber,
+    )
+    setCarryCheckpointRecovery(recovery.status === 'recoverable' ? recovery : null)
   }, [state.receipt.receiptNumber])
 
-  const focusToken = restoredRuntime ? null : getFocusToken(state)
+  const focusToken = restoredRuntime
+    ? null
+    : carryCheckpointRecovery
+      ? `carry-recovery:${carryCheckpointRecovery.boundary}`
+      : getFocusToken(state)
   useEffect(() => {
     if (!focusToken) return
     const frame = window.requestAnimationFrame(() => {
@@ -116,6 +136,11 @@ export function ReceiptEndingExperience({
     } else if (headingRef) {
       headingRef.current = node
     }
+  }
+
+  const clearCarryRecovery = () => {
+    dismissCarryRitualRecovery(window.sessionStorage)
+    setCarryCheckpointRecovery(null)
   }
 
   const persistenceNote = persistenceStatus === 'saved'
@@ -142,6 +167,18 @@ export function ReceiptEndingExperience({
           setRestoredRuntime(null)
           dispatch({ type: 'BACK_TO_DOCUMENTED' })
         }}
+      />
+    )
+  } else if (state.kind === 'documented' && carryCheckpointRecovery) {
+    surface = (
+      <ReceiptEndingRecovery
+        recovery={carryCheckpointRecovery}
+        headingRef={assignHeadingRef}
+        onRestart={() => {
+          clearCarryRecovery()
+          dispatch({ type: 'SELECT_CARRY_FORWARD' })
+        }}
+        onDismiss={clearCarryRecovery}
       />
     )
   } else switch (state.kind) {
@@ -246,15 +283,21 @@ export function ReceiptEndingExperience({
       break
   }
 
+  const displayedState = restoredRuntime
+    ? 'carry-runtime-restored'
+    : carryCheckpointRecovery && state.kind === 'documented'
+      ? 'carry-checkpoint-recovery'
+      : state.kind
+
   return (
     <div
       className="receipt-ending-experience"
-      data-receipt-ending-state={restoredRuntime ? 'carry-runtime-restored' : state.kind}
+      data-receipt-ending-state={displayedState}
       data-keep-phase={state.kind === 'keep-ritual' ? state.phase : undefined}
       data-release-phase={state.kind === 'release-ritual' ? state.phase : undefined}
     >
       {surface}
-      {!restoredRuntime && state.kind === 'documented' && (
+      {!restoredRuntime && !carryCheckpointRecovery && state.kind === 'documented' && (
         <p className="sr-only" aria-live="polite">
           {DOCUMENTED_ANNOUNCEMENT}
         </p>
