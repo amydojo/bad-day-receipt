@@ -109,14 +109,28 @@
 
 .cf-applying .cf-authored-content > .cf-eyebrow {
   color: #9d302a;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: 0;
+  line-height: 0;
+}
+
+.cf-applying .cf-authored-content > .cf-eyebrow::after {
+  content: 'APPLYING FIELD TRANSFER 027';
+  display: block;
+  color: #9d302a;
+  font: 700 11px/16px "DM Mono", ui-monospace, monospace;
   letter-spacing: .04em;
 }
 
 .cf-applying .cf-authored-content > h1 {
   max-width: 350px;
   margin: 22px 0 92px;
+  font-size: 0;
+  line-height: 0;
+}
+
+.cf-applying .cf-authored-content > h1::after {
+  content: 'Preparing the minimum interface…';
+  display: block;
   font-family: "Instrument Serif", Georgia, serif;
   font-size: 46px;
   font-weight: 400;
@@ -153,6 +167,7 @@
   opacity: 1;
 }
 
+.cf-applying .cf-compile-stages li:last-child[data-complete],
 .cf-applying .cf-compile-stages li[data-active] {
   color: #9d302a;
   box-shadow: none;
@@ -168,7 +183,7 @@
 }
 
 .cf-applying .cf-compile-stages li > strong::after {
-  content: none;
+  content: none !important;
 }
 
 .cf-applying .cf-invariant {
@@ -221,7 +236,8 @@
   position: relative;
   display: block;
   width: 100%;
-  min-height: 844px;
+  height: 844px;
+  min-height: 0;
   padding: 0;
   background: #d7d3ca;
   box-shadow: none;
@@ -232,7 +248,10 @@
 }
 
 .cf-runtime--in-tree .cf-workspace {
-  min-height: 844px;
+  display: flex;
+  flex-direction: column;
+  height: 844px;
+  min-height: 0;
   padding: 0 20px 18px;
   background: #d7d3ca;
 }
@@ -240,6 +259,7 @@
 .cf-runtime--in-tree .cf-mobile-runtime-head {
   position: static;
   display: flex;
+  flex: 0 0 62px;
   align-items: flex-start;
   justify-content: flex-end;
   min-height: 62px;
@@ -278,6 +298,7 @@
 }
 
 .cf-runtime--in-tree .cf-progress {
+  flex: 0 0 auto;
   max-width: none;
   margin: 0 0 14px;
 }
@@ -303,14 +324,17 @@
 
 .cf-runtime--in-tree .cf-step-shell {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   max-width: none;
-  min-height: 738px;
+  min-height: 0;
   margin: 0;
+  overflow: hidden;
   background: transparent;
 }
 
 .cf-runtime--in-tree .cf-step-shell > header {
+  flex: 0 0 auto;
   padding: 0 0 14px;
   border: 0;
 }
@@ -326,9 +350,11 @@
 }
 
 .cf-runtime--in-tree .cf-step-shell__body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   padding: 0 0 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .cf-runtime--in-tree .cf-step-content > p,
@@ -346,9 +372,8 @@
 }
 
 .cf-runtime--in-tree .cf-step-shell > footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
+  position: static;
+  flex: 0 0 auto;
   padding: 10px 0 54px;
   border: 0;
   background: linear-gradient(transparent, #d7d3ca 16%);
@@ -382,14 +407,13 @@
   }
 
   .cf-runtime--in-tree,
-  .cf-runtime--in-tree .cf-workspace,
+  .cf-runtime--in-tree .cf-workspace {
+    height: 100dvh;
+  }
+
   .cf-applying,
   .cf-applying .cf-authored-shell {
     min-height: 100dvh;
-  }
-
-  .cf-runtime--in-tree .cf-step-shell {
-    min-height: calc(100dvh - 106px);
   }
 }
 
