@@ -1,9 +1,11 @@
 import {
   useEffect,
   useRef,
+  useState,
   type ButtonHTMLAttributes,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import type { InteractionPolicies } from './interactionBudget'
 import type { TaskStep } from './taskPlanSchema'
 
@@ -187,14 +189,42 @@ export function TaskStepShell({
   footer: ReactNode
   headingRef?: React.Ref<HTMLHeadingElement>
 }) {
+  const shellRef = useRef<HTMLElement | null>(null)
+  const [inTreeFooterHost, setInTreeFooterHost] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const shell = shellRef.current
+    const runtime = shell?.closest<HTMLElement>('.cf-runtime--in-tree')
+    const workspace = runtime?.querySelector<HTMLElement>('.cf-workspace')
+    if (!workspace) {
+      setInTreeFooterHost(null)
+      return
+    }
+
+    let host = workspace.querySelector<HTMLElement>(':scope > [data-in-tree-step-dock]')
+    const created = !host
+    if (!host) {
+      host = document.createElement('div')
+      host.className = 'cf-in-tree-step-dock'
+      host.setAttribute('data-in-tree-step-dock', '')
+      workspace.append(host)
+    }
+    setInTreeFooterHost(host)
+
+    return () => {
+      setInTreeFooterHost(null)
+      if (created && host?.isConnected) host.remove()
+    }
+  }, [])
+
   return (
-    <article className="cf-step-shell">
+    <article ref={shellRef} className="cf-step-shell">
       <header>
         <span className="cf-eyebrow">{eyebrow}</span>
         <h1 ref={headingRef} tabIndex={-1}>{title}</h1>
       </header>
       <div className="cf-step-shell__body">{children}</div>
-      <footer>{footer}</footer>
+      {inTreeFooterHost ? createPortal(footer, inTreeFooterHost) : <footer>{footer}</footer>}
     </article>
   )
 }

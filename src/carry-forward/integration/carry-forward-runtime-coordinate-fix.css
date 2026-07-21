@@ -1,0 +1,33 @@
+/* The shared authored runtime animates the workspace and step shell with a
+   transform. A transformed ancestor becomes the containing block for fixed
+   descendants, which moved the in-tree action dock below the mobile
+   instrument. The in-tree host owns its own viewport transition, so remove
+   only that inherited transform here. */
+.cf-runtime--in-tree.cf-runtime--authored .cf-workspace,
+.cf-runtime--in-tree.cf-runtime--authored .cf-step-shell {
+  animation: none !important;
+  transform: none !important;
+}
+
+/* Receipt-origin One Thing Mode portals its current-step action beside the
+   persistent plan/why/end controls. It is therefore owned by the runtime
+   viewport instead of a clipped document footer. */
+.cf-in-tree-step-dock {
+  position: fixed;
+  right: max(20px, calc((100vw - 430px) / 2 + 20px));
+  bottom: 52px;
+  left: max(20px, calc((100vw - 430px) / 2 + 20px));
+  z-index: 1005;
+  padding-top: 10px;
+  background: linear-gradient(transparent, #d7d3ca 18%);
+}
+
+.cf-in-tree-step-dock .cf-step-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.cf-in-tree-step-dock .cf-button {
+  width: 100%;
+  min-height: 52px;
+}

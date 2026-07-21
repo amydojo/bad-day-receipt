@@ -63,7 +63,7 @@ test.describe('Carry Forward physical ritual', () => {
     await mockPlatformApis(page)
   })
 
-  test('transforms the same receipt, printer, and stub without calling the compiler', async ({ page }) => {
+  test('transforms the same receipt, printer, and stub without calling the compiler before explicit Apply', async ({ page }) => {
     let compilerCalls = 0
     await page.route('**/api/compile-task', async (route) => {
       compilerCalls += 1
@@ -92,7 +92,7 @@ test.describe('Carry Forward physical ritual', () => {
 
     await expect(page.getByText('FIELD TRANSFER · 027', { exact: true })).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText('This task no longer needs to ask for full capacity.', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'APPLY' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'APPLY' })).toBeEnabled()
     await expect(page.getByRole('button', { name: 'ADJUST' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'CANCEL' })).toBeVisible()
     await expectCheckpoint(page, 'transfer-issued')

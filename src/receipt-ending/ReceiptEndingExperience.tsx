@@ -1,12 +1,19 @@
 import {
   useEffect,
   useRef,
+  useState,
   type Dispatch,
   type ReactNode,
   type Ref,
 } from 'react'
 import { CarryForwardDesignation } from '../carry-forward/designation/CarryForwardDesignation'
 import { getDevelopmentDesignationInputs } from '../carry-forward/designation/designationFixtures'
+import { CarryForwardRuntimeHost } from '../carry-forward/integration/CarryForwardRuntimeHost'
+import {
+  loadCarryForwardSession,
+  type StoredCarryForwardFallback,
+  type StoredCarryForwardSession,
+} from '../carry-forward/carryForwardStorage'
 import type { MachineSensoryDirector } from '../mobile-instrument/sensory/sensoryTypes'
 import type { CompletedReceiptSnapshot } from './completedReceipt'
 import { EndDispositionChoice } from './EndDispositionChoice'
@@ -67,6 +74,7 @@ export function ReceiptEndingExperience({
   onCloseKeepCompletion: () => void
 }) {
   const localHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  const [restoredRuntime, setRestoredRuntime] = useState<StoredCarryForwardSession | StoredCarryForwardFallback | null>(null)
 
   useEffect(() => {
     if (state.kind !== 'settling') return
@@ -78,7 +86,20 @@ export function ReceiptEndingExperience({
     return () => window.clearTimeout(timeout)
   }, [dispatch, state.kind, state.receipt.receiptNumber])
 
-  const focusToken = getFocusToken(state)
+  useEffect(() => {
+    const stored = loadCarryForwardSession(window.localStorage)
+    if (stored.status !== 'ready') {
+      setRestoredRuntime(null)
+      return
+    }
+    if (stored.value.budget.receiptId !== state.receipt.receiptNumber) {
+      setRestoredRuntime(null)
+      return
+    }
+    setRestoredRuntime(stored.value)
+  }, [state.receipt.receiptNumber])
+
+  const focusToken = restoredRuntime ? null : getFocusToken(state)
   useEffect(() => {
     if (!focusToken) return
     const frame = window.requestAnimationFrame(() => {
@@ -113,7 +134,17 @@ export function ReceiptEndingExperience({
 
   let surface: ReactNode
 
-  switch (state.kind) {
+  if (restoredRuntime) {
+    surface = (
+      <CarryForwardRuntimeHost
+        restored={restoredRuntime}
+        onReturnToReceipt={() => {
+          setRestoredRuntime(null)
+          dispatch({ type: 'BACK_TO_DOCUMENTED' })
+        }}
+      />
+    )
+  } else switch (state.kind) {
     case 'documented':
       surface = (
         <ReceiptDecisionSurface
@@ -218,12 +249,12 @@ export function ReceiptEndingExperience({
   return (
     <div
       className="receipt-ending-experience"
-      data-receipt-ending-state={state.kind}
+      data-receipt-ending-state={restoredRuntime ? 'carry-runtime-restored' : state.kind}
       data-keep-phase={state.kind === 'keep-ritual' ? state.phase : undefined}
       data-release-phase={state.kind === 'release-ritual' ? state.phase : undefined}
     >
       {surface}
-      {state.kind === 'documented' && (
+      {!restoredRuntime && state.kind === 'documented' && (
         <p className="sr-only" aria-live="polite">
           {DOCUMENTED_ANNOUNCEMENT}
         </p>
