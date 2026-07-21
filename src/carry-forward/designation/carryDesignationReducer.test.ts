@@ -29,7 +29,7 @@ const suggestion = createRemainingObligation({
 }) as RemainingObligation
 
 describe('carryDesignationReducer', () => {
-  it('starts direct entry with manual input and receipt origin with explicit suggestion only', () => {
+  it('starts direct entry with manual input and receipt origin with validated explicit input only', () => {
     expect(createInitialCarryDesignationState({ kind: 'direct' })).toEqual({
       kind: 'editing',
       draft: '',
@@ -38,7 +38,7 @@ describe('carryDesignationReducer', () => {
     expect(createInitialCarryDesignationState({
       kind: 'receipt',
       receiptId: 'BD-84',
-      candidates: [suggestion],
+      explicitInputs: { explicitCurrentInputs: [suggestion.text] },
     })).toEqual({ kind: 'choosing', suggestion, alternatives: [] })
     expect(createInitialCarryDesignationState({
       kind: 'receipt',
@@ -50,7 +50,7 @@ describe('carryDesignationReducer', () => {
     const state = createInitialCarryDesignationState({
       kind: 'receipt',
       receiptId: 'BD-84',
-      candidates: [suggestion],
+      explicitInputs: { explicitCurrentInputs: [suggestion.text] },
     })
     expect(reduce(state, { type: 'SELECT_SUGGESTION', obligation: suggestion })).toBe(state)
     expect(suggestion.confirmedByUser).toBe(false)
@@ -60,7 +60,7 @@ describe('carryDesignationReducer', () => {
     const state = createInitialCarryDesignationState({
       kind: 'receipt',
       receiptId: 'BD-84',
-      candidates: [suggestion],
+      explicitInputs: { explicitCurrentInputs: [suggestion.text] },
     })
     const confirmed = confirmObligation(suggestion)
     const source = reduce(state, { type: 'SELECT_SUGGESTION', obligation: confirmed })
@@ -116,9 +116,16 @@ describe('carryDesignationReducer', () => {
       obligation,
       sourceText: '',
     })
+    state = reduce(state, { type: 'RETURN_TO_PRESET' })
+    expect(state).toEqual({
+      kind: 'preset',
+      obligation,
+      sourceText: '',
+      policies: DEFAULT_INTERACTION_POLICIES,
+    })
   })
 
-  it('customizes the same policy object and returns to the preset', () => {
+  it('customizes the same policy object and produces a valid existing budget', () => {
     const obligation = confirmObligation(suggestion)
     let state: CarryDesignationState = {
       kind: 'preset',
@@ -131,6 +138,12 @@ describe('carryDesignationReducer', () => {
     expect(state).toMatchObject({ kind: 'customizing', policies: { fewerDecisions: false } })
     state = reduce(state, { type: 'CLOSE_CUSTOMIZE' })
     expect(state.kind).toBe('preset')
+    if (state.kind !== 'preset') throw new Error('CUSTOM_PRESET_NOT_RESTORED')
+    expect(InteractionBudgetSchema.safeParse(createInteractionBudget({
+      policies: state.policies,
+      receiptId: null,
+      now: new Date('2026-07-20T12:00:00.000Z'),
+    })).success).toBe(true)
   })
 
   it('resets designation-only data without needing receipt or compiler state', () => {
