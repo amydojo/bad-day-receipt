@@ -93,7 +93,7 @@ export function MechanicalActuator({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
-    if (!active.locked) {
+    if (!active.locked && active.dragged) {
       setVisualProgress(0)
       onRelease()
     }
