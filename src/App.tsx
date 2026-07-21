@@ -42,10 +42,22 @@ import {
   type CompletedReceiptSnapshot,
   type PendingRelease,
   type ReceiptDisposition,
+  type ReceiptEndingMachineState,
   type ReceiptEndingPersistenceStatus,
+  type ReleaseOrigin,
 } from './receipt-ending'
 import { createKeepArchiveProjection } from './receipt-ending/keep/keepArchivePersistence'
 import type { KeepArchiveCommitResult } from './receipt-ending/keep/KeepReceiptRitual'
+import {
+  commitReleaseToMachineStorage,
+  expireReleaseInMachineStorage,
+  undoReleaseInMachineStorage,
+} from './receipt-ending/release/releaseApplicationPersistence'
+import { isReleaseUndoAvailable } from './receipt-ending/release/releasePersistence'
+import type {
+  ReleaseCommitResult,
+  UndoReleaseResult,
+} from './receipt-ending/release/ReleaseReceiptRitual'
 import {
   createBrowserArtifactPlatform,
   saveArtifact,
@@ -94,6 +106,23 @@ function createStarterItems(): ReceiptItem[] {
     .map((item) => ({ ...item, quantity: 1 }))
 }
 
+function initialReceiptEndingState(data: PersistedMachineData): ReceiptEndingMachineState {
+  if (!THREE_ENDINGS_ENABLED) return null
+  if (data.pendingRelease && isReleaseUndoAvailable(data.pendingRelease)) {
+    return {
+      kind: 'release-ritual',
+      receipt: data.pendingRelease.receipt,
+      phase: 'complete',
+      releaseAttempt: 1,
+      origin: data.pendingRelease.origin,
+      undoUntil: data.pendingRelease.undoUntil,
+    }
+  }
+  return data.pendingReceipt
+    ? createRestoredReceiptEndingState(data.pendingReceipt)
+    : null
+}
+
 function App() {
   const initialLoad = useMemo(
     () => loadMachineDataResult(createDefaultMachineData(createStarterItems())),
@@ -117,16 +146,14 @@ function App() {
   const [pendingReceipt, setPendingReceipt] = useState<CompletedReceiptSnapshot | null>(
     initialPersisted.pendingReceipt,
   )
-  const [pendingRelease] = useState<PendingRelease | null>(initialPersisted.pendingRelease)
+  const [pendingRelease, setPendingRelease] = useState<PendingRelease | null>(initialPersisted.pendingRelease)
   const [privateArchive, setPrivateArchive] = useState<ArchivedReceipt[]>(initialPersisted.privateArchive)
   const [receiptDispositions, setReceiptDispositions] = useState<ReceiptDisposition[]>(
     initialPersisted.receiptDispositions,
   )
   const [receiptEndingState, dispatchReceiptEnding] = useReducer(
     receiptEndingReducer,
-    THREE_ENDINGS_ENABLED && initialPersisted.pendingReceipt
-      ? createRestoredReceiptEndingState(initialPersisted.pendingReceipt)
-      : null,
+    initialReceiptEndingState(initialPersisted),
   )
   const [receiptEndingPersistenceStatus, setReceiptEndingPersistenceStatus] = useState<ReceiptEndingPersistenceStatus>(
     initialLoad.status === 'unavailable' ? 'unavailable' : 'saved',
@@ -198,6 +225,16 @@ function App() {
     soundEnabled,
     themeId,
   ])
+
+  useEffect(() => {
+    const current = machineDataRef.current
+    if (!current.pendingRelease || isReleaseUndoAvailable(current.pendingRelease)) return
+    const result = expireReleaseInMachineStorage({ current })
+    if (result.status !== 'saved') return
+    machineDataRef.current = result.data
+    setPendingRelease(null)
+    dispatchReceiptEnding({ type: 'RELEASE_UNDO_EXPIRED' })
+  }, [])
 
   useEffect(() => {
     if (machineState.phase !== 'arming' || pendingCommit) return
@@ -338,6 +375,74 @@ function App() {
     return { status: 'failed', reason: 'storage-write-failed' }
   }, [])
 
+  const applyReleaseData = useCallback((data: PersistedMachineData) => {
+    machineDataRef.current = data
+    setPendingReceipt(data.pendingReceipt)
+    setPendingRelease(data.pendingRelease)
+    setPrivateArchive(data.privateArchive)
+    setReceiptDispositions(data.receiptDispositions)
+    setReceiptEndingPersistenceStatus('saved')
+  }, [])
+
+  const commitRelease = useCallback((
+    receipt: CompletedReceiptSnapshot,
+    origin: ReleaseOrigin,
+    undoUntil: string,
+  ): ReleaseCommitResult => {
+    const result = commitReleaseToMachineStorage({
+      current: machineDataRef.current,
+      receipt,
+      origin,
+      undoUntil,
+    })
+    if (result.status === 'saved') {
+      applyReleaseData(result.data)
+      return { status: 'saved' }
+    }
+    if (result.status === 'unavailable') {
+      setReceiptEndingPersistenceStatus('unavailable')
+      return { status: 'unavailable' }
+    }
+    setReceiptEndingPersistenceStatus('failed')
+    return { status: 'failed', reason: result.reason }
+  }, [applyReleaseData])
+
+  const undoRelease = useCallback((): UndoReleaseResult => {
+    const current = machineDataRef.current
+    const destination = current.pendingRelease?.origin.kind === 'archive'
+      ? 'archive'
+      : 'documented'
+    const result = undoReleaseInMachineStorage({ current })
+    if (result.status === 'saved') {
+      applyReleaseData(result.data)
+      if (destination === 'archive') setActiveSheet('history')
+      return { status: 'saved', destination }
+    }
+    if (result.status === 'unavailable') {
+      setReceiptEndingPersistenceStatus('unavailable')
+      return { status: 'unavailable' }
+    }
+    setReceiptEndingPersistenceStatus('failed')
+    return { status: 'failed', reason: result.reason }
+  }, [applyReleaseData])
+
+  const expireRelease = useCallback(() => {
+    const current = machineDataRef.current
+    if (!current.pendingRelease) return
+    const result = expireReleaseInMachineStorage({ current })
+    if (result.status !== 'saved') return
+    applyReleaseData(result.data)
+  }, [applyReleaseData])
+
+  const returnFromRelease = useCallback((origin: ReleaseOrigin) => {
+    if (origin.kind === 'archive') {
+      dispatchReceiptEnding({ type: 'CLEAR_RECEIPT_ENDING' })
+      setActiveSheet('history')
+      return
+    }
+    dispatchReceiptEnding({ type: 'RETURN_TO_DOCUMENTED' })
+  }, [])
+
   const createExport = async (format: ExportFormat): Promise<ArtifactExport> => {
     const { createReceiptArtifactExport } = await import('./export/renderReceiptExport')
     return createReceiptArtifactExport({
@@ -398,6 +503,15 @@ function App() {
     })
   }
 
+  const releaseArchivedReceipt = (entry: ArchivedReceipt) => {
+    setActiveSheet(null)
+    dispatchReceiptEnding({
+      type: 'START_ARCHIVED_RELEASE',
+      receipt: entry.receipt,
+      archivedAt: entry.archivedAt,
+    })
+  }
+
   const saveSheetExport = async (format: ExportFormat) => {
     if (sheetExportBusy) return
     setSheetExportBusy(true)
@@ -418,11 +532,7 @@ function App() {
   }
 
   return (
-    <MobileInstrument
-      phase={presentationPhase}
-      theme={activeThemeId}
-      sheetOpen={activeSheet !== null}
-    >
+    <MobileInstrument phase={presentationPhase} theme={activeThemeId} sheetOpen={activeSheet !== null}>
       <SoftMachineShell
         machineId="bad-day-receipt"
         phase={presentationPhase}
@@ -430,19 +540,11 @@ function App() {
         activeTheme={activeThemeId}
       >
         <main ref={mainRef} className="app-shell v2-shell" data-active-theme={activeThemeId}>
-          <MobileInstrumentScene
-            name="compose-chrome"
-            activeWhen="compose"
-            className="mobile-instrument__chrome"
-          >
+          <MobileInstrumentScene name="compose-chrome" activeWhen="compose" className="mobile-instrument__chrome">
             {(pwaUpdate || offlineReady) && (
               <div className="pwa-status" role="status">
                 <span>{pwaUpdate ? 'A FRESH PAPER ROLL IS READY' : 'MACHINE AVAILABLE OFFLINE'}</span>
-                {pwaUpdate && (
-                  <button type="button" onClick={() => applyPwaUpdate(pwaUpdate)}>
-                    RELOAD UPDATE
-                  </button>
-                )}
+                {pwaUpdate && <button type="button" onClick={() => applyPwaUpdate(pwaUpdate)}>RELOAD UPDATE</button>}
                 {!pwaUpdate && <button type="button" onClick={() => setOfflineReady(false)}>OK</button>}
               </div>
             )}
@@ -452,9 +554,7 @@ function App() {
                 <span>SOFT MACHINE 001 · EMOTIONAL POS</span>
                 <span><i aria-hidden="true" /> {editingLocked ? 'PROCESSING' : 'READY'} · LOCAL-FIRST</span>
               </div>
-              <div className="brand-lockup">
-                <h1>bad day<br />receipt</h1>
-              </div>
+              <div className="brand-lockup"><h1>bad day<br />receipt</h1></div>
               <div className="hero-copy">
                 <p className="intro">Turn today’s invisible costs into official documentation.</p>
                 <p>NO ACCOUNT · NO DIAGNOSIS · JUST RECEIPTS</p>
@@ -469,21 +569,15 @@ function App() {
               <button type="button" disabled={editingLocked} onClick={(event) => {
                 sheetTriggerRef.current = event.currentTarget
                 setActiveSheet('paper')
-              }}>
-                <span>PAPER</span><strong>{theme.shortName}</strong>
-              </button>
+              }}><span>PAPER</span><strong>{theme.shortName}</strong></button>
               <button type="button" onClick={(event) => {
                 sheetTriggerRef.current = event.currentTarget
                 setActiveSheet('history')
-              }}>
-                <span>RECORDS</span><strong>{history.length + privateArchive.length}</strong>
-              </button>
+              }}><span>RECORDS</span><strong>{history.length + privateArchive.length}</strong></button>
               <button type="button" onClick={(event) => {
                 sheetTriggerRef.current = event.currentTarget
                 setActiveSheet('settings')
-              }}>
-                <span>SETTINGS</span><strong>{soundEnabled ? 'SOUND ON' : 'QUIET'}</strong>
-              </button>
+              }}><span>SETTINGS</span><strong>{soundEnabled ? 'SOUND ON' : 'QUIET'}</strong></button>
               <button
                 type="button"
                 disabled={!machineState.isComplete}
@@ -491,9 +585,7 @@ function App() {
                   sheetTriggerRef.current = event.currentTarget
                   setActiveSheet('export')
                 }}
-              >
-                <span>EXPORT</span><strong>{machineState.isComplete ? 'READY' : 'AFTER PRINT'}</strong>
-              </button>
+              ><span>EXPORT</span><strong>{machineState.isComplete ? 'READY' : 'AFTER PRINT'}</strong></button>
             </nav>
 
             <a className="cf-machine-entry" href="/carry-forward">
@@ -502,21 +594,13 @@ function App() {
             </a>
 
             <section className="theme-section theme-section-first" aria-labelledby="paperwork-heading">
-              <div className="section-heading">
-                <span>01</span>
-                <h2 id="paperwork-heading">Choose your paperwork</h2>
-              </div>
+              <div className="section-heading"><span>01</span><h2 id="paperwork-heading">Choose your paperwork</h2></div>
               <ThemePicker selected={themeId} onSelect={setThemeId} disabled={editingLocked} />
             </section>
           </MobileInstrumentScene>
 
           <section className="workspace" aria-label="Emotional point of sale">
-            <MobileInstrumentScene
-              name="compose-catalog"
-              activeWhen="compose"
-              scrollOwner="compose"
-              className="mobile-instrument__catalog"
-            >
+            <MobileInstrumentScene name="compose-catalog" activeWhen="compose" scrollOwner="compose" className="mobile-instrument__catalog">
               <ChargeBuilder
                 charges={charges}
                 credits={credits}
@@ -532,11 +616,7 @@ function App() {
             <MobileInstrumentScene
               name="machine"
               activeWhen={machineScenes}
-              scrollOwner={{
-                printing: 'none',
-                artifact: 'receipt',
-                recovery: 'recovery',
-              }}
+              scrollOwner={{ printing: 'none', artifact: 'receipt', recovery: 'recovery' }}
               className="mobile-instrument__machine"
             >
               <aside className="receipt-stage soft-machine-stage">
@@ -559,6 +639,10 @@ function App() {
                   onTransactionComplete={recordTransaction}
                   onReceiptComplete={recordCompletedReceipt}
                   onCommitKeepArchive={commitKeepArchive}
+                  onCommitRelease={commitRelease}
+                  onUndoRelease={undoRelease}
+                  onExpireRelease={expireRelease}
+                  onReturnFromRelease={returnFromRelease}
                   onExportLocalCopy={exportLocalReceiptCopy}
                   onCloseKeepCompletion={closeKeepCompletion}
                   onMakeAnother={makeAnother}
@@ -569,18 +653,12 @@ function App() {
             </MobileInstrumentScene>
           </section>
 
-          <MobileInstrumentScene
-            name="compose-tail"
-            activeWhen="compose"
-            className="mobile-instrument__tail"
-          >
+          <MobileInstrumentScene name="compose-tail" activeWhen="compose" className="mobile-instrument__tail">
             <TransactionDrawer history={history} archiveCount={privateArchive.length} />
-
             <footer>
               <span>made for tired little humans</span>
               <span>all transactions remain locally sourced</span>
             </footer>
-
             <CommitBar
               itemCount={live.itemCount}
               totalLabel={currency(live.total)}
@@ -618,6 +696,7 @@ function App() {
               privateArchive={privateArchive}
               onCreateArchiveExport={createArchiveExport}
               onReprintArchived={reprintArchivedReceipt}
+              onReleaseArchived={releaseArchivedReceipt}
             />
           )}
           {activeSheet === 'settings' && (
@@ -651,25 +730,25 @@ function ThemePicker({
 }) {
   return (
     <div className="theme-strip" aria-label="Available paper stock">
-      {themes.map((theme, index) => {
-        const active = selected === theme.id
+      {themes.map((paperTheme, index) => {
+        const active = selected === paperTheme.id
         return (
           <button
             type="button"
-            key={theme.id}
+            key={paperTheme.id}
             className={`theme-tab ${active ? 'active' : ''}`}
             aria-pressed={active}
-            onClick={() => onSelect(theme.id)}
+            onClick={() => onSelect(paperTheme.id)}
             disabled={disabled}
             style={{
-              '--card-paper': theme.palette.paper,
-              '--card-ink': theme.palette.ink,
-              '--card-accent': theme.palette.accent,
+              '--card-paper': paperTheme.palette.paper,
+              '--card-ink': paperTheme.palette.ink,
+              '--card-accent': paperTheme.palette.accent,
             } as CSSProperties}
           >
             <span>{String(index + 1).padStart(2, '0')}</span>
-            <i aria-hidden="true">{theme.mark}</i>
-            <strong>{theme.shortName}</strong>
+            <i aria-hidden="true">{paperTheme.mark}</i>
+            <strong>{paperTheme.shortName}</strong>
             <small>{active ? 'LOADED' : 'PAPER STOCK'}</small>
           </button>
         )
@@ -678,19 +757,10 @@ function ThemePicker({
   )
 }
 
-function TransactionDrawer({
-  history,
-  archiveCount,
-}: {
-  history: SavedTransaction[]
-  archiveCount: number
-}) {
+function TransactionDrawer({ history, archiveCount }: { history: SavedTransaction[]; archiveCount: number }) {
   return (
     <section className="transaction-drawer" aria-labelledby="drawer-heading">
-      <div className="section-heading">
-        <span>05</span>
-        <h2 id="drawer-heading">Local records drawer</h2>
-      </div>
+      <div className="section-heading"><span>05</span><h2 id="drawer-heading">Local records drawer</h2></div>
       <p className="drawer-empty">PRIVATE ARCHIVE · {archiveCount}/5</p>
       {history.length === 0 ? (
         <p className="drawer-empty">NO PRIOR EVIDENCE ON THIS DEVICE</p>
