@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type {
+  ExplicitObligationInputs,
   ObligationSource,
   RemainingObligation,
 } from './carryDesignationTypes'
@@ -13,7 +14,7 @@ const ExplicitObligationInputSchema = z.object({
   ]),
 }).strict()
 
-const ExplicitObligationCollectionSchema = z.object({
+const ExplicitObligationCollectionSchema: z.ZodType<ExplicitObligationInputs> = z.object({
   explicitCurrentInputs: z.array(z.string()).max(8).optional(),
   explicitPriorInputs: z.array(z.string()).max(8).optional(),
   authoredDemoFixtures: z.array(z.string()).max(8).optional(),
@@ -78,20 +79,6 @@ export function collectExplicitObligations(value: unknown): RemainingObligation[
   return candidates.filter((candidate, index, array) => (
     array.findIndex((entry) => entry.text.toLocaleLowerCase() === candidate.text.toLocaleLowerCase()) === index
   ))
-}
-
-export function sanitizeObligationCandidates(
-  candidates: RemainingObligation[] | undefined,
-): RemainingObligation[] {
-  if (!candidates) return []
-  return candidates.flatMap((candidate) => {
-    if (candidate.source === 'manual') return []
-    const parsed = parseExplicitObligation({
-      text: candidate.text,
-      source: candidate.source,
-    })
-    return parsed ? [parsed] : []
-  })
 }
 
 export function getObligationChoiceModel(candidates: RemainingObligation[]): {
