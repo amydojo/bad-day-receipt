@@ -1,19 +1,57 @@
+.receipt-ending-experience:has(.carry-ritual) {
+  width: min(calc(100vw - 30px), 360px);
+}
+
+.carry-designation[data-carry-designation-state='ritual-ready'][data-carry-designation-origin='receipt'] {
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .carry-ritual {
   --carry-coral: #ff6f61;
   --carry-ink: #171716;
-  --carry-paper: #f5f0e6;
-  --carry-transfer: rgba(255, 220, 208, 0.92);
-  display: grid;
-  gap: 1.25rem;
-  width: min(100%, 42rem);
+  --carry-paper: var(--paper, #f4efd9);
+  --carry-paper-shadow: 0 18px 34px rgb(23 23 19 / 13%);
+  --carry-chassis: #3c3c38;
+  --carry-chassis-dark: #11110f;
+  --carry-transfer: rgb(255 220 208 / 92%);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   margin: 0 auto;
   color: var(--carry-ink);
 }
 
-.carry-ritual__header {
+.carry-ritual__machine-stage {
+  position: relative;
+  order: 1;
   display: grid;
-  gap: 0.5rem;
-  max-width: 36rem;
+  justify-items: center;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: visible;
+  isolation: isolate;
+}
+
+.carry-ritual__header {
+  order: 2;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 18px 20px 20px;
+  border: 1px solid rgb(23 23 19 / 25%);
+  border-top: 0;
+  border-radius: 0 0 18px 18px;
+  background: var(--carry-paper);
+  box-shadow: 0 8px 18px rgb(23 23 19 / 8%);
 }
 
 .carry-ritual__header h2,
@@ -22,49 +60,58 @@
   text-wrap: balance;
 }
 
+.carry-ritual__header h2 {
+  max-width: 18ch;
+  font-family: "Instrument Serif", Georgia, serif;
+  font-size: clamp(28px, 8vw, 36px);
+  font-weight: 400;
+  line-height: .98;
+  letter-spacing: -.02em;
+}
+
 .carry-ritual__header p,
 .carry-actuator header p {
   margin: 0;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 11px;
   line-height: 1.5;
 }
 
-.carry-ritual__machine-stage {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 1rem;
-  min-height: 23rem;
-  padding: 1rem 0 0;
-  overflow: clip visible;
-  isolation: isolate;
-}
-
 .carry-ritual__secondary-intake {
-  width: min(82%, 22rem);
-  height: 2.75rem;
+  position: absolute;
+  z-index: 4;
+  top: 14px;
+  left: 50%;
   display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
-  border-radius: 0.7rem 0.7rem 1rem 1rem;
-  background: linear-gradient(180deg, #232322, #0b0b0a);
+  width: calc(100% - 32px);
+  height: 42px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 5px 5px 12px 12px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 7%), transparent 28%),
+    linear-gradient(180deg, #282825, #0b0b0a);
+  box-shadow:
+    inset 0 8px 16px rgb(0 0 0 / 48%),
+    0 1px 0 rgb(255 255 255 / 8%);
   color: #f7f2e8;
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
+  font: 600 9px/1 "DM Mono", ui-monospace, monospace;
+  letter-spacing: .15em;
   opacity: 0;
-  transform: translateY(-0.7rem) scaleY(0.7);
-  transition: opacity 220ms ease, transform 320ms cubic-bezier(.2,.8,.2,1);
+  transform: translate(-50%, -10px) scaleY(.5);
+  transform-origin: 50% 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 320ms cubic-bezier(.2,.8,.2,1);
 }
 
-.carry-ritual[data-carry-ritual-phase="stub-separated"] .carry-ritual__secondary-intake,
-.carry-ritual[data-carry-ritual-phase="stub-aligning"] .carry-ritual__secondary-intake,
-.carry-ritual[data-carry-ritual-phase="stub-intake"] .carry-ritual__secondary-intake,
-.carry-ritual[data-carry-ritual-phase^="actuator-"] .carry-ritual__secondary-intake,
-.carry-ritual[data-carry-ritual-phase="released-early"] .carry-ritual__secondary-intake,
-.carry-ritual[data-carry-ritual-phase="transform-registering"] .carry-ritual__secondary-intake,
-.carry-ritual[data-carry-ritual-phase="transfer-issuing"] .carry-ritual__secondary-intake,
-.carry-ritual[data-carry-ritual-phase="transfer-issued"] .carry-ritual__secondary-intake {
+.carry-ritual[data-carry-ritual-phase='stub-separated'] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase='stub-aligning'] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase='stub-intake'] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase='actuator-revealing'] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase^='actuator-'] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase='released-early'] .carry-ritual__secondary-intake {
   opacity: 1;
-  transform: translateY(0) scaleY(1);
+  transform: translate(-50%, 0) scaleY(1);
 }
 
 .carry-stub {
@@ -72,56 +119,34 @@
   --carry-intake-progress: 0;
   position: relative;
   z-index: 2;
-  width: min(78vw, 19rem);
+  width: 100%;
   touch-action: none;
   user-select: none;
   transform-origin: 50% 0;
   transform:
     translate3d(
-      calc(var(--carry-tear-progress) * 1.25rem),
-      calc(var(--carry-tear-progress) * 4.5rem - var(--carry-intake-progress) * 7rem),
+      calc(var(--carry-tear-progress) * 18px),
+      calc(var(--carry-tear-progress) * 68px - var(--carry-intake-progress) * 104px),
       0
     )
     rotate(calc(var(--carry-stub-rotation) * var(--carry-tear-progress)));
-  transition: transform 180ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease;
-}
-
-.carry-stub[data-stub-phase="stub-aligning"] {
-  transform: translate3d(0, -3rem, 0) rotate(0deg);
-}
-
-.carry-stub[data-stub-phase="stub-intake"] {
-  transform: translate3d(0, -7rem, 0) scaleY(0.62);
-  opacity: 0.82;
-}
-
-.carry-stub[data-stub-phase="actuator-revealing"],
-.carry-stub[data-stub-phase^="actuator-"],
-.carry-stub[data-stub-phase="released-early"] {
-  transform: translate3d(0, -8.4rem, 0) scaleY(0.3);
-  opacity: 0.22;
-  pointer-events: none;
-}
-
-.carry-stub[data-stub-transfer] {
-  transform: translate3d(0, -0.5rem, 0) rotate(var(--carry-stub-rotation));
-  opacity: 1;
-  pointer-events: auto;
+  transition: transform 180ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease, width 180ms ease;
 }
 
 .carry-stub__paper,
 .field-transfer {
   position: relative;
   display: grid;
-  gap: 0.8rem;
-  min-height: 15rem;
-  padding: 1.25rem 1.1rem 1.1rem;
-  border: 1px solid rgba(23, 23, 22, 0.18);
+  gap: 12px;
+  min-height: 176px;
+  padding: 22px 20px 18px;
+  border: 1px solid rgb(23 23 19 / 18%);
+  border-top: 0;
   background:
-    repeating-linear-gradient(0deg, transparent 0 3px, rgba(30, 25, 20, 0.025) 3px 4px),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgb(30 25 20 / 2.5%) 3px 4px),
     var(--carry-paper);
-  box-shadow: 0 1.1rem 2.8rem rgba(21, 18, 15, 0.16);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  box-shadow: var(--carry-paper-shadow);
+  font-family: "DM Mono", ui-monospace, monospace;
 }
 
 .carry-stub__serial,
@@ -129,33 +154,34 @@
 .field-transfer__serial,
 .field-transfer__capacity {
   margin: 0;
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
+  font-size: 9px;
+  line-height: 1.45;
+  letter-spacing: .12em;
 }
 
 .carry-stub__signal,
 .field-transfer__capacity {
-  padding-top: 0.7rem;
+  padding-top: 11px;
   border-top: 1px solid currentColor;
 }
 
 .carry-stub__paper strong,
 .field-transfer__obligation {
-  font-size: 1rem;
-  line-height: 1.4;
+  font-size: 14px;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
 .carry-stub__perforation {
-  align-self: end;
+  order: -1;
   display: grid;
   place-items: center;
-  min-height: 2.8rem;
-  margin: 0 -1.1rem -1.1rem;
-  border-top: 2px dashed var(--carry-coral);
-  color: #b7352d;
-  font-size: 0.66rem;
-  letter-spacing: 0.18em;
+  min-height: 30px;
+  margin: -22px -20px 2px;
+  border-bottom: 2px dashed var(--carry-coral);
+  color: #ad332c;
+  font-size: 8px;
+  letter-spacing: .2em;
 }
 
 .carry-stub__registration,
@@ -165,59 +191,164 @@
   pointer-events: none;
 }
 
+.carry-stub__registration {
+  opacity: 0;
+}
+
 .carry-stub__registration span,
 .field-transfer__registration span {
   position: absolute;
-  width: 0.72rem;
-  height: 0.72rem;
+  width: 10px;
+  height: 10px;
   border: 1px solid var(--carry-coral);
 }
 
-.carry-stub__registration span:first-child { left: -0.36rem; top: 2rem; }
-.carry-stub__registration span:last-child { right: -0.36rem; bottom: 2rem; }
+.carry-stub__registration span:first-child { left: -5px; top: 30px; }
+.carry-stub__registration span:last-child { right: -5px; bottom: 30px; }
 
 .carry-stub__action,
 .carry-ritual__recovery-action button,
 .field-transfer__actions button {
   width: 100%;
-  min-height: 2.75rem;
-  margin-top: 0.75rem;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 14px;
   border: 1px solid currentColor;
-  border-radius: 999px;
+  border-radius: 0;
   background: #171716;
   color: #fffaf0;
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font: 700 10px/1.2 "DM Mono", ui-monospace, monospace;
+  letter-spacing: .1em;
   cursor: pointer;
 }
 
+.carry-stub__action {
+  border-top: 0;
+}
+
+.carry-ritual[data-carry-ritual-phase='stub-separated'],
+.carry-ritual[data-carry-ritual-phase='stub-aligning'],
+.carry-ritual[data-carry-ritual-phase='stub-intake'],
+.carry-ritual[data-carry-ritual-phase='actuator-revealing'],
+.carry-ritual[data-carry-ritual-phase^='actuator-'],
+.carry-ritual[data-carry-ritual-phase='released-early'],
+.carry-ritual[data-carry-ritual-phase='recovery'] {
+  gap: 0;
+}
+
+.carry-ritual[data-carry-ritual-phase='stub-separated'] .carry-ritual__header,
+.carry-ritual[data-carry-ritual-phase='stub-aligning'] .carry-ritual__header,
+.carry-ritual[data-carry-ritual-phase='stub-intake'] .carry-ritual__header,
+.carry-ritual[data-carry-ritual-phase='actuator-revealing'] .carry-ritual__header,
+.carry-ritual[data-carry-ritual-phase^='actuator-'] .carry-ritual__header,
+.carry-ritual[data-carry-ritual-phase='released-early'] .carry-ritual__header,
+.carry-ritual[data-carry-ritual-phase='recovery'] .carry-ritual__header {
+  order: 1;
+  border-top: 1px solid rgb(23 23 19 / 25%);
+  border-radius: 18px 18px 0 0;
+  box-shadow: none;
+}
+
+.carry-ritual[data-carry-ritual-phase='stub-separated'] .carry-ritual__machine-stage,
+.carry-ritual[data-carry-ritual-phase='stub-aligning'] .carry-ritual__machine-stage,
+.carry-ritual[data-carry-ritual-phase='stub-intake'] .carry-ritual__machine-stage,
+.carry-ritual[data-carry-ritual-phase='actuator-revealing'] .carry-ritual__machine-stage,
+.carry-ritual[data-carry-ritual-phase^='actuator-'] .carry-ritual__machine-stage,
+.carry-ritual[data-carry-ritual-phase='released-early'] .carry-ritual__machine-stage,
+.carry-ritual[data-carry-ritual-phase='recovery'] .carry-ritual__machine-stage {
+  order: 2;
+  min-height: 246px;
+  padding: 70px 16px 16px;
+  border-radius: 0 0 18px 18px;
+  background:
+    radial-gradient(circle at 76% 18%, rgb(98 255 132 / 18%) 0 3px, transparent 4px),
+    linear-gradient(180deg, #4b4b46, var(--carry-chassis));
+  box-shadow:
+    0 18px 34px rgb(23 23 19 / 18%),
+    inset 0 1px 0 rgb(255 255 255 / 12%);
+}
+
+.carry-ritual[data-carry-ritual-phase='stub-separated'] .carry-stub {
+  width: calc(100% - 20px);
+  transform: translate3d(0, 18px, 0) rotate(var(--carry-stub-rotation));
+}
+
+.carry-ritual[data-carry-ritual-phase='stub-separated'] .carry-stub__paper {
+  border-top: 1px solid rgb(23 23 19 / 18%);
+  box-shadow: 0 14px 28px rgb(0 0 0 / 24%);
+}
+
+.carry-ritual[data-carry-ritual-phase='stub-separated'] .carry-stub__perforation {
+  display: none;
+}
+
+.carry-stub[data-stub-phase='stub-aligning'] {
+  width: calc(100% - 28px);
+  transform: translate3d(0, -38px, 0) rotate(0deg);
+}
+
+.carry-stub[data-stub-phase='stub-intake'] {
+  width: calc(100% - 34px);
+  transform: translate3d(0, -116px, 0) scaleY(.38);
+  opacity: .72;
+}
+
+.carry-stub[data-stub-phase='actuator-revealing'],
+.carry-stub[data-stub-phase^='actuator-'],
+.carry-stub[data-stub-phase='released-early'] {
+  position: absolute;
+  top: 44px;
+  width: calc(100% - 42px);
+  transform: translate3d(0, -74px, 0) scaleY(.18);
+  opacity: .16;
+  pointer-events: none;
+}
+
 .carry-actuator {
-  width: min(100%, 30rem);
+  position: relative;
+  z-index: 5;
   display: grid;
-  gap: 1rem;
-  padding: 1.1rem;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  border-radius: 1.25rem;
-  background: color-mix(in srgb, var(--carry-paper) 78%, transparent);
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  color: #f5f0e6;
+  background: transparent;
+}
+
+.carry-actuator header {
+  display: grid;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.carry-actuator h3 {
+  font: 500 18px/1.1 "DM Mono", ui-monospace, monospace;
+  letter-spacing: -.02em;
+}
+
+.carry-actuator header p {
+  color: rgb(245 240 230 / 72%);
 }
 
 .carry-actuator__bay {
   position: relative;
-  min-height: 13rem;
   display: grid;
   place-items: start center;
-  padding: 1rem 3rem;
-  border-radius: 1rem;
-  background: linear-gradient(180deg, #272725, #0b0b0a);
+  min-height: 196px;
+  padding: 14px 48px;
   overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgb(255 255 255 / 4%), transparent 18% 82%, rgb(255 255 255 / 3%)),
+    linear-gradient(180deg, #232321, #090908);
+  box-shadow: inset 0 18px 28px rgb(0 0 0 / 44%);
 }
 
 .carry-actuator__track {
   position: absolute;
-  inset: 1.3rem auto 1.3rem 50%;
-  width: 0.34rem;
+  inset: 18px auto 18px 50%;
+  width: 5px;
   transform: translateX(-50%);
   border-radius: 99px;
   background: linear-gradient(180deg, #686862, var(--carry-coral));
@@ -225,166 +356,249 @@
 
 .carry-actuator__track span {
   position: absolute;
-  left: 1rem;
+  left: 14px;
   color: #efebe2;
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
+  font: 600 8px/1 "DM Mono", ui-monospace, monospace;
+  letter-spacing: .08em;
 }
 
-.carry-actuator__track span[data-mark="55"] { top: 55%; }
-.carry-actuator__track span[data-mark="80"] { top: 80%; }
-.carry-actuator__track span[data-mark="92"] { top: 92%; color: #ffd0ca; }
+.carry-actuator__track span[data-mark='55'] { top: 55%; }
+.carry-actuator__track span[data-mark='80'] { top: 80%; }
+.carry-actuator__track span[data-mark='92'] { top: 92%; color: #ffd0ca; }
 
 .carry-actuator__handle {
   --actuator-progress: 0;
   --actuator-resisted-progress: 0;
   position: relative;
   z-index: 2;
-  width: 5.25rem;
-  min-height: 4rem;
+  width: 82px;
+  min-height: 58px;
   border: 2px solid #f4eee4;
-  border-radius: 1.25rem;
+  border-radius: 16px;
   background: var(--carry-coral);
   color: #24100d;
-  font: inherit;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  transform: translateY(calc(var(--actuator-resisted-progress) * 8.6rem));
+  font: 900 12px/1 "DM Mono", ui-monospace, monospace;
+  letter-spacing: .08em;
+  transform: translateY(calc(var(--actuator-resisted-progress) * 124px));
   transition: transform 90ms linear, border-radius 120ms ease;
   touch-action: none;
+  user-select: none;
   cursor: ns-resize;
 }
 
-.carry-actuator[data-actuator-milestone="detent"] .carry-actuator__handle {
+.carry-actuator[data-actuator-milestone='detent'] .carry-actuator__handle {
   outline: 3px double #fff6e9;
   outline-offset: 2px;
 }
 
-.carry-actuator[data-actuator-milestone="locked"] .carry-actuator__handle {
-  border-radius: 0.45rem;
+.carry-actuator[data-actuator-milestone='locked'] .carry-actuator__handle {
+  border-radius: 4px;
   box-shadow: inset 0 0 0 3px #2a1714;
+}
+
+.carry-actuator[data-actuator-milestone='locked'] .carry-actuator__bay {
+  transform: translateY(2px);
 }
 
 .carry-actuator__handle:disabled {
   cursor: default;
-  opacity: 0.72;
+  opacity: .72;
 }
 
 .carry-actuator__status {
-  min-height: 1.5rem;
+  min-height: 18px;
   margin: 0;
-  font-size: 0.82rem;
+  color: #f5f0e6;
+  font: 10px/1.45 "DM Mono", ui-monospace, monospace;
+}
+
+.carry-stub[data-stub-transfer] {
+  width: 100%;
+  transform: translate3d(0, 0, 0) rotate(var(--carry-stub-rotation));
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.carry-ritual[data-carry-ritual-phase='transform-registering'],
+.carry-ritual[data-carry-ritual-phase='transfer-issuing'],
+.carry-ritual[data-carry-ritual-phase='transfer-issued'] {
+  gap: 0;
+}
+
+.carry-ritual[data-carry-ritual-phase='transform-registering'] .carry-ritual__header,
+.carry-ritual[data-carry-ritual-phase='transfer-issuing'] .carry-ritual__header,
+.carry-ritual[data-carry-ritual-phase='transfer-issued'] .carry-ritual__header {
+  order: 2;
+}
+
+.carry-ritual[data-carry-ritual-phase='transform-registering'] .carry-ritual__machine-stage,
+.carry-ritual[data-carry-ritual-phase='transfer-issuing'] .carry-ritual__machine-stage,
+.carry-ritual[data-carry-ritual-phase='transfer-issued'] .carry-ritual__machine-stage {
+  order: 1;
+  padding: 0;
 }
 
 .field-transfer {
-  min-height: 20rem;
+  min-height: 292px;
+  border-top: 0;
   background:
     linear-gradient(var(--carry-transfer), var(--carry-transfer)),
-    repeating-linear-gradient(0deg, transparent 0 3px, rgba(30, 25, 20, 0.04) 3px 4px),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgb(30 25 20 / 4%) 3px 4px),
     var(--carry-paper);
   clip-path: inset(calc((1 - var(--transfer-registration, 1)) * 100%) 0 0 0);
 }
 
-.carry-stub[data-stub-phase="transform-registering"] .field-transfer {
-  --transfer-registration: 0.55;
+.carry-stub[data-stub-phase='transform-registering'] .field-transfer {
+  --transfer-registration: .55;
   animation: carry-transfer-register 680ms cubic-bezier(.2,.8,.2,1) both;
 }
 
-.carry-stub[data-stub-phase="transfer-issuing"] .field-transfer,
-.carry-stub[data-stub-phase="transfer-issued"] .field-transfer {
+.carry-stub[data-stub-phase='transfer-issuing'] .field-transfer,
+.carry-stub[data-stub-phase='transfer-issued'] .field-transfer {
   --transfer-registration: 1;
 }
 
-.field-transfer__registration span:nth-child(1) { left: -0.36rem; top: 2rem; }
-.field-transfer__registration span:nth-child(2) { right: -0.36rem; top: 50%; }
-.field-transfer__registration span:nth-child(3) { left: -0.36rem; bottom: 2rem; }
+.field-transfer__registration span:nth-child(1) { left: -5px; top: 30px; }
+.field-transfer__registration span:nth-child(2) { right: -5px; top: 50%; }
+.field-transfer__registration span:nth-child(3) { left: -5px; bottom: 30px; }
 
 .field-transfer__policy {
   display: grid;
-  gap: 0.5rem;
+  gap: 7px;
   margin: 0;
-  padding: 0.8rem 0;
+  padding: 12px 0;
   border-block: 1px solid currentColor;
 }
 
 .field-transfer__policy div {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 14px;
 }
 
 .field-transfer__policy dt,
 .field-transfer__policy dd {
   margin: 0;
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
+  font-size: 9px;
+  line-height: 1.35;
+  letter-spacing: .08em;
 }
 
 .field-transfer__statement,
 .field-transfer__boundary,
 .field-transfer__pending {
   margin: 0;
+  font-family: "DM Mono", ui-monospace, monospace;
   line-height: 1.45;
+}
+
+.field-transfer__statement {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field-transfer__boundary,
+.field-transfer__pending {
+  font-size: 9px;
 }
 
 .field-transfer__actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 6px;
 }
 
 .field-transfer__actions button {
-  margin: 0;
-  padding-inline: 0.4rem;
+  padding-inline: 4px;
 }
 
 .field-transfer__actions button:disabled {
-  opacity: 0.42;
+  opacity: .42;
   cursor: not-allowed;
 }
 
 .field-transfer__pending {
   grid-column: 1 / -1;
-  font-size: 0.72rem;
 }
 
 .carry-ritual__recovery-action {
+  order: 3;
   display: grid;
-  gap: 0.65rem;
-  padding: 1rem;
-  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
-  border-radius: 1rem;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid rgb(23 23 19 / 24%);
+  border-top: 0;
+  background: var(--carry-paper);
 }
 
-.carry-ritual__recovery-action p { margin: 0; }
+.carry-ritual__recovery-action p {
+  margin: 0;
+  font: 10px/1.5 "DM Mono", ui-monospace, monospace;
+}
 
 @keyframes carry-transfer-register {
-  from { clip-path: inset(100% 0 0 0); filter: saturate(0.5); }
+  from { clip-path: inset(100% 0 0 0); filter: saturate(.5); }
   to { clip-path: inset(0 0 0 0); filter: saturate(1); }
 }
 
-@media (max-width: 38rem) {
-  .carry-ritual { gap: 1rem; }
-  .carry-ritual__machine-stage { min-height: 20rem; }
-  .carry-actuator__bay { min-height: 12rem; padding-inline: 1.5rem; }
-  .field-transfer__actions { grid-template-columns: 1fr; }
-  .field-transfer__pending { grid-column: auto; }
+@media (max-width: 430px) {
+  .receipt-ending-experience:has(.carry-ritual) {
+    width: min(calc(100vw - 16px), 390px);
+  }
+
+  .carry-ritual__header {
+    padding-inline: 16px;
+  }
+
+  .carry-ritual__machine-stage {
+    max-width: 100%;
+  }
+
+  .carry-actuator__bay {
+    min-height: 190px;
+    padding-inline: 30px;
+  }
+
+  .field-transfer__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .field-transfer__pending {
+    grid-column: auto;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .carry-ritual__header h2 {
+    font-size: 28px;
+  }
+
+  .carry-ritual[data-carry-ritual-phase^='actuator-'] .carry-ritual__machine-stage,
+  .carry-ritual[data-carry-ritual-phase='released-early'] .carry-ritual__machine-stage {
+    min-height: 224px;
+  }
+
+  .carry-actuator__bay {
+    min-height: 172px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .carry-stub,
   .carry-ritual__secondary-intake,
   .carry-actuator__handle,
+  .carry-actuator__bay,
   .field-transfer {
     animation: none !important;
-    transition-duration: 0.01ms !important;
+    transition-duration: .01ms !important;
   }
 }
 
 .carry-ritual[data-reduced-motion] .carry-stub,
 .carry-ritual[data-reduced-motion] .carry-ritual__secondary-intake,
 .carry-ritual[data-reduced-motion] .carry-actuator__handle,
+.carry-ritual[data-reduced-motion] .carry-actuator__bay,
 .carry-ritual[data-reduced-motion] .field-transfer {
   animation: none !important;
-  transition-duration: 0.01ms !important;
+  transition-duration: .01ms !important;
 }
