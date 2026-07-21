@@ -27,7 +27,7 @@ export function PrivateArchive({
     format: ExportFormat,
   ) => Promise<ArtifactExport>
   onReprint: (receipt: ArchivedReceipt['receipt']) => void
-  onRelease: (entry: ArchivedReceipt) => void
+  onRelease?: (entry: ArchivedReceipt) => void
 }) {
   const [selectedReceiptNumber, setSelectedReceiptNumber] = useState<string | null>(null)
   const selected = archive.find((entry) => (
@@ -102,7 +102,7 @@ function ArchivedReceiptDetail({
     format: ExportFormat,
   ) => Promise<ArtifactExport>
   onReprint: (receipt: ArchivedReceipt['receipt']) => void
-  onRelease: (entry: ArchivedReceipt) => void
+  onRelease?: (entry: ArchivedReceipt) => void
 }) {
   const platform = useMemo(createBrowserArtifactPlatform, [])
   const [busy, setBusy] = useState(false)
@@ -179,18 +179,22 @@ function ArchivedReceiptDetail({
         <button type="button" disabled={busy} onClick={() => { void exportReceipt() }}>EXPORT</button>
         <button type="button" disabled={busy} onClick={() => window.location.assign(dojoHref)}>SEND TO DOJO ARCHIVE</button>
         <button type="button" disabled={busy} onClick={() => onReprint(receipt)}>REPRINT</button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onRelease(entry)}
-          aria-describedby="archived-release-description"
-        >
-          LET IT GO
-        </button>
+        {onRelease && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onRelease(entry)}
+            aria-describedby="archived-release-description"
+          >
+            LET IT GO
+          </button>
+        )}
       </div>
-      <p id="archived-release-description" className="archived-receipt-detail__release-note">
-        Release this local archived copy with an eight-second Undo window.
-      </p>
+      {onRelease && (
+        <p id="archived-release-description" className="archived-receipt-detail__release-note">
+          Release this local archived copy with an eight-second Undo window.
+        </p>
+      )}
       <p className="archived-receipt-detail__status" aria-live="polite">{message}</p>
     </section>
   )
