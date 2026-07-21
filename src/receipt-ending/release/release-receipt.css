@@ -1,0 +1,357 @@
+.receipt-machine[data-receipt-ending-state='release-ritual'],
+.receipt-machine[data-receipt-ending-state='release-recovery'] {
+  --release-paper: var(--receipt-paper, #f4efd9);
+}
+
+.receipt-machine[data-receipt-ending-state='release-ritual'] .receipt-viewport,
+.receipt-machine[data-receipt-ending-state='release-recovery'] .receipt-viewport {
+  overflow: visible;
+}
+
+.release-ritual {
+  display: grid;
+  place-items: start center;
+  width: 100%;
+  min-height: 86px;
+  padding: 20px 12px 0;
+  pointer-events: none;
+}
+
+.release-ritual__status {
+  margin: 0;
+  color: var(--bdr-ending-signal, #9d302a);
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 15px;
+  letter-spacing: .03em;
+  text-align: center;
+}
+
+.release-completion,
+.release-recovery {
+  min-height: 480px;
+}
+
+.release-recovery__choices {
+  gap: 9px;
+}
+
+.release-recovery__choices .receipt-decision__choice {
+  min-height: 72px;
+}
+
+.release-recovery__status {
+  min-height: 18px;
+  margin: 10px 0 0;
+  color: var(--bdr-ending-secondary, #5e5b55);
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.receipt-machine[data-release-phase='cut'] .receipt-material-stack {
+  transform: translate3d(0, 6px, 0);
+  transition: transform 180ms cubic-bezier(.2, .65, .25, 1);
+}
+
+.receipt-machine[data-release-phase='unprint-total'] .receipt-material-stack,
+.receipt-machine[data-release-phase='unprint-lines'] .receipt-material-stack,
+.receipt-machine[data-release-phase='unprint-receipt-number'] .receipt-material-stack,
+.receipt-machine[data-release-phase='unprint-acknowledgment'] .receipt-material-stack {
+  transform: translate3d(0, 8px, 0);
+}
+
+.receipt [data-release-region] {
+  position: relative;
+}
+
+.receipt [data-release-region]::after {
+  position: absolute;
+  z-index: 5;
+  inset: -2px;
+  content: '';
+  pointer-events: none;
+  background:
+    linear-gradient(90deg,
+      transparent 0,
+      rgb(244 239 217 / 35%) 5%,
+      var(--release-paper, #f4efd9) 15% 100%);
+  clip-path: inset(0 100% 0 0);
+}
+
+.receipt[data-release-phase='unprint-total'] [data-release-region='total']::after,
+.receipt[data-release-phase='unprint-lines'] [data-release-region='total']::after,
+.receipt[data-release-phase='unprint-receipt-number'] [data-release-region='total']::after,
+.receipt[data-release-phase='unprint-acknowledgment'] [data-release-region='total']::after,
+.receipt[data-release-phase='soften'] [data-release-region='total']::after,
+.receipt[data-release-phase='slot-opening'] [data-release-region='total']::after,
+.receipt[data-release-phase='receiving'] [data-release-region='total']::after,
+.receipt[data-release-phase='corner-hold'] [data-release-region='total']::after,
+.receipt[data-release-phase='slot-closing'] [data-release-region='total']::after,
+.receipt[data-release-phase='committing'] [data-release-region='total']::after,
+.receipt[data-release-phase='complete'] [data-release-region='total']::after,
+.receipt[data-release-phase='undoing'] [data-release-region='total']::after {
+  clip-path: inset(0 0 0 0);
+}
+
+.receipt[data-release-phase='unprint-total'] [data-release-region='total']::after {
+  transition: clip-path 220ms cubic-bezier(.32, .02, .55, 1);
+}
+
+.receipt[data-release-phase='unprint-lines'] [data-release-region='record']::after,
+.receipt[data-release-phase='unprint-receipt-number'] [data-release-region='record']::after,
+.receipt[data-release-phase='unprint-acknowledgment'] [data-release-region='record']::after,
+.receipt[data-release-phase='soften'] [data-release-region='record']::after,
+.receipt[data-release-phase='slot-opening'] [data-release-region='record']::after,
+.receipt[data-release-phase='receiving'] [data-release-region='record']::after,
+.receipt[data-release-phase='corner-hold'] [data-release-region='record']::after,
+.receipt[data-release-phase='slot-closing'] [data-release-region='record']::after,
+.receipt[data-release-phase='committing'] [data-release-region='record']::after,
+.receipt[data-release-phase='complete'] [data-release-region='record']::after,
+.receipt[data-release-phase='undoing'] [data-release-region='record']::after {
+  clip-path: inset(0 0 0 0);
+}
+
+.receipt[data-release-phase='unprint-lines'] .receipt-line::after {
+  animation: thermal-line-withdraw 160ms cubic-bezier(.32, .02, .55, 1) both;
+  animation-delay: calc(min(var(--release-rank, 1), 8) * 42ms);
+}
+
+.receipt[data-release-phase='unprint-lines'] [data-release-region='record']:not(.receipt-lines)::after {
+  transition: clip-path 420ms cubic-bezier(.32, .02, .55, 1);
+}
+
+.receipt[data-release-phase='unprint-receipt-number'] [data-release-region='receipt-number']::after,
+.receipt[data-release-phase='unprint-acknowledgment'] [data-release-region='receipt-number']::after,
+.receipt[data-release-phase='soften'] [data-release-region='receipt-number']::after,
+.receipt[data-release-phase='slot-opening'] [data-release-region='receipt-number']::after,
+.receipt[data-release-phase='receiving'] [data-release-region='receipt-number']::after,
+.receipt[data-release-phase='corner-hold'] [data-release-region='receipt-number']::after,
+.receipt[data-release-phase='slot-closing'] [data-release-region='receipt-number']::after,
+.receipt[data-release-phase='committing'] [data-release-region='receipt-number']::after,
+.receipt[data-release-phase='complete'] [data-release-region='receipt-number']::after,
+.receipt[data-release-phase='undoing'] [data-release-region='receipt-number']::after {
+  clip-path: inset(0 0 0 0);
+}
+
+.receipt[data-release-phase='unprint-receipt-number'] [data-release-region='receipt-number']::after {
+  transition: clip-path 180ms cubic-bezier(.32, .02, .55, 1);
+}
+
+.receipt[data-release-phase='unprint-acknowledgment'] [data-release-region='acknowledgment']::after,
+.receipt[data-release-phase='soften'] [data-release-region='acknowledgment']::after,
+.receipt[data-release-phase='slot-opening'] [data-release-region='acknowledgment']::after,
+.receipt[data-release-phase='receiving'] [data-release-region='acknowledgment']::after,
+.receipt[data-release-phase='corner-hold'] [data-release-region='acknowledgment']::after,
+.receipt[data-release-phase='slot-closing'] [data-release-region='acknowledgment']::after,
+.receipt[data-release-phase='committing'] [data-release-region='acknowledgment']::after,
+.receipt[data-release-phase='complete'] [data-release-region='acknowledgment']::after,
+.receipt[data-release-phase='undoing'] [data-release-region='acknowledgment']::after {
+  clip-path: inset(0 0 0 0);
+}
+
+.receipt[data-release-phase='unprint-acknowledgment'] [data-release-region='acknowledgment']::after {
+  transition: clip-path 260ms cubic-bezier(.32, .02, .55, 1);
+}
+
+.thermal-unprint-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.thermal-unprint-layer__heat,
+.thermal-unprint-layer__edge {
+  position: absolute;
+  right: 4%;
+  left: 4%;
+  height: 1px;
+}
+
+.thermal-unprint-layer__heat {
+  top: 48%;
+  background: rgb(157 48 42 / 18%);
+  box-shadow: 0 0 5px rgb(157 48 42 / 12%);
+}
+
+.thermal-unprint-layer__edge {
+  top: calc(48% + 2px);
+  background: rgb(23 23 19 / 12%);
+}
+
+.thermal-unprint-layer[data-release-phase^='unprint-'] {
+  opacity: 1;
+  animation: thermal-pass 220ms linear both;
+}
+
+.receipt-machine[data-release-phase='soften'] .receipt-material-stack,
+.receipt-machine[data-release-phase='slot-opening'] .receipt-material-stack {
+  transform: translate3d(0, 12px, 0) rotate(-.35deg) scaleX(.995);
+  transform-origin: top center;
+  transition:
+    transform 260ms cubic-bezier(.2, .55, .32, 1),
+    filter 260ms linear;
+  filter: drop-shadow(0 14px 10px rgb(23 23 19 / 10%));
+}
+
+.receipt-machine[data-release-phase='soften'] .receipt {
+  border-radius: 0 0 14px 14px;
+}
+
+.receipt-machine[data-release-phase='receiving'] .receipt-material-stack {
+  transform: translate3d(0, 128px, 0) rotate(-.5deg) scaleX(.992);
+  transition: transform 420ms cubic-bezier(.18, .72, .26, 1);
+}
+
+.receipt-machine[data-release-phase='corner-hold'] .receipt-material-stack {
+  transform: translate3d(0, 212px, 0) rotate(-.45deg) scaleX(.99);
+}
+
+.receipt-machine[data-release-phase='slot-closing'] .receipt-material-stack,
+.receipt-machine[data-release-phase='committing'] .receipt-material-stack,
+.receipt-machine[data-release-phase='complete'] .receipt-material-stack,
+.receipt-machine[data-release-phase='undoing'] .receipt-material-stack {
+  transform: translate3d(0, 286px, 0) rotate(-.4deg) scaleX(.99);
+  transition: transform 180ms cubic-bezier(.2, .6, .3, 1);
+}
+
+.printer-release-slot {
+  position: absolute;
+  z-index: 8;
+  right: 76px;
+  bottom: 13px;
+  left: 76px;
+  height: 28px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.printer-shell[data-printer-mode='release'] .printer-release-slot {
+  opacity: 1;
+  visibility: visible;
+}
+
+.printer-release-slot__void,
+.printer-release-slot__lip {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-radius: 10px;
+}
+
+.printer-release-slot__void {
+  top: 0;
+  height: 12px;
+  background: #171713;
+  box-shadow: inset 0 5px 6px rgb(0 0 0 / 55%);
+  transform: scaleX(.22) scaleY(.4);
+  transition: transform 180ms cubic-bezier(.2, .65, .25, 1);
+}
+
+.printer-release-slot__lip {
+  top: 16px;
+  height: 2px;
+  background: rgb(94 91 85 / 75%);
+  transform: scaleX(.3);
+}
+
+.printer-release-slot > span {
+  position: absolute;
+  top: 23px;
+  width: 100%;
+  color: var(--bdr-ending-secondary, #5e5b55);
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 7px;
+  text-align: center;
+  opacity: 0;
+}
+
+.printer-release-slot[data-release-slot-state='opening'] .printer-release-slot__void,
+.printer-release-slot[data-release-slot-state='receiving'] .printer-release-slot__void,
+.printer-release-slot[data-release-slot-state='corner-hold'] .printer-release-slot__void {
+  transform: scaleX(1) scaleY(1);
+}
+
+.printer-release-slot[data-release-slot-state='receiving'] .printer-release-slot__lip,
+.printer-release-slot[data-release-slot-state='corner-hold'] .printer-release-slot__lip {
+  transform: scaleX(1);
+}
+
+.printer-release-slot[data-release-slot-state='closing'] .printer-release-slot__void,
+.printer-release-slot[data-release-slot-state='released'] .printer-release-slot__void {
+  transform: scaleX(.22) scaleY(.4);
+}
+
+.printer-release-slot[data-release-slot-state='released'] > span {
+  opacity: 1;
+}
+
+.printer-release-slot[data-release-slot-state='recovery'] .printer-release-slot__void {
+  transform: scaleX(1) scaleY(1);
+  opacity: .55;
+}
+
+.printer-shell[data-printer-mode='release'] {
+  min-height: 166px;
+}
+
+.receipt-machine[data-release-phase='complete'] {
+  filter: saturate(.72) contrast(.94);
+  transition: filter 180ms linear;
+}
+
+@keyframes thermal-pass {
+  from { transform: translateY(-16%); opacity: 0; }
+  35% { opacity: .5; }
+  to { transform: translateY(16%); opacity: 0; }
+}
+
+@keyframes thermal-line-withdraw {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .receipt-machine[data-release-phase] .receipt-material-stack,
+  .receipt [data-release-region]::after,
+  .printer-release-slot__void,
+  .printer-release-slot__lip,
+  .thermal-unprint-layer {
+    animation: none !important;
+    transition-duration: 100ms !important;
+  }
+
+  .receipt-machine[data-release-phase='receiving'] .receipt-material-stack {
+    transform: translate3d(0, 20px, 0);
+  }
+
+  .receipt-machine[data-release-phase='corner-hold'] .receipt-material-stack {
+    transform: translate3d(0, 32px, 0);
+  }
+
+  .receipt-machine[data-release-phase='slot-closing'] .receipt-material-stack,
+  .receipt-machine[data-release-phase='committing'] .receipt-material-stack,
+  .receipt-machine[data-release-phase='complete'] .receipt-material-stack,
+  .receipt-machine[data-release-phase='undoing'] .receipt-material-stack {
+    transform: translate3d(0, 42px, 0);
+    opacity: .12;
+  }
+}
+
+@media (max-width: 430px) {
+  .release-completion,
+  .release-recovery {
+    min-height: min(480px, calc(100dvh - 190px));
+  }
+}
+
+@media (max-height: 620px), (orientation: landscape) {
+  .receipt-machine[data-receipt-ending-state='release-ritual'],
+  .receipt-machine[data-receipt-ending-state='release-recovery'] {
+    min-height: 720px;
+  }
+}
