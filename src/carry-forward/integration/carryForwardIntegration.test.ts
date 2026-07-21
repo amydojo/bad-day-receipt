@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createInteractionBudget } from '../interactionBudget'
+import {
+  createInteractionBudget,
+  DEFAULT_INTERACTION_POLICIES,
+} from '../interactionBudget'
 import { createInsuranceDenialPlan, INSURANCE_DENIAL_SOURCE } from '../fixtures'
 import type { CarryRitualHandoff } from '../ritual/carryForwardRitualTypes'
 import type { StoredCarryForwardSession } from '../carryForwardStorage'
@@ -17,7 +20,10 @@ function createHandoff(): CarryRitualHandoff {
       confirmedByUser: true,
     },
     sourceText: INSURANCE_DENIAL_SOURCE,
-    budget: createInteractionBudget({ receiptId: 'BDR-TEST-027' }),
+    budget: createInteractionBudget({
+      policies: DEFAULT_INTERACTION_POLICIES,
+      receiptId: 'BDR-TEST-027',
+    }),
     origin: 'receipt',
     receiptId: 'BDR-TEST-027',
     stubId: 'stub-test-027',
@@ -26,12 +32,10 @@ function createHandoff(): CarryRitualHandoff {
 
 function deferred<Result>() {
   let resolve!: (value: Result) => void
-  let reject!: (reason?: unknown) => void
-  const promise = new Promise<Result>((resolvePromise, rejectPromise) => {
+  const promise = new Promise<Result>((resolvePromise) => {
     resolve = resolvePromise
-    reject = rejectPromise
   })
-  return { promise, resolve, reject }
+  return { promise, resolve }
 }
 
 function compilerResult() {
