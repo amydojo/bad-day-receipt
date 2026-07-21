@@ -21,7 +21,7 @@ export function TransactionHistorySheet({
     format: ExportFormat,
   ) => Promise<ArtifactExport>
   onReprintArchived: (receipt: CompletedReceiptSnapshot) => void
-  onReleaseArchived: (entry: ArchivedReceipt) => void
+  onReleaseArchived?: (entry: ArchivedReceipt) => void
 }) {
   return (
     <div className="local-records-sheet">
