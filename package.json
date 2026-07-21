@@ -21,7 +21,7 @@
     "evals:carry-forward": "vitest run evals/carry-forward",
     "release:carry-forward": "npm run typecheck && npm run test:carry-forward && npm run evals:carry-forward && npm run test:receipt-regression && npm run build && playwright test tests/e2e/carry-forward.spec.ts tests/e2e/carry-forward-accessibility.spec.ts tests/e2e/carry-forward-viewports.spec.ts --project=chromium-desktop && npm run test:carry-forward:in-tree",
     "release:three-endings": "VITE_THREE_ENDINGS=true npm run release:three-endings:flagged",
-    "release:three-endings:flagged": "npm run release:carry-forward && npm run test:three-endings-hardening",
+    "release:three-endings:flagged": "npm run typecheck && npm run test:carry-forward && npm run evals:carry-forward && npm run test:receipt-regression && npm run build && npm run test:three-endings-hardening",
     "mobile-quality": "npm run test:e2e && npm run test:accessibility && npm run test:viewports && npm run test:visual",
     "analyze": "npm run build && node scripts/analyze-build.mjs",
     "test:e2e": "playwright test tests/e2e --grep-invert \"@accessibility|@viewport\"",
