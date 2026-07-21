@@ -6,6 +6,7 @@ import type {
   ArchivedReceipt,
   PendingRelease,
   ReceiptDisposition,
+  ReleaseOrigin,
 } from './receiptEndingTypes'
 
 export const MAX_PRIVATE_ARCHIVE = 5
@@ -19,7 +20,19 @@ export function parsePendingRelease(value: unknown): PendingRelease | null {
   if (!isRecord(value) || typeof value.undoUntil !== 'string') return null
   const receipt = parseCompletedReceiptSnapshot(value.receipt)
   if (!receipt || Number.isNaN(Date.parse(value.undoUntil))) return null
-  return { receipt, undoUntil: value.undoUntil }
+
+  const origin = parseReleaseOrigin(value.origin) ?? { kind: 'pending' as const }
+  const previousDisposition = value.previousDisposition == null
+    ? null
+    : parseReceiptDisposition(value.previousDisposition)
+  if (value.previousDisposition != null && !previousDisposition) return null
+
+  return {
+    receipt,
+    undoUntil: value.undoUntil,
+    origin,
+    previousDisposition,
+  }
 }
 
 export function sanitizePrivateArchive(value: unknown): ArchivedReceipt[] {
@@ -45,22 +58,39 @@ export function sanitizeReceiptDispositions(value: unknown): ReceiptDisposition[
   if (!Array.isArray(value)) return []
 
   return value
-    .filter(isReceiptDisposition)
+    .flatMap((candidate) => {
+      const parsed = parseReceiptDisposition(candidate)
+      return parsed ? [parsed] : []
+    })
     .filter((entry, index, array) => (
       array.findIndex((candidate) => candidate.receiptNumber === entry.receiptNumber) === index
     ))
     .slice(0, MAX_RECEIPT_DISPOSITIONS)
 }
 
-function isReceiptDisposition(value: unknown): value is ReceiptDisposition {
-  if (!isRecord(value)) return false
-  return typeof value.receiptNumber === 'string'
-    && value.receiptNumber.length > 0
-    && (value.disposition === 'kept'
-      || value.disposition === 'released'
-      || value.disposition === 'carried')
-    && typeof value.decidedAt === 'string'
-    && !Number.isNaN(Date.parse(value.decidedAt))
+function parseReleaseOrigin(value: unknown): ReleaseOrigin | null {
+  if (!isRecord(value)) return null
+  if (value.kind === 'pending') return { kind: 'pending' }
+  if (value.kind === 'archive'
+    && typeof value.archivedAt === 'string'
+    && !Number.isNaN(Date.parse(value.archivedAt))) {
+    return { kind: 'archive', archivedAt: value.archivedAt }
+  }
+  return null
+}
+
+function parseReceiptDisposition(value: unknown): ReceiptDisposition | null {
+  if (!isRecord(value)) return null
+  if (typeof value.receiptNumber !== 'string' || value.receiptNumber.length === 0) return null
+  if (value.disposition !== 'kept'
+    && value.disposition !== 'released'
+    && value.disposition !== 'carried') return null
+  if (typeof value.decidedAt !== 'string' || Number.isNaN(Date.parse(value.decidedAt))) return null
+  return {
+    receiptNumber: value.receiptNumber,
+    disposition: value.disposition,
+    decidedAt: value.decidedAt,
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
