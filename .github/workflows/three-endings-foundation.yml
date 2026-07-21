@@ -67,6 +67,7 @@ jobs:
       - name: Prove the production build fails closed without Three Endings
         shell: bash
         run: |
+          mkdir -p test-results
           set +e
           VERCEL_ENV=production VITE_THREE_ENDINGS=false npm run build > test-results/production-guard-negative.log 2>&1
           status=$?
