@@ -8,10 +8,12 @@ import { CarryForwardStub } from './CarryForwardStub'
 import { FieldTransferArtifact } from './FieldTransferArtifact'
 import { MechanicalActuator } from './MechanicalActuator'
 import {
+  clearCarryRitualCheckpoint,
   createCarryRitualCheckpoint,
   getCarryRitualPhaseAdvance,
   getFallbackActuatorSequence,
   getNextFallbackActuatorEvent,
+  saveCarryRitualCheckpoint,
   type CarryRitualCheckpoint,
 } from './carryForwardRitualEffects'
 import {
@@ -82,7 +84,9 @@ export function CarryForwardRitual({
 
   useEffect(() => {
     const checkpoint = createCarryRitualCheckpoint(state)
-    if (checkpoint) onCheckpoint?.(checkpoint)
+    if (!checkpoint) return
+    saveCarryRitualCheckpoint(window.sessionStorage, checkpoint)
+    onCheckpoint?.(checkpoint)
   }, [onCheckpoint, state])
 
   useEffect(() => {
@@ -109,6 +113,16 @@ export function CarryForwardRitual({
   const stepActuatorFallback = () => {
     if (!state.phase.startsWith('actuator-') || state.phase === 'actuator-locked') return
     dispatch(getNextFallbackActuatorEvent(state.actuatorMilestone))
+  }
+
+  const cancelRitual = () => {
+    clearCarryRitualCheckpoint(window.sessionStorage)
+    onCancel()
+  }
+
+  const adjustRitual = () => {
+    clearCarryRitualCheckpoint(window.sessionStorage)
+    onAdjust()
   }
 
   const handoff: CarryRitualHandoff = {
@@ -172,8 +186,8 @@ export function CarryForwardRitual({
                 const ready = toCarryRitualHandoff(state)
                 if (ready && onApply) onApply(ready)
               }}
-              onAdjust={onAdjust}
-              onCancel={onCancel}
+              onAdjust={adjustRitual}
+              onCancel={cancelRitual}
             />
           ) : undefined}
         </CarryForwardStub>
@@ -210,7 +224,7 @@ export function CarryForwardRitual({
           <button type="button" onClick={() => dispatch({ type: 'RECOVER' })}>
             RECOVER SAME STUB
           </button>
-          <button type="button" onClick={onCancel}>CANCEL WITHOUT CHANGING RECEIPT</button>
+          <button type="button" onClick={cancelRitual}>CANCEL WITHOUT CHANGING RECEIPT</button>
         </div>
       )}
 
