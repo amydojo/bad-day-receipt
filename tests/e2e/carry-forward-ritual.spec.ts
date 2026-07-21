@@ -181,6 +181,31 @@ test.describe('Carry Forward physical ritual', () => {
     expect(await stubHandle?.evaluate((node) => node.isConnected)).toBe(false)
   })
 
+  test('conversion failure recovers to actuator-ready without invalidating the receipt', async ({ page }) => {
+    await page.goto('/?carry-ritual-fixture=conversion-failure')
+    await expect(page.locator('[data-machine-id="bad-day-receipt"]')).toBeVisible()
+    await commitTransaction(page)
+    await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })
+    await page.getByRole('button', { name: /CARRY ONE THING FORWARD/ }).click()
+    await page.getByLabel('ONE REMAINING OBLIGATION').fill('Reply to the insurance denial')
+    await page.getByRole('button', { name: 'USE THIS ONE' }).click()
+    await page.getByRole('button', { name: 'REVIEW ONE THING MODE' }).click()
+    await page.getByRole('button', { name: 'ISSUE ADJUSTMENT' }).click()
+    await page.getByRole('button', { name: 'TEAR CARRY FORWARD STUB' }).click()
+    await page.getByRole('button', { name: 'REINSERT SAME STUB' }).click()
+
+    const printerHandle = await page.locator('[data-printer-shell]').elementHandle()
+    const receiptHandle = await page.locator('[data-receipt-artifact]').elementHandle()
+    await page.getByRole('button', { name: 'Push actuator to convert' }).click()
+    await expect(page.getByText('Conversion did not register. The same stub can return to the actuator-ready boundary.', { exact: true })).toBeVisible({ timeout: 10_000 })
+    await expectCheckpoint(page, 'recovery')
+    await page.getByRole('button', { name: 'RECOVER SAME STUB' }).click()
+    await expect(page.getByRole('button', { name: 'Push actuator to convert' })).toBeVisible()
+    await expectCheckpoint(page, 'actuator-ready')
+    await expectSameNode(receiptHandle, '[data-receipt-artifact]')
+    await expectSameNode(printerHandle, '[data-printer-shell]')
+  })
+
   test('Adjust and Cancel clear checkpoints without invalidating the completed receipt', async ({ page }) => {
     await reachActuator(page)
     const receiptHandle = await page.locator('[data-receipt-artifact]').elementHandle()
