@@ -42,13 +42,18 @@ describe('pending Release parsing', () => {
     expect(parsePendingRelease(value)).toEqual(value)
   })
 
-  it('rejects malformed archive origins and explicit malformed disposition data', () => {
-    const malformedOrigin = parsePendingRelease({
+  it('rejects malformed explicit origins and explicit malformed disposition data', () => {
+    expect(parsePendingRelease({
       receipt,
       undoUntil: '2026-07-20T12:05:08.000Z',
       origin: { kind: 'archive', archivedAt: 'invalid' },
-    })
-    expect(malformedOrigin?.origin).toEqual({ kind: 'pending' })
+    })).toBeNull()
+
+    expect(parsePendingRelease({
+      receipt,
+      undoUntil: '2026-07-20T12:05:08.000Z',
+      origin: { kind: 'unknown' },
+    })).toBeNull()
 
     expect(parsePendingRelease({
       receipt,
