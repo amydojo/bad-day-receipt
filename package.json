@@ -9,7 +9,7 @@
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "preview": "vite preview",
     "test": "npm run test:production-build-guard && vitest run",
-    "test:production-build-guard": "node --test scripts/assert-production-three-endings.test.mjs",
+    "test:production-build-guard": "node --test scripts/assert-production-three-endings.node-test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.api.json",
     "test:carry-forward": "vitest run src/carry-forward tests/api/compile-task.test.ts tests/api/compile-task.diagnostic.test.ts",
     "diagnose:carry-forward": "vitest run tests/api/compile-task.diagnostic.test.ts --reporter=verbose",
