@@ -14,6 +14,7 @@ import type {
   ArchivedReceipt,
   ReceiptEndingState,
 } from '../receiptEndingTypes'
+import { THREE_ENDINGS_ENABLED } from '../threeEndingsFeature'
 
 export function PrivateArchive({
   archive,
@@ -41,7 +42,7 @@ export function PrivateArchive({
         onBack={() => setSelectedReceiptNumber(null)}
         onCreateExport={onCreateExport}
         onReprint={onReprint}
-        onRelease={onRelease}
+        onRelease={THREE_ENDINGS_ENABLED ? onRelease : undefined}
       />
     )
   }
