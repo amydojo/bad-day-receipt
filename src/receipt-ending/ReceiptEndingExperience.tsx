@@ -5,6 +5,8 @@ import {
   type ReactNode,
   type Ref,
 } from 'react'
+import { CarryForwardDesignation } from '../carry-forward/designation/CarryForwardDesignation'
+import { getDevelopmentDesignationInputs } from '../carry-forward/designation/designationFixtures'
 import type { MachineSensoryDirector } from '../mobile-instrument/sensory/sensoryTypes'
 import type { CompletedReceiptSnapshot } from './completedReceipt'
 import { EndDispositionChoice } from './EndDispositionChoice'
@@ -186,13 +188,13 @@ export function ReceiptEndingExperience({
 
     case 'carry-selected':
       surface = (
-        <ReceiptEndingHandoff
-          eyebrow="OPTIONAL CONTINUATION"
-          title="One thing may be carried forward."
-          body="Nothing has been designated yet."
-          slot="carry"
-          headingRef={assignHeadingRef}
-          onBack={() => dispatch({ type: 'BACK_TO_DOCUMENTED' })}
+        <CarryForwardDesignation
+          origin={{
+            kind: 'receipt',
+            receiptId: state.receipt.receiptNumber,
+            explicitInputs: getDevelopmentDesignationInputs(),
+          }}
+          onNothingAfterAll={() => dispatch({ type: 'BACK_TO_DOCUMENTED' })}
         />
       )
       break
@@ -203,7 +205,6 @@ export function ReceiptEndingExperience({
           eyebrow="RECEIPT STILL VALID"
           title="The ending choice needs a reset."
           body="The completed receipt has not been changed."
-          slot="recovery"
           headingRef={assignHeadingRef}
           backLabel="RETURN TO THE DOCUMENTED RECEIPT"
           onBack={() => dispatch({ type: 'RECOVER' })}
@@ -230,7 +231,7 @@ export function ReceiptEndingExperience({
 }
 
 function getFocusToken(state: ReceiptEndingState): string | null {
-  if (state.kind === 'settling') return null
+  if (state.kind === 'settling' || state.kind === 'carry-selected') return null
   if (state.kind === 'keep-ritual') {
     return state.phase === 'complete' ? 'keep-complete' : null
   }
@@ -246,7 +247,6 @@ function ReceiptEndingHandoff({
   eyebrow,
   title,
   body,
-  slot,
   headingRef,
   onBack,
   backLabel = 'BACK',
@@ -254,7 +254,6 @@ function ReceiptEndingHandoff({
   eyebrow: string
   title: string
   body: string
-  slot: 'carry' | 'recovery'
   headingRef: Ref<HTMLHeadingElement>
   onBack: () => void
   backLabel?: string
@@ -262,12 +261,12 @@ function ReceiptEndingHandoff({
   return (
     <section
       className="receipt-decision receipt-decision--handoff"
-      data-next-ritual-slot={slot}
-      aria-labelledby={`receipt-ending-${slot}-heading`}
+      data-next-ritual-slot="recovery"
+      aria-labelledby="receipt-ending-recovery-heading"
     >
       <p className="receipt-decision__eyebrow">{eyebrow}</p>
       <h2
-        id={`receipt-ending-${slot}-heading`}
+        id="receipt-ending-recovery-heading"
         ref={headingRef}
         tabIndex={-1}
       >
