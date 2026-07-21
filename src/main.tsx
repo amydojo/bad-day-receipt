@@ -48,6 +48,8 @@ import './carry-forward/carry-forward-accessibility.css'
 import './receipt-ending/receipt-ending.css'
 import './receipt-ending/keep/keep-receipt.css'
 import './receipt-ending/release/release-receipt.css'
+// Keep the in-tree runtime coordinate correction after shared authored motion.
+import './carry-forward/integration/carry-forward-runtime-coordinate-fix.css'
 
 function hasStoredCarryForwardSession(): boolean {
   try {
