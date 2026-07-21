@@ -128,7 +128,9 @@ export function createUndoReleaseProjection({
       ...nextArchive.filter((entry) => (
         entry.receipt.receiptNumber !== pendingRelease.receipt.receiptNumber
       )),
-    ]).slice(0, MAX_PRIVATE_ARCHIVE)
+    ].sort((left, right) => (
+      new Date(right.archivedAt).getTime() - new Date(left.archivedAt).getTime()
+    ))).slice(0, MAX_PRIVATE_ARCHIVE)
   }
 
   return {
