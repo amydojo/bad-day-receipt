@@ -4,9 +4,11 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { analyticsBeforeSend } from './analytics/fieldAnalytics'
 import CarryForwardApp from './carry-forward/CarryForwardApp'
+import CarryForwardDesignationApp from './carry-forward/designation/CarryForwardDesignationApp'
 import { MachineErrorBoundary } from './components/MachineErrorBoundary'
 import { FieldAccessGate } from './field-access/FieldAccessGate'
 import './field-access/canonicalMachineLabels'
+import { THREE_ENDINGS_ENABLED } from './receipt-ending'
 import './styles.css'
 import './cvs-realism'
 import './styles/printer.css'
@@ -46,7 +48,11 @@ import './receipt-ending/receipt-ending.css'
 import './receipt-ending/keep/keep-receipt.css'
 
 const normalizedPath = window.location.pathname.replace(/\/+$/, '') || '/'
-const route = normalizedPath === '/carry-forward' ? <CarryForwardApp /> : <App />
+const route = normalizedPath === '/carry-forward'
+  ? THREE_ENDINGS_ENABLED
+    ? <CarryForwardDesignationApp />
+    : <CarryForwardApp />
+  : <App />
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
