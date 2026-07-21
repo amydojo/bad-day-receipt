@@ -58,14 +58,14 @@ describe('ReleaseReceiptRitual', () => {
     expect(html).toContain('Releasing the receipt.')
   })
 
-  it('shows only Undo after a persistence-confirmed release', () => {
+  it('shows only Undo after a persistence-confirmed release inside its window', () => {
     const state: ReceiptEndingState = {
       kind: 'release-ritual',
       receipt,
       phase: 'complete',
       releaseAttempt: 1,
       origin: { kind: 'pending' },
-      undoUntil: '2026-07-20T12:05:08.000Z',
+      undoUntil: '2099-07-20T12:05:08.000Z',
     }
     const html = renderToStaticMarkup(<ReleaseReceiptRitual {...sharedProps} state={state} />)
     expect(html).toContain('The day can end here.')
@@ -76,7 +76,7 @@ describe('ReleaseReceiptRitual', () => {
     expect(html).not.toContain('CARRY')
   })
 
-  it('distinguishes initial release failure from failed Undo', () => {
+  it('distinguishes initial release, failed Undo, and failed expiry recovery', () => {
     const releaseFailure: ReceiptEndingState = {
       kind: 'release-recovery',
       receipt,
@@ -94,13 +94,26 @@ describe('ReleaseReceiptRitual', () => {
       origin: { kind: 'pending' },
       undoUntil: '2026-07-20T12:05:08.000Z',
     }
+    const expiryFailure: ReceiptEndingState = {
+      kind: 'release-recovery',
+      receipt,
+      reason: 'storage-write-failed',
+      operation: 'expiry',
+      releaseAttempt: 1,
+      origin: { kind: 'pending' },
+      undoUntil: '2026-07-20T12:05:08.000Z',
+    }
     const releaseHtml = renderToStaticMarkup(<ReleaseReceiptRitual {...sharedProps} state={releaseFailure} />)
     const undoHtml = renderToStaticMarkup(<ReleaseReceiptRitual {...sharedProps} state={undoFailure} />)
+    const expiryHtml = renderToStaticMarkup(<ReleaseReceiptRitual {...sharedProps} state={expiryFailure} />)
     expect(releaseHtml).toContain('Nothing has been removed.')
     expect(releaseHtml).toContain('TRY RELEASE AGAIN')
     expect(undoHtml).toContain('The receipt is ready to return.')
     expect(undoHtml).toContain('TRY UNDO AGAIN')
     expect(undoHtml).toContain('RETURN TO RELEASED RECEIPT')
+    expect(expiryHtml).toContain('The release is still closed.')
+    expect(expiryHtml).toContain('TRY FINALIZATION AGAIN')
+    expect(expiryHtml).not.toContain('RETURN TO THE DOCUMENTED RECEIPT')
   })
 
   it('keeps semantic receipt regions and one non-semantic thermal layer', () => {
