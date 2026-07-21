@@ -1,0 +1,20 @@
+.receipt-ending-recovery {
+  position: relative;
+}
+
+.receipt-ending-recovery__boundary {
+  margin: 0;
+  color: var(--bdr-text-secondary-strong, #5e5b55);
+  font: 400 10px/1.5 "DM Mono", monospace;
+  letter-spacing: 0.08em;
+}
+
+.receipt-ending-recovery .receipt-decision__choices {
+  margin-top: clamp(18px, 4vh, 32px);
+}
+
+@media (max-width: 360px), (max-height: 620px) {
+  .receipt-ending-recovery .receipt-decision__choices {
+    margin-top: 14px;
+  }
+}
