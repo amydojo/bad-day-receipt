@@ -241,7 +241,7 @@ export function ReleaseReceiptRitual({
             </span>
             <span className="receipt-decision__choice-description">
               {expiryRecovery
-                ? 'Clear the expired local Undo tombstone without deleting anything again.'
+                ? 'Confirm the expired local release without removing anything again.'
                 : undoRecovery
                   ? 'Attempt to restore the exact local receipt once more.'
                   : 'Attempt the local release once more.'}
@@ -282,6 +282,9 @@ export function ReleaseReceiptRitual({
   }
 
   if (state.phase === 'complete' || state.phase === 'undoing') {
+    const undoExpired = Boolean(
+      state.undoUntil && new Date(state.undoUntil).getTime() <= Date.now(),
+    )
     return (
       <section
         className="release-completion receipt-decision"
@@ -296,10 +299,14 @@ export function ReleaseReceiptRitual({
         <button
           className="receipt-decision__back"
           type="button"
-          disabled={state.phase === 'undoing'}
+          disabled={state.phase === 'undoing' || undoExpired}
           onClick={() => dispatch({ type: 'UNDO_RELEASE' })}
         >
-          {state.phase === 'undoing' ? 'RESTORING RECEIPT…' : 'UNDO RELEASE'}
+          {state.phase === 'undoing'
+            ? 'RESTORING RECEIPT…'
+            : undoExpired
+              ? 'FINALIZING RELEASE…'
+              : 'UNDO RELEASE'}
         </button>
       </section>
     )
