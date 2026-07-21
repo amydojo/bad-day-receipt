@@ -5,9 +5,12 @@ on:
     paths:
       - '.github/workflows/three-endings-foundation.yml'
       - 'docs/receipt-ending-state-machine.md'
+      - 'docs/three-endings-hardening-*.md'
       - 'package.json'
       - 'package-lock.json'
       - 'src/App.tsx'
+      - 'src/motion/**'
+      - 'src/mobile-instrument/sensory/**'
       - 'src/carry-forward/CarryForwardPrimitives.tsx'
       - 'src/carry-forward/designation/**'
       - 'src/carry-forward/integration/**'
@@ -18,13 +21,19 @@ on:
       - 'src/receipt-ending/**'
       - 'src/soft-machine/persistence.ts'
       - 'src/soft-machine/persistence.test.ts'
+      - 'tests/fixtures/threeEndingsFaults.ts'
       - 'tests/e2e/carry-designation.spec.ts'
       - 'tests/e2e/carry-forward-in-tree.spec.ts'
       - 'tests/e2e/carry-forward-ritual.spec.ts'
+      - 'tests/e2e/keep-receipt.spec.ts'
+      - 'tests/e2e/release-receipt.spec.ts'
       - 'tests/e2e/three-endings-foundation.spec.ts'
+      - 'tests/e2e/three-endings-hardening.spec.ts'
+      - 'tests/e2e/three-endings-history.spec.ts'
       - 'tests/visual/carry-designation.spec.ts'
       - 'tests/visual/carry-forward-in-tree.spec.ts'
       - 'tests/visual/carry-forward-ritual.spec.ts'
+      - 'tests/visual/three-endings-hardening.spec.ts'
   workflow_dispatch:
 
 permissions:
@@ -37,7 +46,7 @@ concurrency:
 jobs:
   foundation-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -45,20 +54,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run test:receipt-regression
-      - run: npm run test:carry-forward
-      - run: npm run build
+      - name: Run full unit suite
+        run: npm test
       - run: npx playwright install --with-deps chromium
-      - name: Run focused Three Endings browser tests
+      - name: Run exact Three Endings release command
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/three-endings-results.json
-        run: VITE_THREE_ENDINGS=true npx playwright test tests/e2e/three-endings-foundation.spec.ts tests/e2e/carry-designation.spec.ts tests/e2e/carry-forward-ritual.spec.ts tests/e2e/carry-forward-in-tree.spec.ts --project=chromium-desktop --reporter=json
-      - name: Run Carry visual fixtures
+        run: npm run release:three-endings
+      - name: Run Three Endings visual fixtures
         env:
-          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/carry-visual-results.json
-        run: VITE_THREE_ENDINGS=true npx playwright test tests/visual/carry-designation.spec.ts tests/visual/carry-forward-ritual.spec.ts tests/visual/carry-forward-in-tree.spec.ts --project=chromium-desktop --reporter=json
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/three-endings-visual-results.json
+        run: VITE_THREE_ENDINGS=true npx playwright test tests/visual/carry-designation.spec.ts tests/visual/carry-forward-ritual.spec.ts tests/visual/carry-forward-in-tree.spec.ts tests/visual/three-endings-hardening.spec.ts --project=chromium-desktop --reporter=json
       - name: Upload focused browser evidence
         if: always()
         uses: actions/upload-artifact@v4
