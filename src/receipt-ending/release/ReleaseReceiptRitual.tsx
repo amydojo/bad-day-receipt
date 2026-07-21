@@ -49,12 +49,13 @@ export function ReleaseReceiptRitual({
     undoUntil: string,
   ) => Promise<ReleaseCommitResult> | ReleaseCommitResult
   onUndoRelease: () => Promise<UndoReleaseResult> | UndoReleaseResult
-  onExpireRelease: () => Promise<void> | void
+  onExpireRelease: () => Promise<ReleaseCommitResult> | ReleaseCommitResult
   onExportLocalCopy: (receipt: CompletedReceiptSnapshot) => Promise<boolean>
   onReturnToSource: (origin: ReleaseOrigin) => void
 }) {
   const commitPromises = useRef(new Map<string, Promise<ReleaseCommitResult>>())
   const undoPromises = useRef(new Map<string, Promise<UndoReleaseResult>>())
+  const expiryPromises = useRef(new Map<string, Promise<ReleaseCommitResult>>())
   const emittedMilestones = useRef(new Set<string>())
   const [exportMessage, setExportMessage] = useState('')
   const [exportBusy, setExportBusy] = useState(false)
@@ -152,8 +153,29 @@ export function ReleaseReceiptRitual({
     if (state.kind !== 'release-ritual' || state.phase !== 'complete' || !state.undoUntil) return
     const remaining = new Date(state.undoUntil).getTime() - Date.now()
     const expire = () => {
-      void Promise.resolve(onExpireRelease())
-        .finally(() => dispatch({ type: 'RELEASE_UNDO_EXPIRED' }))
+      const key = `${state.receipt.receiptNumber}:${state.undoUntil}:expiry`
+      let promise = expiryPromises.current.get(key)
+      if (!promise) {
+        promise = Promise.resolve(onExpireRelease())
+        expiryPromises.current.set(key, promise)
+      }
+
+      void promise
+        .then((result) => {
+          if (result.status === 'saved') {
+            dispatch({ type: 'RELEASE_UNDO_EXPIRED' })
+            return
+          }
+          dispatch({
+            type: 'RELEASE_EXPIRY_FAILED',
+            reason: result.status === 'unavailable'
+              ? 'storage-unavailable'
+              : result.reason ?? 'storage-write-failed',
+          })
+        })
+        .catch(() => {
+          dispatch({ type: 'RELEASE_EXPIRY_FAILED', reason: 'storage-write-failed' })
+        })
     }
     if (remaining <= 0) {
       expire()
@@ -165,6 +187,7 @@ export function ReleaseReceiptRitual({
 
   if (state.kind === 'release-recovery') {
     const undoRecovery = state.operation === 'undo'
+    const expiryRecovery = state.operation === 'expiry'
     const exportCopy = async () => {
       if (exportBusy) return
       setExportBusy(true)
@@ -185,26 +208,42 @@ export function ReleaseReceiptRitual({
       >
         <p className="receipt-decision__eyebrow">RECEIPT STILL VALID</p>
         <h2 id="release-recovery-heading" ref={headingRef} tabIndex={-1}>
-          {undoRecovery ? 'The receipt is ready to return.' : 'The receipt is still here.'}
+          {expiryRecovery
+            ? 'The release is still closed.'
+            : undoRecovery
+              ? 'The receipt is ready to return.'
+              : 'The receipt is still here.'}
         </h2>
         <p className="receipt-decision__body">
-          {undoRecovery
-            ? 'The undo could not be confirmed on this device. The released record remains available during its undo window.'
-            : 'The release could not be confirmed on this device. Nothing has been removed.'}
+          {expiryRecovery
+            ? 'The Undo window ended, but local finalization could not be confirmed on this device.'
+            : undoRecovery
+              ? 'The undo could not be confirmed on this device. The released record remains available during its undo window.'
+              : 'The release could not be confirmed on this device. Nothing has been removed.'}
         </p>
         <div className="receipt-decision__choices release-recovery__choices">
           <button
             className="receipt-decision__choice"
             type="button"
-            onClick={() => dispatch(undoRecovery
-              ? { type: 'RETRY_UNDO_RELEASE' }
-              : { type: 'RETRY_RELEASE', undoUntil: createReleaseUndoUntil() })}
+            onClick={() => dispatch(expiryRecovery
+              ? { type: 'RETRY_RELEASE_EXPIRY' }
+              : undoRecovery
+                ? { type: 'RETRY_UNDO_RELEASE' }
+                : { type: 'RETRY_RELEASE', undoUntil: createReleaseUndoUntil() })}
           >
             <span className="receipt-decision__choice-label">
-              {undoRecovery ? 'TRY UNDO AGAIN' : 'TRY RELEASE AGAIN'}
+              {expiryRecovery
+                ? 'TRY FINALIZATION AGAIN'
+                : undoRecovery
+                  ? 'TRY UNDO AGAIN'
+                  : 'TRY RELEASE AGAIN'}
             </span>
             <span className="receipt-decision__choice-description">
-              {undoRecovery ? 'Attempt to restore the exact local receipt once more.' : 'Attempt the local release once more.'}
+              {expiryRecovery
+                ? 'Clear the expired local Undo tombstone without deleting anything again.'
+                : undoRecovery
+                  ? 'Attempt to restore the exact local receipt once more.'
+                  : 'Attempt the local release once more.'}
             </span>
           </button>
           <button
@@ -216,23 +255,25 @@ export function ReleaseReceiptRitual({
             <span className="receipt-decision__choice-label">EXPORT A LOCAL COPY</span>
             <span className="receipt-decision__choice-description">Save the receipt directly to this device.</span>
           </button>
-          <button
-            className="receipt-decision__choice"
-            type="button"
-            onClick={() => {
-              if (undoRecovery) dispatch({ type: 'RETURN_TO_RELEASED_COMPLETION' })
-              else onReturnToSource(state.origin)
-            }}
-          >
-            <span className="receipt-decision__choice-label">
-              {undoRecovery ? 'RETURN TO RELEASED RECEIPT' : 'RETURN TO THE DOCUMENTED RECEIPT'}
-            </span>
-            <span className="receipt-decision__choice-description">
-              {undoRecovery
-                ? 'Keep the released completion and its remaining Undo action.'
-                : 'Leave the release without changing the receipt.'}
-            </span>
-          </button>
+          {!expiryRecovery && (
+            <button
+              className="receipt-decision__choice"
+              type="button"
+              onClick={() => {
+                if (undoRecovery) dispatch({ type: 'RETURN_TO_RELEASED_COMPLETION' })
+                else onReturnToSource(state.origin)
+              }}
+            >
+              <span className="receipt-decision__choice-label">
+                {undoRecovery ? 'RETURN TO RELEASED RECEIPT' : 'RETURN TO THE DOCUMENTED RECEIPT'}
+              </span>
+              <span className="receipt-decision__choice-description">
+                {undoRecovery
+                  ? 'Keep the released completion and its remaining Undo action.'
+                  : 'Leave the release without changing the receipt.'}
+              </span>
+            </button>
+          )}
         </div>
         <p className="release-recovery__status" aria-live="polite">{exportMessage}</p>
       </section>
