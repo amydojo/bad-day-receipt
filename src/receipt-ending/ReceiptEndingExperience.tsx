@@ -5,6 +5,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react'
+import { CarryForwardDesignation } from '../carry-forward/designation/CarryForwardDesignation'
 import type { MachineSensoryDirector } from '../mobile-instrument/sensory/sensoryTypes'
 import type { CompletedReceiptSnapshot } from './completedReceipt'
 import { EndDispositionChoice } from './EndDispositionChoice'
@@ -163,13 +164,12 @@ export function ReceiptEndingExperience({
 
     case 'carry-selected':
       surface = (
-        <ReceiptEndingHandoff
-          eyebrow="OPTIONAL CONTINUATION"
-          title="One thing may be carried forward."
-          body="Nothing has been designated yet."
-          slot="carry"
-          headingRef={assignHeadingRef}
-          onBack={() => dispatch({ type: 'BACK_TO_DOCUMENTED' })}
+        <CarryForwardDesignation
+          origin={{
+            kind: 'receipt',
+            receiptId: state.receipt.receiptNumber,
+          }}
+          onNothingAfterAll={() => dispatch({ type: 'BACK_TO_DOCUMENTED' })}
         />
       )
       break
@@ -206,7 +206,7 @@ export function ReceiptEndingExperience({
 }
 
 function getFocusToken(state: ReceiptEndingState): string | null {
-  if (state.kind === 'settling') return null
+  if (state.kind === 'settling' || state.kind === 'carry-selected') return null
   if (state.kind === 'keep-ritual') {
     return state.phase === 'complete' ? 'keep-complete' : null
   }
@@ -225,7 +225,7 @@ function ReceiptEndingHandoff({
   eyebrow: string
   title: string
   body: string
-  slot: 'release' | 'carry' | 'recovery'
+  slot: 'release' | 'recovery'
   headingRef: Ref<HTMLHeadingElement>
   onBack: () => void
   backLabel?: string
