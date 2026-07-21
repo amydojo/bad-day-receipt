@@ -1,0 +1,390 @@
+.carry-ritual {
+  --carry-coral: #ff6f61;
+  --carry-ink: #171716;
+  --carry-paper: #f5f0e6;
+  --carry-transfer: rgba(255, 220, 208, 0.92);
+  display: grid;
+  gap: 1.25rem;
+  width: min(100%, 42rem);
+  margin: 0 auto;
+  color: var(--carry-ink);
+}
+
+.carry-ritual__header {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 36rem;
+}
+
+.carry-ritual__header h2,
+.carry-actuator h3 {
+  margin: 0;
+  text-wrap: balance;
+}
+
+.carry-ritual__header p,
+.carry-actuator header p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.carry-ritual__machine-stage {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  min-height: 23rem;
+  padding: 1rem 0 0;
+  overflow: clip visible;
+  isolation: isolate;
+}
+
+.carry-ritual__secondary-intake {
+  width: min(82%, 22rem);
+  height: 2.75rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 0.7rem 0.7rem 1rem 1rem;
+  background: linear-gradient(180deg, #232322, #0b0b0a);
+  color: #f7f2e8;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  opacity: 0;
+  transform: translateY(-0.7rem) scaleY(0.7);
+  transition: opacity 220ms ease, transform 320ms cubic-bezier(.2,.8,.2,1);
+}
+
+.carry-ritual[data-carry-ritual-phase="stub-separated"] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase="stub-aligning"] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase="stub-intake"] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase^="actuator-"] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase="released-early"] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase="transform-registering"] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase="transfer-issuing"] .carry-ritual__secondary-intake,
+.carry-ritual[data-carry-ritual-phase="transfer-issued"] .carry-ritual__secondary-intake {
+  opacity: 1;
+  transform: translateY(0) scaleY(1);
+}
+
+.carry-stub {
+  --carry-tear-progress: 0;
+  --carry-intake-progress: 0;
+  position: relative;
+  z-index: 2;
+  width: min(78vw, 19rem);
+  touch-action: none;
+  user-select: none;
+  transform-origin: 50% 0;
+  transform:
+    translate3d(
+      calc(var(--carry-tear-progress) * 1.25rem),
+      calc(var(--carry-tear-progress) * 4.5rem - var(--carry-intake-progress) * 7rem),
+      0
+    )
+    rotate(calc(var(--carry-stub-rotation) * var(--carry-tear-progress)));
+  transition: transform 180ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease;
+}
+
+.carry-stub[data-stub-phase="stub-aligning"] {
+  transform: translate3d(0, -3rem, 0) rotate(0deg);
+}
+
+.carry-stub[data-stub-phase="stub-intake"] {
+  transform: translate3d(0, -7rem, 0) scaleY(0.62);
+  opacity: 0.82;
+}
+
+.carry-stub[data-stub-phase="actuator-revealing"],
+.carry-stub[data-stub-phase^="actuator-"],
+.carry-stub[data-stub-phase="released-early"] {
+  transform: translate3d(0, -8.4rem, 0) scaleY(0.3);
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.carry-stub[data-stub-transfer] {
+  transform: translate3d(0, -0.5rem, 0) rotate(var(--carry-stub-rotation));
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.carry-stub__paper,
+.field-transfer {
+  position: relative;
+  display: grid;
+  gap: 0.8rem;
+  min-height: 15rem;
+  padding: 1.25rem 1.1rem 1.1rem;
+  border: 1px solid rgba(23, 23, 22, 0.18);
+  background:
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(30, 25, 20, 0.025) 3px 4px),
+    var(--carry-paper);
+  box-shadow: 0 1.1rem 2.8rem rgba(21, 18, 15, 0.16);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.carry-stub__serial,
+.carry-stub__signal,
+.field-transfer__serial,
+.field-transfer__capacity {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+}
+
+.carry-stub__signal,
+.field-transfer__capacity {
+  padding-top: 0.7rem;
+  border-top: 1px solid currentColor;
+}
+
+.carry-stub__paper strong,
+.field-transfer__obligation {
+  font-size: 1rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.carry-stub__perforation {
+  align-self: end;
+  display: grid;
+  place-items: center;
+  min-height: 2.8rem;
+  margin: 0 -1.1rem -1.1rem;
+  border-top: 2px dashed var(--carry-coral);
+  color: #b7352d;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+}
+
+.carry-stub__registration,
+.field-transfer__registration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.carry-stub__registration span,
+.field-transfer__registration span {
+  position: absolute;
+  width: 0.72rem;
+  height: 0.72rem;
+  border: 1px solid var(--carry-coral);
+}
+
+.carry-stub__registration span:first-child { left: -0.36rem; top: 2rem; }
+.carry-stub__registration span:last-child { right: -0.36rem; bottom: 2rem; }
+
+.carry-stub__action,
+.carry-ritual__recovery-action button,
+.field-transfer__actions button {
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: #171716;
+  color: #fffaf0;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.carry-actuator {
+  width: min(100%, 30rem);
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--carry-paper) 78%, transparent);
+}
+
+.carry-actuator__bay {
+  position: relative;
+  min-height: 13rem;
+  display: grid;
+  place-items: start center;
+  padding: 1rem 3rem;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #272725, #0b0b0a);
+  overflow: hidden;
+}
+
+.carry-actuator__track {
+  position: absolute;
+  inset: 1.3rem auto 1.3rem 50%;
+  width: 0.34rem;
+  transform: translateX(-50%);
+  border-radius: 99px;
+  background: linear-gradient(180deg, #686862, var(--carry-coral));
+}
+
+.carry-actuator__track span {
+  position: absolute;
+  left: 1rem;
+  color: #efebe2;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+}
+
+.carry-actuator__track span[data-mark="55"] { top: 55%; }
+.carry-actuator__track span[data-mark="80"] { top: 80%; }
+.carry-actuator__track span[data-mark="92"] { top: 92%; color: #ffd0ca; }
+
+.carry-actuator__handle {
+  --actuator-progress: 0;
+  --actuator-resisted-progress: 0;
+  position: relative;
+  z-index: 2;
+  width: 5.25rem;
+  min-height: 4rem;
+  border: 2px solid #f4eee4;
+  border-radius: 1.25rem;
+  background: var(--carry-coral);
+  color: #24100d;
+  font: inherit;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  transform: translateY(calc(var(--actuator-resisted-progress) * 8.6rem));
+  transition: transform 90ms linear, border-radius 120ms ease;
+  touch-action: none;
+  cursor: ns-resize;
+}
+
+.carry-actuator[data-actuator-milestone="detent"] .carry-actuator__handle {
+  outline: 3px double #fff6e9;
+  outline-offset: 2px;
+}
+
+.carry-actuator[data-actuator-milestone="locked"] .carry-actuator__handle {
+  border-radius: 0.45rem;
+  box-shadow: inset 0 0 0 3px #2a1714;
+}
+
+.carry-actuator__handle:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.carry-actuator__status {
+  min-height: 1.5rem;
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.field-transfer {
+  min-height: 20rem;
+  background:
+    linear-gradient(var(--carry-transfer), var(--carry-transfer)),
+    repeating-linear-gradient(0deg, transparent 0 3px, rgba(30, 25, 20, 0.04) 3px 4px),
+    var(--carry-paper);
+  clip-path: inset(calc((1 - var(--transfer-registration, 1)) * 100%) 0 0 0);
+}
+
+.carry-stub[data-stub-phase="transform-registering"] .field-transfer {
+  --transfer-registration: 0.55;
+  animation: carry-transfer-register 680ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.carry-stub[data-stub-phase="transfer-issuing"] .field-transfer,
+.carry-stub[data-stub-phase="transfer-issued"] .field-transfer {
+  --transfer-registration: 1;
+}
+
+.field-transfer__registration span:nth-child(1) { left: -0.36rem; top: 2rem; }
+.field-transfer__registration span:nth-child(2) { right: -0.36rem; top: 50%; }
+.field-transfer__registration span:nth-child(3) { left: -0.36rem; bottom: 2rem; }
+
+.field-transfer__policy {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.8rem 0;
+  border-block: 1px solid currentColor;
+}
+
+.field-transfer__policy div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.field-transfer__policy dt,
+.field-transfer__policy dd {
+  margin: 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+}
+
+.field-transfer__statement,
+.field-transfer__boundary,
+.field-transfer__pending {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.field-transfer__actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.field-transfer__actions button {
+  margin: 0;
+  padding-inline: 0.4rem;
+}
+
+.field-transfer__actions button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.field-transfer__pending {
+  grid-column: 1 / -1;
+  font-size: 0.72rem;
+}
+
+.carry-ritual__recovery-action {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 1rem;
+}
+
+.carry-ritual__recovery-action p { margin: 0; }
+
+@keyframes carry-transfer-register {
+  from { clip-path: inset(100% 0 0 0); filter: saturate(0.5); }
+  to { clip-path: inset(0 0 0 0); filter: saturate(1); }
+}
+
+@media (max-width: 38rem) {
+  .carry-ritual { gap: 1rem; }
+  .carry-ritual__machine-stage { min-height: 20rem; }
+  .carry-actuator__bay { min-height: 12rem; padding-inline: 1.5rem; }
+  .field-transfer__actions { grid-template-columns: 1fr; }
+  .field-transfer__pending { grid-column: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carry-stub,
+  .carry-ritual__secondary-intake,
+  .carry-actuator__handle,
+  .field-transfer {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.carry-ritual[data-reduced-motion] .carry-stub,
+.carry-ritual[data-reduced-motion] .carry-ritual__secondary-intake,
+.carry-ritual[data-reduced-motion] .carry-actuator__handle,
+.carry-ritual[data-reduced-motion] .field-transfer {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+}
