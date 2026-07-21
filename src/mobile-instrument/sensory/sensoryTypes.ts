@@ -13,9 +13,19 @@ export type MachineSensoryEvent =
   | 'archive-label'
   | 'archive-close'
   | 'thermal-unprint-start'
+  | 'thermal-unprint-complete'
   | 'paper-tension-release'
   | 'release-corner'
   | 'release-close'
+  | 'carry-stub-tear'
+  | 'carry-intake-start'
+  | 'carry-intake-stop'
+  | 'actuator-medium'
+  | 'actuator-heavy'
+  | 'actuator-detent'
+  | 'actuator-lock'
+  | 'transfer-register'
+  | 'transfer-issued'
 
 export interface SensoryPreferences {
   soundEnabled: boolean
