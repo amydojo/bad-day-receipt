@@ -11,6 +11,7 @@ import {
   createCarryRitualCheckpoint,
   getCarryRitualPhaseAdvance,
   getFallbackActuatorSequence,
+  getNextFallbackActuatorEvent,
   type CarryRitualCheckpoint,
 } from './carryForwardRitualEffects'
 import {
@@ -105,6 +106,11 @@ export function CarryForwardRitual({
     ))
   }
 
+  const stepActuatorFallback = () => {
+    if (!state.phase.startsWith('actuator-') || state.phase === 'actuator-locked') return
+    dispatch(getNextFallbackActuatorEvent(state.actuatorMilestone))
+  }
+
   const handoff: CarryRitualHandoff = {
     obligation: state.payload.obligation,
     sourceText: state.payload.sourceText,
@@ -132,12 +138,12 @@ export function CarryForwardRitual({
       data-carry-ritual
       data-carry-ritual-phase={state.phase}
       data-reduced-motion={reducedMotion || undefined}
-      aria-labelledby="carry-ritual-heading"
+      aria-labelledby="carry-designation-heading"
       aria-busy={BUSY_PHASES.has(state.phase)}
     >
       <header className="carry-ritual__header">
         <p className="cf-eyebrow">CARRY FORWARD · SAME MATERIAL</p>
-        <h2 id="carry-ritual-heading" ref={headingRef} tabIndex={-1}>
+        <h2 id="carry-designation-heading" ref={headingRef} tabIndex={-1}>
           {getPhaseHeading(state.phase)}
         </h2>
         <p>{getPhaseDescription(state.phase)}</p>
@@ -184,6 +190,7 @@ export function CarryForwardRitual({
             })}
             onRelease={() => dispatch({ type: 'ACTUATOR_RELEASED' })}
             onFallback={runActuatorFallback}
+            onStepFallback={stepActuatorFallback}
           />
         )}
       </div>
