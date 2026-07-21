@@ -7,6 +7,7 @@ import {
 } from 'react'
 import type { MachineSensoryDirector } from '../../mobile-instrument/sensory/sensoryTypes'
 import type { CompletedReceiptSnapshot } from '../completedReceipt'
+import { getRecoveryCopy } from '../recovery/recoveryCopy'
 import type {
   ReceiptEndingEvent,
   ReceiptEndingState,
@@ -152,8 +153,13 @@ export function ReleaseReceiptRitual({
 
   useEffect(() => {
     if (state.kind !== 'release-ritual' || state.phase !== 'complete' || !state.undoUntil) return
-    const remaining = new Date(state.undoUntil).getTime() - Date.now()
+
+    let canceled = false
+    let timeout: number | null = null
+    const deadline = new Date(state.undoUntil).getTime()
+
     const expire = () => {
+      if (canceled) return
       const key = `${state.receipt.receiptNumber}:${state.undoUntil}:expiry`
       let promise = expiryPromises.current.get(key)
       if (!promise) {
@@ -163,6 +169,7 @@ export function ReleaseReceiptRitual({
 
       void promise
         .then((result) => {
+          if (canceled) return
           if (result.status === 'saved') {
             dispatch({ type: 'RELEASE_UNDO_EXPIRED' })
             return
@@ -175,20 +182,39 @@ export function ReleaseReceiptRitual({
           })
         })
         .catch(() => {
-          dispatch({ type: 'RELEASE_EXPIRY_FAILED', reason: 'storage-write-failed' })
+          if (!canceled) dispatch({ type: 'RELEASE_EXPIRY_FAILED', reason: 'storage-write-failed' })
         })
     }
-    if (remaining <= 0) {
-      expire()
-      return
+
+    const reconcileDeadline = () => {
+      if (Date.now() >= deadline) expire()
     }
-    const timeout = window.setTimeout(expire, remaining)
-    return () => window.clearTimeout(timeout)
+
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) expire()
+    else timeout = window.setTimeout(expire, remaining)
+
+    document.addEventListener('visibilitychange', reconcileDeadline)
+    window.addEventListener('pageshow', reconcileDeadline)
+
+    return () => {
+      canceled = true
+      if (timeout !== null) window.clearTimeout(timeout)
+      document.removeEventListener('visibilitychange', reconcileDeadline)
+      window.removeEventListener('pageshow', reconcileDeadline)
+    }
   }, [dispatch, onExpireRelease, state])
 
   if (state.kind === 'release-recovery') {
     const undoRecovery = state.operation === 'undo'
     const expiryRecovery = state.operation === 'expiry'
+    const copy = getRecoveryCopy(
+      expiryRecovery
+        ? 'release-expiry'
+        : undoRecovery
+          ? 'release-undo'
+          : 'release-storage',
+    )
     const exportCopy = async () => {
       if (exportBusy) return
       setExportBusy(true)
@@ -207,21 +233,11 @@ export function ReleaseReceiptRitual({
         data-release-recovery-operation={state.operation}
         aria-labelledby="release-recovery-heading"
       >
-        <p className="receipt-decision__eyebrow">RECEIPT STILL VALID</p>
+        <p className="receipt-decision__eyebrow">{copy.eyebrow}</p>
         <h2 id="release-recovery-heading" ref={headingRef} tabIndex={-1}>
-          {expiryRecovery
-            ? 'The release is still closed.'
-            : undoRecovery
-              ? 'The receipt is ready to return.'
-              : 'The receipt is still here.'}
+          {copy.title}
         </h2>
-        <p className="receipt-decision__body">
-          {expiryRecovery
-            ? 'The Undo window ended, but local finalization could not be confirmed on this device.'
-            : undoRecovery
-              ? 'The undo could not be confirmed on this device. The released record remains available during its undo window.'
-              : 'The release could not be confirmed on this device. Nothing has been removed.'}
-        </p>
+        <p className="receipt-decision__body">{copy.body}</p>
         <div className="receipt-decision__choices release-recovery__choices">
           <button
             className="receipt-decision__choice"
