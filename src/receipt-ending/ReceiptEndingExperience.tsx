@@ -59,7 +59,7 @@ export function ReceiptEndingExperience({
     undoUntil: string,
   ) => Promise<ReleaseCommitResult> | ReleaseCommitResult
   onUndoRelease: () => Promise<UndoReleaseResult> | UndoReleaseResult
-  onExpireRelease: () => Promise<void> | void
+  onExpireRelease: () => Promise<ReleaseCommitResult> | ReleaseCommitResult
   onExportLocalCopy: (receipt: CompletedReceiptSnapshot) => Promise<boolean>
   onReturnFromRelease: (origin: ReleaseOrigin) => void
   onCloseKeepCompletion: () => void
