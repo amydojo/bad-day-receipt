@@ -22,6 +22,7 @@ export function MechanicalActuator({
   onMilestone,
   onRelease,
   onFallback,
+  onStepFallback,
 }: {
   phase: CarryRitualPhase
   progress: number
@@ -29,6 +30,7 @@ export function MechanicalActuator({
   onMilestone: (milestone: ActuatorMilestone, progress: number) => void
   onRelease: () => void
   onFallback: () => void
+  onStepFallback: () => void
 }) {
   const handleRef = useRef<HTMLButtonElement | null>(null)
   const pointer = useRef<{
@@ -100,9 +102,15 @@ export function MechanicalActuator({
   }
 
   const activateKeyboardFallback = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!interactive) return
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      onStepFallback()
+      return
+    }
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
-    if (interactive) onFallback()
+    onFallback()
   }
 
   const handleClick = () => {
@@ -141,7 +149,7 @@ export function MechanicalActuator({
           type="button"
           disabled={!interactive}
           aria-label="Push actuator to convert"
-          aria-describedby="carry-actuator-status"
+          aria-describedby="carry-actuator-status carry-actuator-keyboard-hint"
           onPointerDown={begin}
           onPointerMove={move}
           onPointerUp={end}
@@ -156,6 +164,9 @@ export function MechanicalActuator({
           <span aria-hidden="true">PUSH</span>
         </button>
       </div>
+      <p id="carry-actuator-keyboard-hint" className="sr-only">
+        Press Enter or Space to run the complete push. Press Arrow Down to advance one force milestone at a time.
+      </p>
       <p id="carry-actuator-status" className="carry-actuator__status" aria-live="polite">
         {phase === 'actuator-locked'
           ? 'Actuator locked. Conversion registered.'
