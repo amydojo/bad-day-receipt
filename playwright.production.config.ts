@@ -7,7 +7,7 @@ if (!baseURL) {
 }
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: './tests/production',
   testMatch: 'production-three-endings-smoke.spec.ts',
   fullyParallel: false,
   workers: 1,
