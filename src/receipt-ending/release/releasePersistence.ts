@@ -55,6 +55,8 @@ export function createReleaseProjection({
   undoUntil: string
 }): ReleaseProjection | null {
   if (!isIsoDate(undoUntil)) return null
+  const undoDeadline = new Date(undoUntil).getTime()
+  const decidedAt = new Date(undoDeadline - RELEASE_UNDO_MS).toISOString()
 
   const previousDisposition = receiptDispositions.find((entry) => (
     entry.receiptNumber === receipt.receiptNumber
@@ -91,7 +93,7 @@ export function createReleaseProjection({
     receiptDispositions: replaceDisposition(receiptDispositions, {
       receiptNumber: receipt.receiptNumber,
       disposition: 'released',
-      decidedAt: undoUntil,
+      decidedAt,
     }),
   }
 }
