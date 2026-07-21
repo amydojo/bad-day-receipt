@@ -21,7 +21,11 @@ export function parsePendingRelease(value: unknown): PendingRelease | null {
   const receipt = parseCompletedReceiptSnapshot(value.receipt)
   if (!receipt || Number.isNaN(Date.parse(value.undoUntil))) return null
 
-  const origin = parseReleaseOrigin(value.origin) ?? { kind: 'pending' as const }
+  const origin = value.origin == null
+    ? { kind: 'pending' as const }
+    : parseReleaseOrigin(value.origin)
+  if (!origin) return null
+
   const previousDisposition = value.previousDisposition == null
     ? null
     : parseReceiptDisposition(value.previousDisposition)
