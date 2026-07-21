@@ -136,6 +136,18 @@ function transitionActiveState(
           undoUntil: state.undoUntil,
         }
       }
+      if (state.operation === 'expiry'
+        && event.type === 'RETRY_RELEASE_EXPIRY'
+        && state.undoUntil) {
+        return {
+          kind: 'release-ritual',
+          receipt: state.receipt,
+          phase: 'complete',
+          releaseAttempt: state.releaseAttempt,
+          origin: state.origin,
+          undoUntil: state.undoUntil,
+        }
+      }
       if (state.operation === 'undo'
         && event.type === 'RETURN_TO_RELEASED_COMPLETION'
         && state.undoUntil) {
@@ -226,6 +238,17 @@ function transitionReleaseRitual(
       return state
     case 'complete':
       if (event.type === 'UNDO_RELEASE') return { ...state, phase: 'undoing' }
+      if (event.type === 'RELEASE_EXPIRY_FAILED' && state.undoUntil) {
+        return {
+          kind: 'release-recovery',
+          receipt: state.receipt,
+          reason: event.reason,
+          operation: 'expiry',
+          releaseAttempt: state.releaseAttempt,
+          origin: state.origin,
+          undoUntil: state.undoUntil,
+        }
+      }
       if (event.type === 'RELEASE_UNDO_EXPIRED' || event.type === 'CLOSE_RELEASE_COMPLETION') return null
       return state
     case 'undoing':
