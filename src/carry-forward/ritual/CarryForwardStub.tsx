@@ -1,5 +1,6 @@
 import {
   useRef,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
@@ -130,7 +131,7 @@ export function CarryForwardStub({
       data-stub-attached={isAttached || undefined}
       data-stub-separated={isSeparated || undefined}
       data-stub-transfer={isTransfer || undefined}
-      style={{ '--carry-stub-rotation': `${getStubRotation(stubId)}deg` } as React.CSSProperties}
+      style={{ '--carry-stub-rotation': `${getStubRotation(stubId)}deg` } as CSSProperties}
       onPointerDown={beginGesture}
       onPointerMove={moveGesture}
       onPointerUp={endGesture}
