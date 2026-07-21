@@ -41,7 +41,7 @@ test.describe('Three Endings shared decision', () => {
     await expect(page.locator('.cf-machine-entry')).not.toBeVisible()
   })
 
-  test('shared Release and Carry choices preserve the exact receipt root', async ({ page }) => {
+  test('shared Release handoff and Carry designation preserve the exact receipt root', async ({ page }) => {
     await openMachine(page)
     await commitTransaction(page)
     await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })
@@ -67,9 +67,9 @@ test.describe('Three Endings shared decision', () => {
     await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused()
 
     await page.getByRole('button', { name: /CARRY ONE THING FORWARD/ }).click()
-    await expect(page.getByRole('heading', { name: 'One thing may be carried forward.' })).toBeFocused()
+    await expect(page.getByRole('heading', { name: 'What is still asking something from you?' })).toBeFocused()
     expect(await sameReceiptIsMounted()).toBe(true)
-    await page.getByRole('button', { name: 'BACK', exact: true }).click()
+    await page.getByRole('button', { name: 'NOTHING AFTER ALL' }).click()
     await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused()
     expect(await sameReceiptIsMounted()).toBe(true)
   })
@@ -123,10 +123,7 @@ test.describe('Three Endings shared decision', () => {
   test('receipt persistence excludes Carry Forward task context', async ({ page }) => {
     await openMachine(page)
     await commitTransaction(page)
-    await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeVisible({
-      timeout: 20_000,
-    })
-
+    await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeVisible({ timeout: 20_000 })
     const serialized = await page.evaluate((key) => window.localStorage.getItem(key) ?? '', machineStorageKey)
     expect(serialized).not.toContain('composeDrafts')
     expect(serialized).not.toContain('User-provided source')
@@ -135,6 +132,6 @@ test.describe('Three Endings shared decision', () => {
 
   test('direct Carry Forward remains separately addressable', async ({ page }) => {
     await page.goto('/carry-forward')
-    await expect(page.getByRole('heading', { name: 'What still needs doing?' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'What is still asking something from you?' })).toBeVisible()
   })
 })
