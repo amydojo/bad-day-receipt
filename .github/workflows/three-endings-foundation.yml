@@ -12,7 +12,7 @@ on:
       - 'package-lock.json'
       - 'playwright.production.config.ts'
       - 'scripts/assert-production-three-endings.mjs'
-      - 'scripts/assert-production-three-endings.test.mjs'
+      - 'scripts/assert-production-three-endings.node-test.mjs'
       - 'src/App.tsx'
       - 'src/motion/**'
       - 'src/mobile-instrument/sensory/**'
