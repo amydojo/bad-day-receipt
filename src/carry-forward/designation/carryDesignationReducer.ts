@@ -37,6 +37,7 @@ export function carryDesignationReducer(
   switch (state.kind) {
     case 'choosing':
       if (event.type === 'SELECT_SUGGESTION'
+        && event.obligation.confirmedByUser
         && state.suggestion?.text === event.obligation.text) {
         return {
           kind: 'source',
@@ -46,6 +47,7 @@ export function carryDesignationReducer(
         }
       }
       if (event.type === 'SELECT_SUGGESTION'
+        && event.obligation.confirmedByUser
         && state.alternatives.some((candidate) => candidate.text === event.obligation.text)) {
         return {
           kind: 'source',
