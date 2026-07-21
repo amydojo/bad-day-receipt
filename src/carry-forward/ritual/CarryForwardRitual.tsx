@@ -3,7 +3,10 @@ import {
   useReducer,
   useRef,
 } from 'react'
-import type { MachineSensoryDirector } from '../../mobile-instrument/sensory/sensoryTypes'
+import type {
+  MachineSensoryDirector,
+  MachineSensoryEvent,
+} from '../../mobile-instrument/sensory/sensoryTypes'
 import { getRecoveryCopy as getSharedRecoveryCopy } from '../../receipt-ending/recovery/recoveryCopy'
 import { CarryForwardStub } from './CarryForwardStub'
 import { FieldTransferArtifact } from './FieldTransferArtifact'
@@ -22,7 +25,10 @@ import {
   createInitialCarryRitualState,
   toCarryRitualHandoff,
 } from './carryForwardRitualReducer'
-import { emitCarryRitualMilestone } from './carryForwardRitualSensory'
+import {
+  emitCarryRitualMilestone,
+  resetCarryActuatorSensoryEligibility,
+} from './carryForwardRitualSensory'
 import type {
   ActuatorMilestone,
   CarryRitualHandoff,
@@ -77,7 +83,8 @@ export function CarryForwardRitual({
     createInitialCarryRitualState,
   )
   const headingRef = useRef<HTMLHeadingElement | null>(null)
-  const emittedMilestones = useRef(new Set<CarryRitualPhase>())
+  const emittedMilestones = useRef(new Set<MachineSensoryEvent>())
+  const previousPhase = useRef<CarryRitualPhase | null>(null)
   const fallbackTimers = useRef<number[]>([])
   const conversionFailureFixture = hasConversionFailureFixture()
 
@@ -94,11 +101,18 @@ export function CarryForwardRitual({
   }, [conversionFailureFixture, reducedMotion, state.phase])
 
   useEffect(() => {
+    if (
+      state.phase === 'actuator-ready'
+      && (previousPhase.current === 'released-early' || previousPhase.current === 'recovery')
+    ) {
+      resetCarryActuatorSensoryEligibility(emittedMilestones.current)
+    }
     emitCarryRitualMilestone({
       sensory,
       phase: state.phase,
       emitted: emittedMilestones.current,
     })
+    previousPhase.current = state.phase
   }, [sensory, state.phase])
 
   useEffect(() => {
@@ -229,11 +243,7 @@ export function CarryForwardRitual({
       </div>
 
       {SAFE_EXIT_PHASES.has(state.phase) && (
-        <button
-          className="carry-ritual__quiet-exit"
-          type="button"
-          onClick={cancelRitual}
-        >
+        <button className="carry-ritual__quiet-exit" type="button" onClick={cancelRitual}>
           RETURN TO COMPLETED RECEIPT
         </button>
       )}
