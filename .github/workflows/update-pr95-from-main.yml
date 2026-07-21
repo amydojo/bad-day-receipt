@@ -1,0 +1,46 @@
+name: update-pr95-from-main
+
+on:
+  push:
+    branches:
+      - tve/84-carry-designation
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-pr95-from-main
+  cancel-in-progress: false
+
+jobs:
+  merge-main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: tve/84-carry-designation
+          fetch-depth: 0
+
+      - name: Probe and update from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          set -e
+
+          if [ "$merge_status" -ne 0 ]; then
+            echo "Genuine merge conflicts:"
+            git diff --name-only --diff-filter=U
+            git merge --abort
+            exit 1
+          fi
+
+          git commit -m "chore(branch): merge validated PR #94 state into PR #95"
+          git push origin HEAD:tve/84-carry-designation
