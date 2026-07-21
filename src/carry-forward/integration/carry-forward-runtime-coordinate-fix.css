@@ -1,0 +1,10 @@
+/* The shared authored runtime animates the workspace and step shell with a
+   transform. A transformed ancestor becomes the containing block for fixed
+   descendants, which moved the in-tree action dock below the mobile
+   instrument. The in-tree host owns its own viewport transition, so remove
+   only that inherited transform here. */
+.cf-runtime--in-tree.cf-runtime--authored .cf-workspace,
+.cf-runtime--in-tree.cf-runtime--authored .cf-step-shell {
+  animation: none !important;
+  transform: none !important;
+}
