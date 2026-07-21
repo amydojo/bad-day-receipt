@@ -44,7 +44,6 @@ export function createInTreeCompilingState(
     },
     budget: handoff.budget,
     phase: 'request-accepted',
-    resume: null,
   }
 }
 
@@ -59,7 +58,6 @@ export function createInTreeRestoredState(
       reason: stored.reason,
       manualItems: stored.manualItems,
       manualDraft: stored.manualDraft,
-      resume: null,
     }
   }
   if (stored.status === 'complete') {
@@ -123,7 +121,7 @@ export function startTrustedInTreeActivation({
       if (!active) return
       onStage('required-facts-isolated')
       const startedAt = now().toISOString()
-      const session = createCompiledRuntimeSession(result.plan, startedAt, null)
+      const session = createCompiledRuntimeSession(result.plan, startedAt)
       const persisted = saveCarryForwardSession(storage, {
         status: 'active',
         task: draft.task,
