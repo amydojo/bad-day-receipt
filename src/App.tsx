@@ -426,12 +426,23 @@ function App() {
     return { status: 'failed', reason: result.reason }
   }, [applyReleaseData])
 
-  const expireRelease = useCallback(() => {
+  const expireRelease = useCallback((): ReleaseCommitResult => {
     const current = machineDataRef.current
-    if (!current.pendingRelease) return
+    if (!current.pendingRelease) {
+      setReceiptEndingPersistenceStatus('failed')
+      return { status: 'failed', reason: 'release-validation-failed' }
+    }
     const result = expireReleaseInMachineStorage({ current })
-    if (result.status !== 'saved') return
-    applyReleaseData(result.data)
+    if (result.status === 'saved') {
+      applyReleaseData(result.data)
+      return { status: 'saved' }
+    }
+    if (result.status === 'unavailable') {
+      setReceiptEndingPersistenceStatus('unavailable')
+      return { status: 'unavailable' }
+    }
+    setReceiptEndingPersistenceStatus('failed')
+    return { status: 'failed', reason: result.reason }
   }, [applyReleaseData])
 
   const returnFromRelease = useCallback((origin: ReleaseOrigin) => {
