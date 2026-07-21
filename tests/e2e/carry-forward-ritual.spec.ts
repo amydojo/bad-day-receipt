@@ -145,7 +145,7 @@ test.describe('Carry Forward physical ritual', () => {
     await expectSameNode(receiptHandle, '[data-receipt-artifact]')
   })
 
-  test('stable checkpoints cover intake recovery and refresh returns to the completed receipt', async ({ page }) => {
+  test('stable checkpoints cover intake recovery and refresh returns through a truthful safe boundary', async ({ page }) => {
     await reachRitual(page, 'Prepare questions for the clinic')
     const stub = page.locator('[data-carry-forward-stub]')
     const stubHandle = await stub.elementHandle()
@@ -174,10 +174,13 @@ test.describe('Carry Forward physical ritual', () => {
     expect(stubHandle).not.toBeNull()
 
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })
+    await expect(page.getByRole('heading', { name: 'The receipt is still complete.' })).toBeFocused({ timeout: 20_000 })
     await expect(page.locator('[data-receipt-artifact]')).toBeVisible()
     await expect(page.locator('[data-carry-forward-stub]')).toHaveCount(0)
     await expectCheckpoint(page, 'transfer-issued')
+    await page.getByRole('button', { name: 'RETURN TO COMPLETED RECEIPT' }).click()
+    await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused()
+    await expect.poll(() => page.evaluate(({ key }) => window.sessionStorage.getItem(key), { key: checkpointKey })).toBeNull()
     await page.setViewportSize({ width: 667, height: 375 })
   })
 
