@@ -41,6 +41,11 @@ const BUSY_PHASES = new Set<CarryRitualPhase>([
   'transfer-issuing',
 ])
 
+function hasConversionFailureFixture() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).get('carry-ritual-fixture') === 'conversion-failure'
+}
+
 export function CarryForwardRitual({
   payload,
   reducedMotion,
@@ -66,13 +71,19 @@ export function CarryForwardRitual({
   const headingRef = useRef<HTMLHeadingElement | null>(null)
   const emittedMilestones = useRef(new Set<CarryRitualPhase>())
   const fallbackTimers = useRef<number[]>([])
+  const conversionFailureFixture = hasConversionFailureFixture()
 
   useEffect(() => {
-    const advance = getCarryRitualPhaseAdvance(state.phase, reducedMotion)
+    const advance = state.phase === 'actuator-locked' && conversionFailureFixture
+      ? {
+          delay: 120,
+          event: { type: 'FAIL', reason: 'conversion-failed' } as const,
+        }
+      : getCarryRitualPhaseAdvance(state.phase, reducedMotion)
     if (!advance) return
     const timeout = window.setTimeout(() => dispatch(advance.event), advance.delay)
     return () => window.clearTimeout(timeout)
-  }, [reducedMotion, state.phase])
+  }, [conversionFailureFixture, reducedMotion, state.phase])
 
   useEffect(() => {
     emitCarryRitualMilestone({
