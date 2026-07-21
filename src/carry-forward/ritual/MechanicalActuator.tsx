@@ -147,6 +147,7 @@ export function MechanicalActuator({
           ref={handleRef}
           className="carry-actuator__handle"
           type="button"
+          data-carry-actuator
           disabled={!interactive}
           aria-label="Push actuator to convert"
           aria-describedby="carry-actuator-status carry-actuator-keyboard-hint"
