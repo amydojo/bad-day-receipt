@@ -49,6 +49,7 @@ import './receipt-ending/receipt-ending.css'
 import './receipt-ending/keep/keep-receipt.css'
 import './receipt-ending/release/release-receipt.css'
 import './receipt-ending/recovery/receipt-ending-recovery.css'
+import './carry-forward/ritual/carry-forward-ritual-hardening.css'
 // Keep the in-tree runtime coordinate correction after shared authored motion.
 import './carry-forward/integration/carry-forward-runtime-coordinate-fix.css'
 
