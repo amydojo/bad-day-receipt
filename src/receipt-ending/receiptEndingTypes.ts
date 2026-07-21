@@ -74,8 +74,10 @@ export type ReceiptEndingState =
       kind: 'release-recovery'
       receipt: CompletedReceiptSnapshot
       reason: ReleaseFailure
+      operation: 'release' | 'undo'
       releaseAttempt: number
       origin: ReleaseOrigin
+      undoUntil?: string
     }
   | { kind: 'carry-selected'; receipt: CompletedReceiptSnapshot }
   | {
@@ -126,6 +128,8 @@ export type ReceiptEndingEvent =
   | { type: 'RELEASE_FAILED'; reason: ReleaseFailure }
   | { type: 'RETRY_RELEASE'; undoUntil: string }
   | { type: 'UNDO_RELEASE' }
+  | { type: 'RETRY_UNDO_RELEASE' }
+  | { type: 'RETURN_TO_RELEASED_COMPLETION' }
   | { type: 'UNDO_RELEASE_COMMITTED'; destination: 'documented' | 'archive' }
   | { type: 'UNDO_RELEASE_FAILED'; reason: ReleaseFailure }
   | { type: 'RELEASE_UNDO_EXPIRED' }
