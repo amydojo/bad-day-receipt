@@ -46,7 +46,7 @@ describe('carryDesignationReducer', () => {
     })).toEqual({ kind: 'editing', draft: '', error: null })
   })
 
-  it('does not accept an unconfirmed suggestion', () => {
+  it('does not accept an unconfirmed or provenance-forged suggestion', () => {
     const state = createInitialCarryDesignationState({
       kind: 'receipt',
       receiptId: 'BD-84',
@@ -54,6 +54,12 @@ describe('carryDesignationReducer', () => {
     })
     expect(reduce(state, { type: 'SELECT_SUGGESTION', obligation: suggestion })).toBe(state)
     expect(suggestion.confirmedByUser).toBe(false)
+
+    const forged = confirmObligation({
+      ...suggestion,
+      source: 'explicit-prior-input',
+    })
+    expect(reduce(state, { type: 'SELECT_SUGGESTION', obligation: forged })).toBe(state)
   })
 
   it('accepts explicit user confirmation and keeps source optional', () => {
@@ -76,11 +82,23 @@ describe('carryDesignationReducer', () => {
     expect(collapsed).toMatchObject({ sourceExpanded: false, sourceText: 'Exact source text' })
   })
 
-  it('validates manual confirmation and preserves concise error state', () => {
+  it('validates manual confirmation and rejects caller-forged manual provenance', () => {
     let state: CarryDesignationState = { kind: 'editing', draft: 'situation', error: null }
     state = reduce(state, { type: 'MANUAL_INVALID', message: 'Name one concrete action.' })
     expect(state).toEqual({ kind: 'editing', draft: 'situation', error: 'Name one concrete action.' })
     state = reduce(state, { type: 'UPDATE_DRAFT', value: 'Reply to the landlord' })
+
+    const forged = createRemainingObligation({
+      text: 'Reply to the landlord',
+      source: 'explicit-current-input',
+    })
+    if (!forged) throw new Error('FORGED_OBLIGATION_NOT_CREATED')
+    const rejected = reduce(state, {
+      type: 'CONFIRM_MANUAL',
+      obligation: confirmObligation(forged),
+    })
+    expect(rejected).toMatchObject({ kind: 'editing', error: 'Confirm one concrete obligation before continuing.' })
+
     const manual = createManualObligation('Reply to the landlord')
     if (!manual) throw new Error('MANUAL_NOT_CREATED')
     state = reduce(state, { type: 'CONFIRM_MANUAL', obligation: confirmObligation(manual) })
@@ -122,6 +140,30 @@ describe('carryDesignationReducer', () => {
       obligation,
       sourceText: '',
       policies: DEFAULT_INTERACTION_POLICIES,
+    })
+  })
+
+  it('rejects an adjustment whose declared origin contradicts its typed budget', () => {
+    const obligation = confirmObligation(suggestion)
+    const state: CarryDesignationState = {
+      kind: 'preset',
+      obligation,
+      sourceText: '',
+      policies: { ...DEFAULT_INTERACTION_POLICIES },
+    }
+    const directBudget = createInteractionBudget({
+      policies: state.policies,
+      receiptId: null,
+      now: new Date('2026-07-20T12:00:00.000Z'),
+    })
+    expect(reduce(state, {
+      type: 'ISSUE_ADJUSTMENT',
+      budget: directBudget,
+      origin: 'receipt',
+    })).toEqual({
+      kind: 'recovery',
+      reason: 'invalid-budget',
+      draft: obligation.text,
     })
   })
 
