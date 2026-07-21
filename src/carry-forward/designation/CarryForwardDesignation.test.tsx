@@ -4,7 +4,6 @@ import { DEFAULT_INTERACTION_POLICIES } from '../interactionBudget'
 import { CarryForwardDesignation } from './CarryForwardDesignation'
 import { OneThingPreset } from './OneThingPreset'
 import { OptionalSourceDisclosure } from './OptionalSourceDisclosure'
-import { createRemainingObligation } from './obligationProvenance'
 
 const noOp = () => undefined
 
@@ -23,14 +22,13 @@ describe('CarryForwardDesignation', () => {
   })
 
   it('shows one explicit receipt-origin candidate without selecting it', () => {
-    const suggestion = createRemainingObligation({
-      text: 'Reply to the insurance denial',
-      source: 'authored-demo-fixture',
-    })
-    if (!suggestion) throw new Error('SUGGESTION_NOT_CREATED')
     const html = renderToStaticMarkup(
       <CarryForwardDesignation
-        origin={{ kind: 'receipt', receiptId: 'BD-84', candidates: [suggestion] }}
+        origin={{
+          kind: 'receipt',
+          receiptId: 'BD-84',
+          explicitInputs: { authoredDemoFixtures: ['Reply to the insurance denial'] },
+        }}
         onNothingAfterAll={noOp}
       />,
     )
@@ -39,6 +37,24 @@ describe('CarryForwardDesignation', () => {
     expect(html).toContain('THIS ONE')
     expect(html).toContain('EDIT')
     expect(html).toContain('CHOOSE SOMETHING ELSE')
+    expect(html).not.toContain('checked')
+  })
+
+  it('shows several explicit obligations as unselected native choices', () => {
+    const html = renderToStaticMarkup(
+      <CarryForwardDesignation
+        origin={{
+          kind: 'receipt',
+          receiptId: 'BD-84',
+          explicitInputs: {
+            explicitCurrentInputs: ['Reply to the landlord', 'Review the estimate'],
+          },
+        }}
+        onNothingAfterAll={noOp}
+      />,
+    )
+    expect(html.match(/type="radio"/g)).toHaveLength(2)
+    expect(html).toContain('Nothing is selected automatically.')
     expect(html).not.toContain('checked')
   })
 
