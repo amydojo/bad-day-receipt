@@ -83,19 +83,10 @@ export function ReleaseReceiptRitual({
       || state.phase !== 'committing'
       || !state.undoUntil) return
 
-    const key = [
-      state.receipt.receiptNumber,
-      state.releaseAttempt,
-      state.undoUntil,
-      state.origin.kind,
-    ].join(':')
+    const key = [state.receipt.receiptNumber, state.releaseAttempt, state.undoUntil, state.origin.kind].join(':')
     let promise = commitPromises.current.get(key)
     if (!promise) {
-      promise = Promise.resolve(onCommitRelease(
-        state.receipt,
-        state.origin,
-        state.undoUntil,
-      ))
+      promise = Promise.resolve(onCommitRelease(state.receipt, state.origin, state.undoUntil))
       commitPromises.current.set(key, promise)
     }
 
@@ -173,6 +164,7 @@ export function ReleaseReceiptRitual({
   }, [dispatch, onExpireRelease, state])
 
   if (state.kind === 'release-recovery') {
+    const undoRecovery = state.operation === 'undo'
     const exportCopy = async () => {
       if (exportBusy) return
       setExportBusy(true)
@@ -188,26 +180,32 @@ export function ReleaseReceiptRitual({
       <section
         className="release-recovery receipt-decision"
         data-release-recovery={state.reason}
+        data-release-recovery-operation={state.operation}
         aria-labelledby="release-recovery-heading"
       >
         <p className="receipt-decision__eyebrow">RECEIPT STILL VALID</p>
         <h2 id="release-recovery-heading" ref={headingRef} tabIndex={-1}>
-          The receipt is still here.
+          {undoRecovery ? 'The receipt is ready to return.' : 'The receipt is still here.'}
         </h2>
         <p className="receipt-decision__body">
-          The release could not be confirmed on this device. Nothing has been removed.
+          {undoRecovery
+            ? 'The undo could not be confirmed on this device. The released record remains available during its undo window.'
+            : 'The release could not be confirmed on this device. Nothing has been removed.'}
         </p>
         <div className="receipt-decision__choices release-recovery__choices">
           <button
             className="receipt-decision__choice"
             type="button"
-            onClick={() => dispatch({
-              type: 'RETRY_RELEASE',
-              undoUntil: createReleaseUndoUntil(),
-            })}
+            onClick={() => dispatch(undoRecovery
+              ? { type: 'RETRY_UNDO_RELEASE' }
+              : { type: 'RETRY_RELEASE', undoUntil: createReleaseUndoUntil() })}
           >
-            <span className="receipt-decision__choice-label">TRY RELEASE AGAIN</span>
-            <span className="receipt-decision__choice-description">Attempt the local release once more.</span>
+            <span className="receipt-decision__choice-label">
+              {undoRecovery ? 'TRY UNDO AGAIN' : 'TRY RELEASE AGAIN'}
+            </span>
+            <span className="receipt-decision__choice-description">
+              {undoRecovery ? 'Attempt to restore the exact local receipt once more.' : 'Attempt the local release once more.'}
+            </span>
           </button>
           <button
             className="receipt-decision__choice"
@@ -221,10 +219,19 @@ export function ReleaseReceiptRitual({
           <button
             className="receipt-decision__choice"
             type="button"
-            onClick={() => onReturnToSource(state.origin)}
+            onClick={() => {
+              if (undoRecovery) dispatch({ type: 'RETURN_TO_RELEASED_COMPLETION' })
+              else onReturnToSource(state.origin)
+            }}
           >
-            <span className="receipt-decision__choice-label">RETURN TO THE DOCUMENTED RECEIPT</span>
-            <span className="receipt-decision__choice-description">Leave the release without changing the receipt.</span>
+            <span className="receipt-decision__choice-label">
+              {undoRecovery ? 'RETURN TO RELEASED RECEIPT' : 'RETURN TO THE DOCUMENTED RECEIPT'}
+            </span>
+            <span className="receipt-decision__choice-description">
+              {undoRecovery
+                ? 'Keep the released completion and its remaining Undo action.'
+                : 'Leave the release without changing the receipt.'}
+            </span>
           </button>
         </div>
         <p className="release-recovery__status" aria-live="polite">{exportMessage}</p>
