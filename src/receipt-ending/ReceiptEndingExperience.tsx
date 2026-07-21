@@ -194,6 +194,8 @@ export function ReceiptEndingExperience({
             receiptId: state.receipt.receiptNumber,
             explicitInputs: getDevelopmentDesignationInputs(),
           }}
+          reducedMotion={reducedMotion}
+          sensory={sensory}
           onNothingAfterAll={() => dispatch({ type: 'BACK_TO_DOCUMENTED' })}
         />
       )
