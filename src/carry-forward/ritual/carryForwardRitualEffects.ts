@@ -70,15 +70,45 @@ export function createCarryRitualCheckpoint(
   }
 }
 
+export const FALLBACK_ACTUATOR_STEPS = [
+  { milestone: 'easy', progress: 0.25 },
+  { milestone: 'medium', progress: 0.6 },
+  { milestone: 'heavy', progress: 0.84 },
+  { milestone: 'detent', progress: 0.94 },
+  { milestone: 'locked', progress: 1 },
+] as const satisfies ReadonlyArray<{
+  milestone: ActuatorMilestone
+  progress: number
+}>
+
+export function getNextFallbackActuatorEvent(
+  current: ActuatorMilestone | null,
+): CarryRitualEvent {
+  const currentIndex = current === null
+    ? -1
+    : FALLBACK_ACTUATOR_STEPS.findIndex((step) => step.milestone === current)
+  const next = FALLBACK_ACTUATOR_STEPS[Math.min(
+    FALLBACK_ACTUATOR_STEPS.length - 1,
+    currentIndex + 1,
+  )]
+  return {
+    type: 'ACTUATOR_MILESTONE',
+    milestone: next.milestone,
+    progress: next.progress,
+  }
+}
+
 export function getFallbackActuatorSequence(): Array<{
   delay: number
   event: CarryRitualEvent
 }> {
-  return [
-    { delay: 0, event: { type: 'ACTUATOR_MILESTONE', milestone: 'easy', progress: 0.25 } },
-    { delay: 90, event: { type: 'ACTUATOR_MILESTONE', milestone: 'medium', progress: 0.6 } },
-    { delay: 190, event: { type: 'ACTUATOR_MILESTONE', milestone: 'heavy', progress: 0.84 } },
-    { delay: 310, event: { type: 'ACTUATOR_MILESTONE', milestone: 'detent', progress: 0.94 } },
-    { delay: 430, event: { type: 'ACTUATOR_MILESTONE', milestone: 'locked', progress: 1 } },
-  ]
+  const delays = [0, 90, 190, 310, 430]
+  return FALLBACK_ACTUATOR_STEPS.map((step, index) => ({
+    delay: delays[index],
+    event: {
+      type: 'ACTUATOR_MILESTONE',
+      milestone: step.milestone,
+      progress: step.progress,
+    },
+  }))
 }
