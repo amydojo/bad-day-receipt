@@ -3,8 +3,8 @@ import {
   InteractionBudgetSchema,
 } from '../interactionBudget'
 import {
+  collectExplicitObligations,
   getObligationChoiceModel,
-  sanitizeObligationCandidates,
 } from './obligationProvenance'
 import type {
   CarryDesignationEvent,
@@ -20,7 +20,7 @@ export function createInitialCarryDesignationState(
   }
 
   const choices = getObligationChoiceModel(
-    sanitizeObligationCandidates(origin.candidates),
+    collectExplicitObligations(origin.explicitInputs),
   )
   if (!choices.suggestion && choices.alternatives.length === 0) {
     return { kind: 'editing', draft: '', error: null }
@@ -141,6 +141,14 @@ export function carryDesignationReducer(
       return state
 
     case 'ritual-ready':
+      if (event.type === 'RETURN_TO_PRESET') {
+        return {
+          kind: 'preset',
+          obligation: state.obligation,
+          sourceText: state.sourceText,
+          policies: { ...state.budget.policies },
+        }
+      }
       return state
 
     case 'recovery':
