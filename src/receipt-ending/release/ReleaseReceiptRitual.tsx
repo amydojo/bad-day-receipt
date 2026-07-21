@@ -22,9 +22,10 @@ export type ReleaseCommitResult =
   | { status: 'unavailable' }
   | { status: 'failed'; reason?: ReleaseFailure }
 
-export type UndoReleaseResult = ReleaseCommitResult & {
-  destination?: 'documented' | 'archive'
-}
+export type UndoReleaseResult =
+  | { status: 'saved'; destination: 'documented' | 'archive' }
+  | { status: 'unavailable' }
+  | { status: 'failed'; reason?: ReleaseFailure }
 
 export function ReleaseReceiptRitual({
   state,
@@ -129,7 +130,7 @@ export function ReleaseReceiptRitual({
     void promise
       .then((result) => {
         if (canceled) return
-        if (result.status === 'saved' && result.destination) {
+        if (result.status === 'saved') {
           dispatch({ type: 'UNDO_RELEASE_COMMITTED', destination: result.destination })
           return
         }
