@@ -32,10 +32,9 @@ export function OptionalSourceDisclosure({
   }, [expanded])
 
   return (
-    <section className="carry-designation__source" aria-labelledby="carry-source-heading">
+    <div className="carry-designation__source">
       <button
         ref={triggerRef}
-        id="carry-source-heading"
         className="carry-designation__disclosure"
         type="button"
         aria-expanded={expanded}
@@ -69,6 +68,6 @@ export function OptionalSourceDisclosure({
           </p>
         </div>
       )}
-    </section>
+    </div>
   )
 }
