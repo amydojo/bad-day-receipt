@@ -38,6 +38,29 @@ function decayEnvelope(index: number, length: number, power = 3): number {
   return Math.pow(1 - index / Math.max(1, length - 1), power)
 }
 
+function restrainedContact(
+  context: AudioContext,
+  {
+    duration,
+    frequency,
+    noise,
+    seed,
+    power = 3.5,
+  }: {
+    duration: number
+    frequency: number
+    noise: number
+    seed: number
+    power?: number
+  },
+): AudioBuffer {
+  return createBuffer(context, duration, (time, index, length) => {
+    const envelope = decayEnvelope(index, length, power)
+    const body = Math.sin(2 * Math.PI * frequency * time) * 0.22
+    return (body + deterministicNoise(index, seed) * noise) * envelope
+  })
+}
+
 function renderOneShot(context: AudioContext, event: OneShotEvent): AudioBuffer | null {
   switch (event) {
     case 'register-clack':
@@ -100,6 +123,8 @@ function renderOneShot(context: AudioContext, event: OneShotEvent): AudioBuffer 
         const envelope = Math.pow(Math.sin(Math.PI * progress), 1.8)
         return deterministicNoise(index, 211) * envelope * 0.1
       })
+    case 'thermal-unprint-complete':
+      return restrainedContact(context, { duration: 0.05, frequency: 84, noise: 0.05, seed: 219, power: 4.5 })
     case 'paper-tension-release':
       return createBuffer(context, 0.12, (time, index, length) => {
         const envelope = decayEnvelope(index, length, 2.2)
@@ -117,6 +142,36 @@ function renderOneShot(context: AudioContext, event: OneShotEvent): AudioBuffer 
         const body = Math.sin(2 * Math.PI * 58 * time) * 0.22
         const contact = deterministicNoise(index, 281) * 0.12
         return (body + contact) * envelope
+      })
+    case 'carry-stub-tear':
+      return createBuffer(context, 0.075, (_time, index, length) => (
+        deterministicNoise(index, 307) * decayEnvelope(index, length, 4.2) * 0.2
+      ))
+    case 'carry-intake-start':
+      return createBuffer(context, 0.11, (time, index, length) => {
+        const progress = index / Math.max(1, length - 1)
+        const envelope = Math.pow(Math.sin(Math.PI * progress), 1.8)
+        return (
+          Math.sin(2 * Math.PI * 88 * time) * 0.08
+          + deterministicNoise(index, 331) * 0.07
+        ) * envelope
+      })
+    case 'carry-intake-stop':
+      return restrainedContact(context, { duration: 0.055, frequency: 76, noise: 0.06, seed: 347, power: 4 })
+    case 'actuator-medium':
+      return restrainedContact(context, { duration: 0.045, frequency: 92, noise: 0.04, seed: 359, power: 4 })
+    case 'actuator-heavy':
+      return restrainedContact(context, { duration: 0.055, frequency: 72, noise: 0.06, seed: 373, power: 3.8 })
+    case 'actuator-detent':
+      return restrainedContact(context, { duration: 0.06, frequency: 104, noise: 0.08, seed: 389, power: 4.5 })
+    case 'actuator-lock':
+      return restrainedContact(context, { duration: 0.085, frequency: 61, noise: 0.1, seed: 401, power: 3.7 })
+    case 'transfer-register':
+      return restrainedContact(context, { duration: 0.07, frequency: 137, noise: 0.05, seed: 419, power: 3.8 })
+    case 'transfer-issued':
+      return createBuffer(context, 0.09, (_time, index, length) => {
+        const progress = index / Math.max(1, length - 1)
+        return deterministicNoise(index, 433) * Math.pow(Math.sin(Math.PI * progress), 2) * 0.07
       })
     case 'cvs-printer-restart':
       return createBuffer(context, 0.16, (time, index, length) => {
