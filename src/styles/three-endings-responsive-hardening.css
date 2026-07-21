@@ -30,8 +30,9 @@
   }
 
   .mobile-machine-tools > button > span {
-    color: var(--muted, #5e5b55);
+    color: inherit;
     font-size: 8px;
+    font-weight: 500;
     letter-spacing: .12em;
   }
 
