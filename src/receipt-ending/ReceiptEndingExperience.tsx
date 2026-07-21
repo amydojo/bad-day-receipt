@@ -30,6 +30,12 @@ import { ReceiptDecisionSurface } from './ReceiptDecisionSurface'
 import { RECEIPT_COMPLETION_PAUSE_MS } from './receiptEndingEffects'
 import { ReceiptEndingRecovery } from './recovery/ReceiptEndingRecovery'
 import {
+  pushReceiptEndingHistory,
+  readReceiptEndingHistory,
+  replaceReceiptEndingHistory,
+  type ReceiptEndingHistoryState,
+} from './recovery/receiptEndingHistory'
+import {
   dismissCarryRitualRecovery,
   reconcileCarryRitualCheckpoint,
   type CarryCheckpointRecovery,
@@ -82,6 +88,8 @@ export function ReceiptEndingExperience({
   onCloseKeepCompletion: () => void
 }) {
   const localHeadingRef = useRef<HTMLHeadingElement | null>(null)
+  const stateKindRef = useRef<ReceiptEndingState['kind']>(state.kind)
+  stateKindRef.current = state.kind
   const [restoredRuntime, setRestoredRuntime] = useState<StoredCarryForwardSession | StoredCarryForwardFallback | null>(null)
   const [carryCheckpointRecovery, setCarryCheckpointRecovery] = useState<RecoverableCarryCheckpoint | null>(null)
 
@@ -115,6 +123,23 @@ export function ReceiptEndingExperience({
     setCarryCheckpointRecovery(recovery.status === 'recoverable' ? recovery : null)
   }, [state.receipt.receiptNumber])
 
+  useEffect(() => {
+    if (state.kind !== 'documented') return
+    if (!readReceiptEndingHistory(window.history.state)) {
+      replaceReceiptEndingHistory(window.history, 'documented')
+    }
+  }, [state.kind, state.receipt.receiptNumber])
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const target = readReceiptEndingHistory(event.state)
+      if (!target) return
+      navigateToHistoryState(target, stateKindRef.current, dispatch)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [dispatch])
+
   const focusToken = restoredRuntime
     ? null
     : carryCheckpointRecovery
@@ -143,6 +168,21 @@ export function ReceiptEndingExperience({
     setCarryCheckpointRecovery(null)
   }
 
+  const selectEndingPath = (target: 'end-choice' | 'carry-selected') => {
+    pushReceiptEndingHistory(window.history, target)
+    dispatch({ type: target === 'end-choice' ? 'SELECT_END_HERE' : 'SELECT_CARRY_FORWARD' })
+  }
+
+  const returnToDocumented = () => {
+    const historyState = readReceiptEndingHistory(window.history.state)
+    if (historyState && historyState !== 'documented' && window.history.length > 1) {
+      window.history.back()
+      return
+    }
+    replaceReceiptEndingHistory(window.history, 'documented')
+    dispatch({ type: 'BACK_TO_DOCUMENTED' })
+  }
+
   const persistenceNote = persistenceStatus === 'saved'
     ? null
     : 'This receipt remains available for this session. Local recovery is not currently confirmed.'
@@ -165,7 +205,7 @@ export function ReceiptEndingExperience({
         restored={restoredRuntime}
         onReturnToReceipt={() => {
           setRestoredRuntime(null)
-          dispatch({ type: 'BACK_TO_DOCUMENTED' })
+          returnToDocumented()
         }}
       />
     )
@@ -176,7 +216,7 @@ export function ReceiptEndingExperience({
         headingRef={assignHeadingRef}
         onRestart={() => {
           clearCarryRecovery()
-          dispatch({ type: 'SELECT_CARRY_FORWARD' })
+          selectEndingPath('carry-selected')
         }}
         onDismiss={clearCarryRecovery}
       />
@@ -195,13 +235,13 @@ export function ReceiptEndingExperience({
               id: 'end-here',
               label: 'END THE DAY HERE',
               description: 'Nothing else will be asked of you.',
-              onSelect: () => dispatch({ type: 'SELECT_END_HERE' }),
+              onSelect: () => selectEndingPath('end-choice'),
             },
             {
               id: 'carry-forward',
               label: 'CARRY ONE THING FORWARD',
               description: 'Choose one remaining obligation and make it smaller.',
-              onSelect: () => dispatch({ type: 'SELECT_CARRY_FORWARD' }),
+              onSelect: () => selectEndingPath('carry-selected'),
             },
           ]}
         />
@@ -215,7 +255,7 @@ export function ReceiptEndingExperience({
           persistenceNote={persistenceNote}
           onKeep={() => dispatch({ type: 'SELECT_KEEP' })}
           onRelease={() => dispatch({ type: 'SELECT_RELEASE' })}
-          onBack={() => dispatch({ type: 'BACK_TO_DOCUMENTED' })}
+          onBack={returnToDocumented}
         />
       )
       break
@@ -264,7 +304,7 @@ export function ReceiptEndingExperience({
           }}
           reducedMotion={reducedMotion}
           sensory={sensory}
-          onNothingAfterAll={() => dispatch({ type: 'BACK_TO_DOCUMENTED' })}
+          onNothingAfterAll={returnToDocumented}
         />
       )
       break
@@ -304,6 +344,24 @@ export function ReceiptEndingExperience({
       )}
     </div>
   )
+}
+
+function navigateToHistoryState(
+  target: ReceiptEndingHistoryState,
+  current: ReceiptEndingState['kind'],
+  dispatch: Dispatch<ReceiptEndingEvent>,
+) {
+  if (target === 'documented') {
+    if (current === 'end-choice' || current === 'carry-selected') {
+      dispatch({ type: 'BACK_TO_DOCUMENTED' })
+    }
+    return
+  }
+
+  if (current === 'end-choice' || current === 'carry-selected') {
+    dispatch({ type: 'BACK_TO_DOCUMENTED' })
+  }
+  dispatch({ type: target === 'end-choice' ? 'SELECT_END_HERE' : 'SELECT_CARRY_FORWARD' })
 }
 
 function getFocusToken(state: ReceiptEndingState): string | null {
