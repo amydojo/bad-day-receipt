@@ -39,7 +39,11 @@ function defaultSender(
   properties: ReceiptEndingRecoveryEvent,
 ) {
   try {
-    track(name, properties)
+    track(name, {
+      domain: properties.domain,
+      boundary: properties.boundary,
+      outcome: properties.outcome,
+    })
   } catch {
     // Recovery telemetry is supplemental and must never affect product state.
   }
