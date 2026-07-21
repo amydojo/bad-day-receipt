@@ -1,6 +1,10 @@
 import type { CSSProperties } from 'react'
 import { getLedStatus, getPrinterStatus } from '../printer/printerMachine'
 import type { PrinterPhase } from '../printer/printerTypes'
+import {
+  ReleaseSlot,
+  type PrinterReleaseState,
+} from '../receipt-ending/release/ReleaseSlot'
 import type { ReceiptTheme } from '../themes'
 
 export type PrinterArchiveState =
@@ -16,8 +20,9 @@ interface PrinterShellProps {
   phase: PrinterPhase
   theme: ReceiptTheme
   statusOverride?: string
-  mode?: 'receipt' | 'archive'
+  mode?: 'receipt' | 'archive' | 'release'
   archiveState?: PrinterArchiveState
+  releaseState?: PrinterReleaseState
 }
 
 export function PrinterShell({
@@ -26,6 +31,7 @@ export function PrinterShell({
   statusOverride,
   mode = 'receipt',
   archiveState = 'closed',
+  releaseState = 'closed',
 }: PrinterShellProps) {
   return (
     <div
@@ -34,6 +40,7 @@ export function PrinterShell({
       data-printer-shell
       data-printer-mode={mode}
       data-archive-state={archiveState}
+      data-release-state={releaseState}
     >
       <div className="printer-shell__top">
         <div>
@@ -65,6 +72,8 @@ export function PrinterShell({
         </div>
         <div className="printer-archive-bay__occlusion" />
       </div>
+
+      <ReleaseSlot state={releaseState} />
     </div>
   )
 }
