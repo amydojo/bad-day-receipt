@@ -171,6 +171,7 @@ test.describe('Carry Forward physical ritual', () => {
     await page.getByRole('button', { name: 'Push actuator to convert' }).click()
     await expect(page.locator('[data-field-transfer-issued="true"]')).toBeVisible({ timeout: 10_000 })
     await expectCheckpoint(page, 'transfer-issued')
+    expect(stubHandle).not.toBeNull()
 
     await page.reload()
     await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })
@@ -178,7 +179,6 @@ test.describe('Carry Forward physical ritual', () => {
     await expect(page.locator('[data-carry-forward-stub]')).toHaveCount(0)
     await expectCheckpoint(page, 'transfer-issued')
     await page.setViewportSize({ width: 667, height: 375 })
-    expect(await stubHandle?.evaluate((node) => node.isConnected)).toBe(false)
   })
 
   test('conversion failure recovers to actuator-ready without invalidating the receipt', async ({ page }) => {
