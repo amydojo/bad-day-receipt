@@ -40,12 +40,12 @@ export const RECOVERY_COPY: Readonly<Record<RecoveryCopyId, RecoveryCopy>> = {
   'carry-intake': {
     eyebrow: 'RECEIPT STILL VALID',
     title: 'The stub did not enter the printer.',
-    body: 'The same separated stub is still available. The completed receipt has not changed.',
+    body: 'The intake did not capture the stub. The same separated stub is still available.',
   },
   'carry-conversion': {
     eyebrow: 'RECEIPT STILL VALID',
     title: 'The adjustment was not issued.',
-    body: 'The same stub can return to the actuator-ready boundary. The completed receipt has not changed.',
+    body: 'Conversion did not register. The same stub can return to the actuator-ready boundary.',
   },
   'keep-storage': {
     eyebrow: 'RECEIPT STILL VALID',
