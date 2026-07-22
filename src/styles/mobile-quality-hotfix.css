@@ -97,4 +97,29 @@
     max-height: none !important;
     overflow: hidden !important;
   }
+
+  .mobile-instrument[data-mobile-scene='artifact']
+    .mobile-instrument__machine:has(.receipt-machine[data-receipt-ending-state]) {
+    overflow-y: auto;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact']
+    .receipt-stage:has(> .receipt-machine[data-receipt-ending-state]) {
+    position: static !important;
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    padding: 8px 8px max(18px, env(safe-area-inset-bottom)) !important;
+    overflow: visible !important;
+  }
+
+  .mobile-instrument[data-mobile-scene='artifact']
+    .receipt-machine[data-receipt-ending-state] {
+    position: static !important;
+    inset: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
 }

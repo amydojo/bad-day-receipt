@@ -1,7 +1,12 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { commitTransaction, openMachine } from '../fixtures/machine'
 import { mockPlatformApis } from '../fixtures/platformApis'
+import {
+  expectScrollOwner,
+  expectViewportLocked,
+  expectWindowScrollStable,
+} from '../fixtures/qualityAssertions'
 import {
   CARRY_RITUAL_CHECKPOINT_KEY,
   dispatchPointerCancel,
@@ -23,6 +28,87 @@ async function reachDocumented(page: Page) {
   await openMachine(page)
   await commitTransaction(page)
   await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })
+}
+
+async function expectActionReachable(page: Page, action: Locator) {
+  await expect(action).toBeVisible()
+  await expect(action).toBeEnabled()
+
+  const geometry = await action.evaluate((element) => {
+    const rect = element.getBoundingClientRect()
+    const hit = document.elementFromPoint(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+    )
+    return {
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      left: rect.left,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      hit: hit === element || element.contains(hit),
+    }
+  })
+
+  expect(geometry.top).toBeGreaterThanOrEqual(0)
+  expect(geometry.left).toBeGreaterThanOrEqual(0)
+  expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth)
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight)
+  expect(geometry.hit).toBe(true)
+  await action.click({ trial: true })
+}
+
+async function scrollEndingViewport(page: Page) {
+  const owner = page.locator('.mobile-instrument__machine')
+  const contract = await owner.evaluate((element) => {
+    element.scrollTop = 0
+    const nestedOwners = Array.from(element.querySelectorAll<HTMLElement>('*'))
+      .filter((candidate) => {
+        const overflowY = getComputedStyle(candidate).overflowY
+        return (overflowY === 'auto' || overflowY === 'scroll')
+          && candidate.scrollHeight > candidate.clientHeight + 1
+      })
+      .map((candidate) => candidate.className)
+
+    return {
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      overflowY: getComputedStyle(element).overflowY,
+      nestedOwners,
+    }
+  })
+
+  expect(contract.overflowY).toBe('auto')
+  expect(contract.scrollHeight).toBeGreaterThan(contract.clientHeight)
+  expect(contract.nestedOwners).toEqual([])
+
+  await expectWindowScrollStable(page, async () => {
+    await owner.evaluate((element) => {
+      element.scrollTo({ top: element.scrollHeight, behavior: 'instant' })
+      element.dispatchEvent(new Event('scroll'))
+    })
+    await expect.poll(() => owner.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  })
+}
+
+async function expectThreeEndingActionsReachable(page: Page) {
+  await scrollEndingViewport(page)
+
+  const endHere = page.getByRole('button', { name: /END THE DAY HERE/ })
+  const carryForward = page.getByRole('button', { name: /CARRY ONE THING FORWARD/ })
+  await expectActionReachable(page, endHere)
+  await expectActionReachable(page, carryForward)
+
+  await endHere.click()
+  await expect(page.locator('.receipt-machine')).toHaveAttribute('data-receipt-ending-state', 'end-choice')
+  await scrollEndingViewport(page)
+
+  await expectActionReachable(page, page.getByRole('button', { name: /KEEP RECEIPT/ }))
+  await expectActionReachable(page, page.getByRole('button', { name: /LET IT GO/ }))
+
+  await page.getByRole('button', { name: 'BACK TO ENDING CHOICE' }).click()
+  await expect(page.locator('.receipt-machine')).toHaveAttribute('data-receipt-ending-state', 'documented')
 }
 
 async function reachRitual(page: Page, task = 'Reply to the insurance denial') {
@@ -150,6 +236,64 @@ test.describe('Three Endings gaps-only hardening', () => {
     const endHere = page.getByRole('button', { name: /END THE DAY HERE/ })
     await endHere.scrollIntoViewIfNeeded()
     await expect(endHere).toBeVisible()
+  })
+
+  test('mobile artifact scrolling reaches all three endings without weakening the print lock', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await openMachine(page)
+    await commitTransaction(page)
+
+    await expect(page.locator('.mobile-instrument')).toHaveAttribute('data-mobile-scene', 'printing')
+    await expectScrollOwner(page, 'none')
+    await expectViewportLocked(page)
+    await expect(page.locator('.mobile-instrument__machine')).toHaveCSS('overflow-y', 'hidden')
+
+    await expect(page.getByRole('heading', { name: 'The day is documented.' })).toBeFocused({ timeout: 20_000 })
+    await expectScrollOwner(page, 'receipt')
+    await expectViewportLocked(page)
+    await expectThreeEndingActionsReachable(page)
+
+    await page.setViewportSize({ width: 375, height: 667 })
+    await expectThreeEndingActionsReachable(page)
+  })
+
+  test('desktop completion keeps the existing document layout', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await reachDocumented(page)
+
+    const layout = await page.evaluate(() => {
+      const instrument = document.querySelector<HTMLElement>('.mobile-instrument')
+      const machineScene = document.querySelector<HTMLElement>('.mobile-instrument__machine')
+      const stage = document.querySelector<HTMLElement>('.receipt-stage')
+      const machine = document.querySelector<HTMLElement>('.receipt-machine')
+      if (!instrument || !machineScene || !stage || !machine) {
+        throw new Error('Desktop receipt layout is incomplete.')
+      }
+
+      return {
+        locked: document.documentElement.getAttribute('data-mobile-instrument-locked'),
+        bodyPosition: getComputedStyle(document.body).position,
+        instrumentPosition: getComputedStyle(instrument).position,
+        machineSceneDisplay: getComputedStyle(machineScene).display,
+        stagePosition: getComputedStyle(stage).position,
+        stageOverflowY: getComputedStyle(stage).overflowY,
+        machinePosition: getComputedStyle(machine).position,
+        machineOverflowY: getComputedStyle(machine).overflowY,
+      }
+    })
+
+    expect(layout).toEqual({
+      locked: null,
+      bodyPosition: 'static',
+      instrumentPosition: 'static',
+      machineSceneDisplay: 'contents',
+      stagePosition: 'sticky',
+      stageOverflowY: 'visible',
+      machinePosition: 'static',
+      machineOverflowY: 'visible',
+    })
+    await expect(page.getByRole('button', { name: /END THE DAY HERE/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /CARRY ONE THING FORWARD/ })).toBeVisible()
   })
 
   test('direct Carry Forward remains truthful and accessible without receipt provenance', async ({ page }) => {
